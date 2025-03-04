@@ -21,11 +21,13 @@ io.on("connection", (socket) => {
   });
 });
 
-server.listen(process.env.SOCKETIO_PORT || 3002);
+// Instead of starting a separate server, we'll export the server object
+// and let the main Express app use it
 
 module.exports = {
   io,
   clients,
+  server, // Export the server object
   methods:{
     getUserSockets: userId => clients.filter(e=>e.userId === userId).map(e=>e.socketId)
   }

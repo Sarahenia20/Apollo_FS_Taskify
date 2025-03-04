@@ -11,10 +11,13 @@ export const errorsSlice = createSlice({
     setErrors: (state, action) => {
       state.content = action.payload;
     },
+    clearErrors: (state) => {
+      state.content = {};
+    },
   },
 });
 
 // Action creators are generated for each case reducer function
-export const { setErrors } = errorsSlice.actions;
+export const { setErrors, clearErrors } = errorsSlice.actions;
 
 export default errorsSlice.reducer;

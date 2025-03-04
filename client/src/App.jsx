@@ -26,17 +26,21 @@ import { store } from "./redux/store";
 
 import axios from "axios";
 import { useDispatch, useSelector } from "react-redux";
-import io from "socket.io-client";
+// import io from "socket.io-client";
 import { setAuthToken } from "./lib/setAuthToken";
 import Reset from "./pages/Authentication/Reset";
 import Unauthorized from "./pages/Unauthorized";
 import { Logout } from "./redux/actions/auth";
 import { notificationSlice } from "./redux/reducers/notifications";
 
-const socketClient = io("http://localhost:3002", {
-  transports: ["websocket"],
-  upgrade: false,
-});
+// Create a dummy socket client to prevent app crashes
+const socketClient = {
+  connected: false,
+  connect: () => console.log("Dummy socket connect called"),
+  disconnect: () => console.log("Dummy socket disconnect called"),
+  on: () => console.log("Dummy socket on called"),
+  emit: () => console.log("Dummy socket emit called"),
+};
 
 if (localStorage.token) {
   const decoded = jwtDecode(localStorage.token);
@@ -74,6 +78,9 @@ const App = () => {
           dispatch(notificationSlice.actions.addNotifications(n.data));
         })
         .catch((e) => console.log(e));
+      
+      // Socket.io connection is temporarily disabled
+      /*
       //if connected
       //connect this user to socket server
       socketClient.connect();
@@ -84,6 +91,7 @@ const App = () => {
         // console.log("notification received: " + JSON.stringify(d));
         dispatch(notificationSlice.actions.addNotifications(n));
       });
+      */
     } else {
       //delete user id from socket
       if (socketClient.connected) socketClient.disconnect();
@@ -94,7 +102,7 @@ const App = () => {
     !loading && (
       <>
         <Routes>
-          <Route path="/" element={<Profile />} />
+          <Route path="/" element={<SignIn />} />
           <Route exact path="/admin" element={<Analytics />} />
           <Route path="/calendar" element={<Calendar />} />
           <Route path="/kanban" element={<Kanban />} />

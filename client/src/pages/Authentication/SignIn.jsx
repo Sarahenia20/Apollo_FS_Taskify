@@ -6,11 +6,27 @@ import { Link, useNavigate } from "react-router-dom";
 import InputGroup from "../../components/form/InputGroup";
 import { useDispatch, useSelector } from "react-redux";
 import { LoginRegister } from "../../redux/actions/auth";
+import OtpModal from "../../components/OtpModal";
+import EmailVerificationModal from "../../components/EmailVerificationModal";
+import axios from "axios";
 
 const SignIn = () => {
   const [form, setfForm] = useState({});
+  const [showOtpModal, setShowOtpModal] = useState(false);
+  const [showEmailVerificationModal, setShowEmailVerificationModal] = useState(false);
+  const [otpError, setOtpError] = useState("");
   const dispatch = useDispatch();
   const { content } = useSelector((state) => state.errors);
+  const { emailVerificationRequired, emailForVerification } = useSelector((state) => state.auth);
+
+  // Update state based on Redux state changes
+  React.useEffect(() => {
+    if (emailVerificationRequired) {
+      setShowEmailVerificationModal(true);
+    } else {
+      setShowEmailVerificationModal(false);
+    }
+  }, [emailVerificationRequired]);
 
   const OnChangeHandler = (e) => {
     setfForm({
@@ -19,9 +35,31 @@ const SignIn = () => {
     });
   };
 
-  const onSubmitHandler = (e) => {
+  const onSubmitHandler = async (e) => {
     e.preventDefault();
+    
+    // Dispatch login action - it will handle the email verification requirement
     dispatch(LoginRegister(form));
+  };
+
+  const handleVerifyOtp = async (otp) => {
+    try {
+      // Verify the OTP
+      const verifyResponse = await axios.post("/api/auth/2fa/verify-otp", {
+        email: form.email,
+        token: otp
+      });
+      
+      // If OTP is verified, proceed with login
+      if (verifyResponse.data.verified) {
+        // Add the OTP verification flag to the form
+        const formWithOtp = { ...form, otpVerified: true };
+        dispatch(LoginRegister(formWithOtp));
+        setShowOtpModal(false);
+      }
+    } catch (err) {
+      setOtpError(err.response?.data?.error || "Invalid verification code");
+    }
   };
 
   return (
@@ -124,7 +162,7 @@ const SignIn = () => {
 
                 <div className="mt-6 text-center">
                   <p>
-                    Don’t have an account?{" "}
+                    Don't have an account?{" "}
                     <Link to="/auth/signup" className="text-secondary">
                       Sign Up
                     </Link>
@@ -135,6 +173,22 @@ const SignIn = () => {
           </div>
         </div>
       </div>
+
+      {/* OTP Verification Modal */}
+      <OtpModal 
+        isOpen={showOtpModal}
+        onClose={() => setShowOtpModal(false)}
+        onVerify={handleVerifyOtp}
+        email={form.email}
+      />
+
+      {/* Email Verification Modal */}
+      <EmailVerificationModal
+        open={showEmailVerificationModal}
+        email={emailForVerification || form.email}
+        password={form.password}
+        onClose={() => setShowEmailVerificationModal(false)}
+      />
     </>
   );
 };

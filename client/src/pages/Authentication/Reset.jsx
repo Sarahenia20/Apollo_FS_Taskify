@@ -2,8 +2,8 @@ import React, { useState } from "react";
 import Logo from "../../images/logo/logo.svg";
 import LogoDark from "../../images/logo/logo-dark.svg";
 import cover from "../../images/logo/reset.svg";
-import { Link, useLocation, useSearchParams } from "react-router-dom";
-import { CheckMail, ResetAction } from "../../redux/actions/auth";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { CheckMail, ResetPassword } from "../../redux/actions/auth";
 import { useDispatch, useSelector } from "react-redux";
 import InputGroup from "../../components/form/InputGroup";
 
@@ -12,6 +12,7 @@ const Reset = () => {
   const dispatch = useDispatch();
   const { content } = useSelector((state) => state.errors);
   const location = useLocation();
+  const navigate = useNavigate();
   const searchParams = new URLSearchParams(location.search);
   const email = searchParams.get("email");
   const token = searchParams.get("_token");
@@ -25,7 +26,13 @@ const Reset = () => {
 
   const onSubmitHandler = (e) => {
     e.preventDefault();
-    dispatch(ResetAction(form, email, token));
+    // Include email and token in the form data
+    const resetData = {
+      ...form,
+      email: email,
+      token: token
+    };
+    dispatch(ResetPassword(resetData, navigate));
   };
   return (
     <>

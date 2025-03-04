@@ -12,7 +12,8 @@ const fakeRouter = require("./routes/faker.router");
 const tasksRouter = require("./routes/tasks.router");
 const commentsRouter = require("./routes/comments.router");
 const notificationsRouter = require("./routes/notifications.router");
-const io = require("./socket");
+// Temporarily comment out Socket.io
+// const socketModule = require("./socket");
 const passport = require("passport");
 
 require("dotenv").config();
@@ -47,8 +48,11 @@ app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, "public")));
 
+// Mount auth router separately
+app.use("/api/auth", authRouter);
+
+// Mount other routers
 app.use("/api", [
-  authRouter,
   usersRouter,
   roleRouter,
   fakeRouter,
@@ -56,5 +60,8 @@ app.use("/api", [
   commentsRouter,
   notificationsRouter,
 ]);
+
+// Temporarily comment out Socket.io server mounting
+// socketModule.server._events.request = app;
 
 module.exports = app;

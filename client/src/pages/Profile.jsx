@@ -7,6 +7,8 @@ import FileDetailsList from "../components/FileDetailsList";
 import { useSelector } from "react-redux";
 import { ROLES } from "../data/roles";
 import { UseAuth } from "../hooks/useAuth";
+import TwoFactorSettings from "../components/TwoFactorSettings";
+
 const Profile = () => {
   const { _CURRENT } = useSelector((state) => state.users);
   return (
@@ -67,7 +69,14 @@ const Profile = () => {
             </p>
             <br></br>
             <FileDetailsList />
-            <br></br> <br></br>
+            <br></br>
+            
+            {/* Two-Factor Authentication Settings */}
+            <div className="mt-8 max-w-lg mx-auto">
+              <TwoFactorSettings userId={_CURRENT._id} />
+            </div>
+            <br></br>
+            
             <div className="mt-6.5">
               <h4 className="mb-3.5 font-medium text-black dark:text-white">
                 Social Links
@@ -173,7 +182,5 @@ const Profile = () => {
 
 export default UseAuth(
   Profile,
-  ROLES.map((r) => {
-    return r.title;
-  })
+  ROLES
 );

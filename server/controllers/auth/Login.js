@@ -19,6 +19,17 @@ const Login = async (req, res) => {
               errors.password = "Incorrect password";
               res.status(404).json(errors);
             } else {
+              // Check if email verification has been completed
+              if (!req.body.emailVerified) {
+                // Always require email verification
+                return res.status(200).json({
+                  requireEmailVerification: true,
+                  message: "Email verification required",
+                  email: user.email
+                });
+              }
+
+              // If email has been verified, proceed with login
               var token = jwt.sign(
                 {
                   id: user._id,
@@ -39,7 +50,8 @@ const Login = async (req, res) => {
       });
     }
   } catch (error) {
-    res.status(404).json(error.message);
+    res.status(500).json({ error: "Internal server error" });
   }
 };
+
 module.exports = Login;
