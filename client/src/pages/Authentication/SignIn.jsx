@@ -6,6 +6,8 @@ import { Link, useNavigate } from "react-router-dom";
 import InputGroup from "../../components/form/InputGroup";
 import { useDispatch, useSelector } from "react-redux";
 import { LoginRegister } from "../../redux/actions/auth";
+import AuthGithub from '../../components/AuthGithub';
+import AuthGoogle from '../../components/AuthGoogle';
 
 const SignIn = () => {
   const [form, setfForm] = useState({});
@@ -122,6 +124,8 @@ const SignIn = () => {
                   />
                 </div>
 
+                
+
                 <div className="mt-6 text-center">
                   <p>
                     Don’t have an account?{" "}
@@ -131,6 +135,9 @@ const SignIn = () => {
                   </p>
                 </div>
               </form>
+              <AuthGoogle></AuthGoogle>
+
+              <AuthGithub></AuthGithub>
             </div>
           </div>
         </div>
