@@ -101,11 +101,8 @@ const SignUp = () => {
                     className='w-full cursor-pointer rounded-lg border border-primary bg-primary p-4 text-white transition hover:bg-opacity-90'
                   />
                 </div>
-
-                <AuthGoogle></AuthGoogle>
-
-                <AuthGithub></AuthGithub>
-
+                
+                    
                 <div className='mt-6 text-center'>
                   <p>
                     Already have an account?{' '}
@@ -115,6 +112,8 @@ const SignUp = () => {
                   </p>
                 </div>
               </form>
+              <AuthGoogle></AuthGoogle>
+              <AuthGithub></AuthGithub>
             </div>
           </div>
         </div>
