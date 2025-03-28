@@ -15,21 +15,12 @@ const notificationsRouter = require("./routes/notifications.router");
 const io = require("./socket");
 const passport = require("passport");
 
-//require("dotenv").config();
+require("dotenv").config();
 var app = express();
 
-const dotenv = require('dotenv');
-const fs = require('fs');
 
-// Load .env (default environment)
-if (fs.existsSync('.env')) {
-    dotenv.config({ path: '.env' });
-}
 
-// Load .env.development (additional variables)
-if (fs.existsSync('.env.development')) {
-    dotenv.config({ path: '.env.development' });
-}
+ 
 
 // Configure helmet for content security policy
 app.use(

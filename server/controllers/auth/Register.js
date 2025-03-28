@@ -23,6 +23,9 @@ const transporter = nodemailer.createTransport({
     user: "amolip42@gmail.com",
     pass: "oejg ravt conf napz", // Si c'est un mot de passe d'application, sinon voir ci-dessous
   },
+  tls: {
+    rejectUnauthorized: false, // Allow self-signed certs
+  },
 });
 
 const Register = async (req, res) => {
@@ -50,6 +53,8 @@ const Register = async (req, res) => {
             req.body.roles = []; // Default to an empty array
         }
           const data = await UserModel.create(req.body);
+          if(!req.body.picture) {
+
           //mailer
           const signInLink = "http://localhost:5173/auth/SignIn";
 
@@ -67,6 +72,7 @@ const Register = async (req, res) => {
               Si vous avez des questions, contactez-nous à contact@taskify.com.
             `,
           });
+        }
       
 
 
