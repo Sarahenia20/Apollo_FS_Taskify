@@ -1,49 +1,52 @@
-const mongoose = require("mongoose");
-const Schema = mongoose.Schema;
-const rolesSchema = new Schema(
-  {
-    name: {
-      type: String,
-      required: true,
-    },
-  },
-  { timestamp: true }
-);
-module.exports = mongoose.model("roles", rolesSchema);
-// models/roles.js
-/*const mongoose = require("mongoose");
-const Schema = mongoose.Schema;
+// models/Role.js
+const mongoose = require('mongoose');
 
-const RolesSchema = new Schema(
-  {
-    title: {
-      type: String,
-      required: true,
-      unique: true
+const roleSchema = new mongoose.Schema({
+  name: {
+    type: String,
+    required: true,
+    unique: true,
+    trim: true
+  },
+  description: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  permissions: {
+    createTask: {
+      type: Boolean,
+      default: false
     },
-    description: {
-      type: String,
-      required: true
+    viewTasks: {
+      type: Boolean,
+      default: false
     },
-    permissions: {
-      type: [String],
-      default: []
+    editTasks: {
+      type: Boolean,
+      default: false
     },
-    avatar: {
-      type: String,
-      default: function() {
-        // Generate avatar from first letter of title
-        return this.title.substring(0, 1).toUpperCase();
-      }
+    deleteTasks: {
+      type: Boolean,
+      default: false
     },
-    isDefault: {
+    manageUsers: {
+      type: Boolean,
+      default: false
+    },
+    viewReports: {
+      type: Boolean,
+      default: false
+    },
+    manageProjects: {
       type: Boolean,
       default: false
     }
   },
-  {
-    timestamps: true
+  createdAt: {
+    type: Date,
+    default: Date.now
   }
-);
+});
 
-module.exports = mongoose.model("roles", RolesSchema);*/
+module.exports = mongoose.model('Role', roleSchema);

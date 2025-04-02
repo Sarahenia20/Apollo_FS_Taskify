@@ -1,28 +1,17 @@
-const express = require("express");
-const Router = express();
-const Controllers = require("../controllers/roles");
-
-Router.post("/roles", Controllers.Add);
-Router.get("/roles", Controllers.GetAll);
-Router.get("/roles/:id", Controllers.GetOne);
-Router.put("/roles/:id", Controllers.UpdateOne);
-Router.delete("/roles/:id", Controllers.DeleteOne);
-
-module.exports = Router;
 // routes/roles.router.js
-/*const express = require("express");
+const express = require('express');
 const router = express.Router();
-const Controllers = require("../controllers/roles");
-// Remove auth middleware dependency for now
-// const { verifyToken } = require("../middleware/auth");
-// const { inRole, ROLES } = require("../middleware/roles");
+const roleController = require('../controllers/roles'); // Changed to match your actual controller file
 
-// All routes without auth - for development
-router.post("/roles", Controllers.Add);
-router.get("/roles", Controllers.GetAll);
-router.get("/roles/:id", Controllers.GetOne);
-router.put("/roles/:id", Controllers.UpdateOne);
-router.delete("/roles/:id", Controllers.DeleteOne);
+// Routes with controllers
+router.route('/roles')
+  .post(roleController.createRole)
+  .get(roleController.getRoles);
+
+router.route('/roles/:id')
+  .get(roleController.getRole)
+  .put(roleController.updateRole)
+  .delete(roleController.deleteRole);
 
 // Add description generation endpoint
 router.post("/roles/generate-description", async (req, res) => {
@@ -41,6 +30,7 @@ router.post("/roles/generate-description", async (req, res) => {
       "admin": "Has full system access and manages system settings, user accounts, and overall platform configuration.",
       "team lead": "Manages a team of developers or other staff members. Provides technical guidance and ensures team productivity.",
       "qa tester": "Responsible for testing software, identifying bugs, and ensuring quality standards are met.",
+      "hr manager": "Responsible for managing human resources, including hiring, onboarding, employee relations, and ensuring compliance with labor laws.",
       "product owner": "Represents stakeholders and is responsible for maximizing the value of the product by creating and managing the product backlog.",
       "scrum master": "Facilitates Scrum processes and removes impediments for the development team."
     };
@@ -58,4 +48,4 @@ router.post("/roles/generate-description", async (req, res) => {
   }
 });
 
-module.exports = router;*/
+module.exports = router;
