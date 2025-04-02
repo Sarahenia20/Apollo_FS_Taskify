@@ -5,7 +5,7 @@ import { errorsSlice } from "./reducers/errors";
 import { notificationSlice } from "./reducers/notifications";
 import { tasksSlice } from "./reducers/tasks";
 import { usersSlice } from "./reducers/users";
-
+//import rolesReducer from './reducers/rolesReducer'; // Our new roles reducer
 export const store = configureStore({
   reducer: {
     auth: authSlice.reducer,
@@ -14,5 +14,6 @@ export const store = configureStore({
     errors: errorsSlice.reducer,
     commons: commonSlice.reducer,
     notifications: notificationSlice.reducer
+   // roles: rolesReducer.reducer
   },
 });
