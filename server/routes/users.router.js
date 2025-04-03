@@ -2,7 +2,8 @@ const express = require("express");
 const Router = express();
 const Controllers = require("../controllers/users");
 const Register = require("../controllers/auth/Register");
-const { Upload } = require("../controllers/images");
+// Make sure to import the cloudinary controller correctly
+const CloudinaryController = require("../controllers/cloudinaryUpload");
 const passport = require("passport");
 
 Router.post("/register", Register);
@@ -32,11 +33,11 @@ Router.delete(
   Controllers.DeleteOne
 );
 
-/* add images */
+/* add profile image with Cloudinary */
 Router.post(
   "/images",
   passport.authenticate("jwt", { session: false }),
-  Upload
+  CloudinaryController.Upload  // Make sure this is properly referenced
 );
 
 /* update roles */
@@ -45,12 +46,10 @@ Router.post(
   passport.authenticate("jwt", { session: false }),
   Controllers.UpdateRole
 );
-
 /* delete roles */
 Router.delete(
   "/users/:id/roles",
   passport.authenticate("jwt", { session: false }),
   Controllers.DeleteRole
 );
-
 module.exports = Router;

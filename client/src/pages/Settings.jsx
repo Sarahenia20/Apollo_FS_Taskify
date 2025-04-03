@@ -1,26 +1,93 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
+import { connect } from "react-redux";
 import DefaultLayout from "../layout/DefaultLayout";
 import Breadcrumb from "../components/Breadcrumb";
-import userThree from "../images/user/user-03.png";
+import userThree from "../images/user/user-03.png"; // Default image
 import { UseAuth } from "../hooks/useAuth";
 import { ROLES } from "../data/roles";
+import { UpdateMyProfile, UploadProfileImage } from "../redux/actions/users";
 
-const Settings = () => {
+const Settings = ({ user, UpdateMyProfile, UploadProfileImage }) => {
+  const [imagePreview, setImagePreview] = useState(user?._CURRENT?.picture || userThree);
+  const [uploadStatus, setUploadStatus] = useState("");
+  const [formData, setFormData] = useState({
+    fullName: user?._CURRENT?.fullName || "",
+    phone: user?._CURRENT?.phone || "",
+    email: user?._CURRENT?.email || "",
+    bio: "TASKIFY is task manager web app for Esprit created by Apollo Team"
+  });
+
+  useEffect(() => {
+    if (user?._CURRENT) {
+      setFormData({
+        fullName: user._CURRENT.fullName || "",
+        phone: user._CURRENT.phone || "",
+        email: user._CURRENT.email || "",
+        bio: "TASKIFY is task manager web app for Esprit created by Apollo Team"
+      });
+      
+      if (user._CURRENT.picture) {
+        setImagePreview(user._CURRENT.picture);
+      }
+    }
+  }, [user._CURRENT]);
+
+  // Handle image upload
+  const handleImageUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    setUploadStatus("Uploading...");
+    
+    const formData = new FormData();
+    formData.append("image", file);
+    
+    try {
+      await UploadProfileImage(formData);
+      setUploadStatus("Image uploaded successfully!");
+      
+      // Clear status message after 3 seconds
+      setTimeout(() => setUploadStatus(""), 3000);
+    } catch (error) {
+      console.error("Error uploading image:", error);
+      setUploadStatus("Failed to upload image. Please try again.");
+    }
+  };
+
+  // Handle form submission
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    try {
+      await UpdateMyProfile(formData);
+    } catch (error) {
+      console.error("Error updating profile:", error);
+    }
+  };
+
+  // Handle input changes
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
   return (
     <DefaultLayout>
       <div className="mx-auto max-w-270">
         <Breadcrumb pageName="Settings" />
 
         <div className="grid grid-cols-5 gap-8">
-          <div className=" col-span-5 xl:col-span-3">
+          <div className="col-span-5 xl:col-span-3">
             <div className="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
-              <div className=" border-b border-stroke px-7 py-4 dark:border-strokedark">
+              <div className="border-b border-stroke px-7 py-4 dark:border-strokedark">
                 <h3 className="font-medium text-black dark:text-white">
                   Personal Information
                 </h3>
               </div>
               <div className="p-7">
-                <form action="#">
+                <form onSubmit={handleSubmit}>
                   <div className="mb-5.5 flex flex-col gap-5.5 sm:flex-row">
                     <div className="w-full sm:w-1/2">
                       <label
@@ -61,7 +128,8 @@ const Settings = () => {
                           name="fullName"
                           id="fullName"
                           placeholder="Enter Full Name"
-                          defaultValue=""
+                          value={formData.fullName}
+                          onChange={handleChange}
                         />
                       </div>
                     </div>
@@ -69,17 +137,18 @@ const Settings = () => {
                     <div className="w-full sm:w-1/2">
                       <label
                         className="mb-3 block text-sm font-medium text-black dark:text-white"
-                        htmlFor="phoneNumber"
+                        htmlFor="phone"
                       >
                         Phone Number
                       </label>
                       <input
                         className="w-full rounded border border-stroke bg-gray px-4.5 py-3 text-black focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-meta-4 dark:text-white dark:focus:border-primary"
                         type="text"
-                        name="phoneNumber"
-                        id="phoneNumber"
+                        name="phone"
+                        id="phone"
                         placeholder="Enter phone number"
-                        defaultValue=""
+                        value={formData.phone}
+                        onChange={handleChange}
                       />
                     </div>
                   </div>
@@ -87,7 +156,7 @@ const Settings = () => {
                   <div className="mb-5.5">
                     <label
                       className="mb-3 block text-sm font-medium text-black dark:text-white"
-                      htmlFor="emailAddress"
+                      htmlFor="email"
                     >
                       Email Address
                     </label>
@@ -120,19 +189,19 @@ const Settings = () => {
                       <input
                         className="w-full rounded border border-stroke bg-gray py-3 pl-11.5 pr-4.5 text-black focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-meta-4 dark:text-white dark:focus:border-primary"
                         type="email"
-                        name="emailAddress"
-                        id="emailAddress"
+                        name="email"
+                        id="email"
                         placeholder="Enter Email address"
-                        defaultValue=" "
+                        value={formData.email}
+                        onChange={handleChange}
                       />
                     </div>
-                  
                   </div>
 
                   <div className="mb-5.5">
                     <label
                       className="mb-3 block text-sm font-medium text-black dark:text-white"
-                      htmlFor="Username"
+                      htmlFor="bio"
                     >
                       BIO
                     </label>
@@ -174,7 +243,8 @@ const Settings = () => {
                         id="bio"
                         rows="6"
                         placeholder="Write your bio here"
-                        defaultValue="TASKIFY is task manager web app for Esprit created by Apollo Team "
+                        value={formData.bio}
+                        onChange={handleChange}
                       ></textarea>
                     </div>
                   </div>
@@ -182,7 +252,7 @@ const Settings = () => {
                   <div className="flex justify-end gap-4.5">
                     <button
                       className="flex justify-center rounded border border-stroke px-6 py-2 font-medium text-black hover:shadow-1 dark:border-strokedark dark:text-white"
-                      type="submit"
+                      type="button"
                     >
                       Cancel
                     </button>
@@ -195,7 +265,6 @@ const Settings = () => {
                   </div>
                 </form>
               </div>
-           
             </div>
           </div>
           <div className="col-span-5 xl:col-span-2">
@@ -209,22 +278,30 @@ const Settings = () => {
                 <form action="#">
                   <div className="mb-4 flex items-center gap-3">
                     <div className="h-14 w-14 rounded-full">
-                      <img src={userThree} alt="User" />
+                      <img src={imagePreview} alt="User" />
                     </div>
                     <div>
                       <span className="mb-1.5 text-black dark:text-white">
                         Edit your photo
                       </span>
                       <span className="flex gap-2.5">
-                        <button className="text-sm hover:text-secondary">
+                        <button 
+                          type="button"
+                          className="text-sm hover:text-secondary">
                           Delete
                         </button>
-                        <button className="text-sm hover:text-secondary">
+                        <button 
+                          type="button"
+                          className="text-sm hover:text-secondary">
                           Update
                         </button>
                       </span>
                     </div>
                   </div>
+
+                  {uploadStatus && (
+                    <div className="mb-4 text-sm text-primary">{uploadStatus}</div>
+                  )}
 
                   <div
                     id="FileUpload"
@@ -234,6 +311,7 @@ const Settings = () => {
                       type="file"
                       accept="image/*"
                       className="absolute inset-0 z-50 m-0 h-full w-full cursor-pointer p-0 opacity-0 outline-none"
+                      onChange={handleImageUpload}
                     />
                     <div className="flex flex-col items-center justify-center space-y-3">
                       <span className="flex h-10 w-10 items-center justify-center rounded-full border border-stroke bg-white dark:border-strokedark dark:bg-boxdark">
@@ -276,13 +354,13 @@ const Settings = () => {
                   <div className="flex justify-end gap-4.5">
                     <button
                       className="flex justify-center rounded border border-stroke px-6 py-2 font-medium text-black hover:shadow-1 dark:border-strokedark dark:text-white"
-                      type="submit"
+                      type="button"
                     >
                       Cancel
                     </button>
                     <button
                       className="flex justify-center rounded bg-primary px-6 py-2 font-medium text-gray hover:bg-opacity-70"
-                      type="submit"
+                      type="button"
                     >
                       Save
                     </button>
@@ -297,8 +375,13 @@ const Settings = () => {
   );
 };
 
+// Map Redux state to props
+const mapStateToProps = (state) => ({
+  user: state.users
+});
+
 export default UseAuth(
-  Settings,
+  connect(mapStateToProps, { UpdateMyProfile, UploadProfileImage })(Settings),
   ROLES.map((r) => {
     return r.title;
   })

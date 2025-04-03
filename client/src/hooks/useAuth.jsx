@@ -23,7 +23,7 @@ export const UseAuth = (Component, inRole) => {
   return AuthComponent;
 };*/
 // src/hooks/useAuth.js
-import { useSelector } from "react-redux";
+/*import { useSelector } from "react-redux";
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -61,4 +61,114 @@ export const UseAuth = (Component, inRole) => {
   };
 
   return AuthComponent;
+};*/
+// src/hooks/useAuth.js
+import { useSelector } from "react-redux";
+import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+
+// Helper to normalize role names for comparison
+const normalizeRole = (role) => role.toUpperCase();
+
+export const UseAuth = (Component, inRole) => {
+  const AuthComponent = (props) => {
+    const navigate = useNavigate();
+    const { isConnected, user } = useSelector((state) => state.auth);
+
+    useEffect(() => {
+      // If user is not connected, redirect to login
+      if (!isConnected) {
+        return navigate("/auth/SignIn");
+      } 
+      
+      // If no roles are required, allow access
+      if (!inRole || inRole.length === 0) {
+        return;
+      }
+      
+      // Ensure user has roles property
+      if (!user || !user.roles || !Array.isArray(user.roles)) {
+        return navigate("/unauthorized");
+      }
+      
+      // Normalize user roles
+      const normalizedUserRoles = user.roles.map(normalizeRole);
+      
+      // Check if user has ADMIN role (allow access to everything)
+      if (normalizedUserRoles.includes('ADMIN')) {
+        return; // Admin has access to everything
+      }
+      
+      // Normalize required roles
+      const normalizedRequiredRoles = inRole.map(normalizeRole);
+      
+      // Check if user has any of the required roles
+      const hasRequiredRole = normalizedRequiredRoles.some(requiredRole => 
+        normalizedUserRoles.includes(requiredRole)
+      );
+      
+      if (!hasRequiredRole) {
+        return navigate("/unauthorized");
+      }
+    }, [navigate, isConnected, user, inRole]);
+
+    return <Component {...props} />;
+  };
+
+  return AuthComponent;
 };
+/*import { useSelector } from "react-redux";
+import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+
+// Helper to normalize role names for comparison
+const normalizeRole = (role) => role.toUpperCase();
+
+export const UseAuth = (Component, inRole) => {
+  const AuthComponent = (props) => {
+    const navigate = useNavigate();
+    const { isConnected, user } = useSelector((state) => state.auth);
+
+    useEffect(() => {
+      // If user is not connected, redirect to login
+      if (!isConnected) {
+        return navigate("/auth/SignIn");
+      } 
+      
+      // If no roles are required, allow access
+      if (!inRole || inRole.length === 0) {
+        return;
+      }
+      
+      // Ensure user has roles property
+      if (!user || !user.roles || !Array.isArray(user.roles)) {
+        return navigate("/unauthorized");
+      }
+      
+      // Normalize user roles
+      const normalizedUserRoles = user.roles.map(normalizeRole);
+      
+      // Check if user has ADMIN role (allow access to everything)
+      if (normalizedUserRoles.includes('ADMIN')) {
+        return; // Admin has access to everything
+      }
+      
+      // Normalize required roles
+      const normalizedRequiredRoles = inRole.map(normalizeRole);
+      
+      // Check if user has any of the required roles
+      const hasRequiredRole = normalizedRequiredRoles.some(requiredRole => 
+        normalizedUserRoles.includes(requiredRole)
+      );
+      
+      if (!hasRequiredRole) {
+        return navigate("/unauthorized");
+      }
+    }, [navigate, isConnected, user, inRole]);
+
+    // Return the actual component if all checks pass
+    return <Component {...props} />;
+  };
+
+  return AuthComponent;
+};*/

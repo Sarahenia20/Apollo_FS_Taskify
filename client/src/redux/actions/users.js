@@ -98,3 +98,22 @@ export const DeleteUsers = (id) => async (dispatch) => {
       });
   }
 };
+// Add this to your user actions.js file
+export const UploadProfileImage = (formData) => async (dispatch) => {
+  await axios
+    .post("/api/images", formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
+    .then((res) => {
+      const { data } = res.data;
+      swal("Success", "Profile image updated successfully", "success");
+      dispatch(_setCurrentUser(data));
+      return data; // Return data for component usage
+    })
+    .catch((err) => {
+      dispatch(setErrors(err?.response?.data));
+      throw err; // Rethrow for component error handling
+    });
+};
