@@ -72,19 +72,6 @@ export const UpdateUser = (form, id, setPopupOpen) => async (dispatch) => {
     });
 };
 
-export const UpdateMyProfile = (form) => async (dispatch) => {
-  await axios
-    .put(`/api/profile`, form)
-    .then((res) => {
-      const { data } = res.data;
-      swal("Success", "User Updated successfully" , "success");
-      dispatch(_setCurrentUser(data));
-    })
-    .catch((err) => {
-      dispatch(setErrors(err?.response?.data));
-    });
-};
-
 export const DeleteUsers = (id) => async (dispatch) => {
   if (window.confirm("Do you want to delete this user?")) {
     await axios
@@ -116,4 +103,43 @@ export const UploadProfileImage = (formData) => async (dispatch) => {
       dispatch(setErrors(err?.response?.data));
       throw err; // Rethrow for component error handling
     });
+};
+export const UpdateMyProfile = (form) => async (dispatch) => {
+  try {
+    console.log('Updating profile with:', form); // Debug logging
+
+    const response = await axios.put('/api/profile', form);
+    
+    console.log('Profile update response:', response.data);
+    
+    // Destructure carefully
+    const { data } = response.data;
+
+    if (!data) {
+      throw new Error('No user data returned');
+    }
+    
+    // Show success notification
+    swal("Success", "Profile Updated successfully", "success");
+    
+    // Update current user in Redux store
+    dispatch(_setCurrentUser(data));
+    
+    return data; // Optional: return data for any additional handling
+  } catch (err) {
+    console.error('Profile Update Error:', err);
+    
+    // More detailed error handling
+    const errorMessage = err.response?.data?.message || 
+                         err.message || 
+                         "Failed to update profile";
+    
+    // Dispatch errors
+    dispatch(setErrors(err.response?.data || {}));
+    
+    // Show error notification
+    swal("Error", errorMessage, "error");
+    
+    throw err; // Rethrow to allow component to handle
+  }
 };

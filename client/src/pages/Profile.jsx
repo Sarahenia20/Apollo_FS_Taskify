@@ -8,6 +8,40 @@ import { useSelector } from "react-redux";
 import { ROLES } from "../data/roles";
 import { UseAuth } from "../hooks/useAuth";
 
+const SkillBadge = ({ skill }) => {
+  const colors = [
+    'bg-blue-100 text-blue-800',
+    'bg-green-100 text-green-800',
+    'bg-purple-100 text-purple-800',
+    'bg-pink-100 text-pink-800',
+    'bg-indigo-100 text-indigo-800',
+    'bg-teal-100 text-teal-800',
+  ];
+
+  // Deterministically choose a color based on the skill name
+  const colorIndex = skill.length % colors.length;
+
+  return (
+    <span 
+      className={`
+        inline-block 
+        px-3 py-1 
+        rounded-full 
+        text-xs 
+        font-medium 
+        mr-2 mb-2 
+        ${colors[colorIndex]}
+        transition-all 
+        duration-300 
+        hover:scale-105
+        hover:shadow-md
+      `}
+    >
+      {skill}
+    </span>
+  );
+};
+
 const Profile = () => {
   const { _CURRENT } = useSelector((state) => state.users);
   
@@ -83,6 +117,20 @@ const Profile = () => {
             <p className="font-medium">
               {_CURRENT?.roles && _CURRENT.roles.join(",")}
             </p>
+            
+            {/* Skills Section */}
+            {_CURRENT?.skills && _CURRENT.skills.length > 0 && (
+              <div className="mt-6 max-w-xl mx-auto">
+                <h4 className="text-lg font-semibold text-black dark:text-white mb-4">
+                  Professional Skills
+                </h4>
+                <div className="flex flex-wrap justify-center gap-2">
+                  {_CURRENT.skills.map((skill, index) => (
+                    <SkillBadge key={index} skill={skill} />
+                  ))}
+                </div>
+              </div>
+            )}
             
             {/* File Details */}
             <div className="mt-6">

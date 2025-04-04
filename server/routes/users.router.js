@@ -1,55 +1,39 @@
 const express = require("express");
-const Router = express();
+const Router = express.Router();
 const Controllers = require("../controllers/users");
-const Register = require("../controllers/auth/Register");
-// Make sure to import the cloudinary controller correctly
-const CloudinaryController = require("../controllers/cloudinaryUpload");
 const passport = require("passport");
 
-Router.post("/register", Register);
+// Debug logging
+console.log("Imported Controllers:", Object.keys(Controllers));
+
 Router.get(
-  "/users",
+  "/users", 
   passport.authenticate("jwt", { session: false }),
-  Controllers.GetAll
+  Controllers.GetAll // Ensure this matches exactly
 );
+
 Router.get(
-  "/users/:id",
+  "/users/:id", 
   passport.authenticate("jwt", { session: false }),
   Controllers.GetOne
 );
+
 Router.put(
-  "/users/:id",
+  "/users/:id", 
   passport.authenticate("jwt", { session: false }),
   Controllers.UpdateOne
 );
-Router.put(
-  "/profile",
-  passport.authenticate("jwt", { session: false }),
-  Controllers.UpdateProfile
-);
+
 Router.delete(
-  "/users/:id",
+  "/users/:id", 
   passport.authenticate("jwt", { session: false }),
   Controllers.DeleteOne
 );
 
-/* add profile image with Cloudinary */
-Router.post(
-  "/images",
+Router.put(
+  "/profile", 
   passport.authenticate("jwt", { session: false }),
-  CloudinaryController.Upload  // Make sure this is properly referenced
+  Controllers.UpdateProfile
 );
 
-/* update roles */
-Router.post(
-  "/users/:id/roles",
-  passport.authenticate("jwt", { session: false }),
-  Controllers.UpdateRole
-);
-/* delete roles */
-Router.delete(
-  "/users/:id/roles",
-  passport.authenticate("jwt", { session: false }),
-  Controllers.DeleteRole
-);
 module.exports = Router;
