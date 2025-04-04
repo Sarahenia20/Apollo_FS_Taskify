@@ -12,6 +12,7 @@ const fakeRouter = require("./routes/faker.router");
 const tasksRouter = require("./routes/tasks.router");
 const commentsRouter = require("./routes/comments.router");
 const notificationsRouter = require("./routes/notifications.router");
+const projectsRouter = require("./routes/projects.router");
 const io = require("./socket");
 const passport = require("passport");
 
@@ -60,5 +61,7 @@ app.use("/api", [
   commentsRouter,
   notificationsRouter,
 ]);
+
+app.use("/api", projectsRouter);
 
 module.exports = app;
