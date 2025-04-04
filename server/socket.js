@@ -13,20 +13,20 @@ const server = require("http").createServer(app, (req, res) => {
 
 const clients = [];
 
-// Créer un faux io pour éviter les erreurs
-const io = {
-  on: () => {},
-  emit: () => {},
-  to: () => ({ emit: () => {} })
-};
+const io = require("socket.io")(server);
+io.on("connection", (socket) => {
+  //   console.log("new client connected !"); 
+  socket.on("connected_client", (userId) => {
+    clients.push({ userId, socketId: socket.id });
+  });
+});
 
-// Ne pas démarrer le serveur socket.io pour éviter les conflits de port
-console.log("Socket.IO server disabled temporarily");
+server.listen(process.env.SOCKETIO_PORT || 3002);
 
 module.exports = {
   io,
   clients,
   methods:{
-    getUserSockets: userId => []
+    getUserSockets: userId => clients.filter(e=>e.userId === userId).map(e=>e.socketId)
   }
 };

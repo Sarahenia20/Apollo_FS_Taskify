@@ -1,14 +1,15 @@
 import React, { useEffect, useState } from "react";
 import DefaultLayout from "../../layout/DefaultLayout";
 import Breadcrumb from "../../components/Breadcrumb";
-import userThree from "../../images/user/user-03.png";
 import { useDispatch, useSelector } from "react-redux";
 import InputGroup from "../../components/form/InputGroup";
-import { FindOneUser, UpdateMyProfile } from "../../redux/actions/users";
+import { UpdateMyProfile } from "../../redux/actions/users";
 import { useForm } from "react-hook-form";
 import { setErrors } from "../../redux/reducers/errors";
 import axios from "axios";
 import { _setCurrentUser } from "../../redux/reducers/users";
+import SkillsSelectGroup from "../../components/form/SkillsSelectGroup"; // Import the skills component
+
 const Settings = () => {
   const { _CURRENT } = useSelector((state) => state.users);
   const [form, setForm] = useState({});
@@ -18,12 +19,25 @@ const Settings = () => {
   const { register, handleSubmit, watch, errors } = useForm();
   const file = watch("picture");
 
+  // State for selected skills - simplified to avoid any issues
+  const [selectedSkills, setSelectedSkills] = useState([]);
+
   useEffect(() => {
+    // Initialize form
     setForm({
-      fullName: _CURRENT.fullName,
-      phone: _CURRENT.phone,
-      email: _CURRENT.email,
+      fullName: _CURRENT?.fullName || "",
+      phone: _CURRENT?.phone || "",
+      email: _CURRENT?.email || "",
     });
+
+    // Initialize skills if they exist
+    if (_CURRENT?.skills && Array.isArray(_CURRENT.skills)) {
+      const formattedSkills = _CURRENT.skills.map(skill => ({
+        value: skill,
+        label: skill
+      }));
+      setSelectedSkills(formattedSkills);
+    }
   }, [_CURRENT]);
 
   const OnChangeHandler = (e) => {
@@ -33,9 +47,25 @@ const Settings = () => {
     });
   };
 
+  // Handle skills change
+  const handleSkillsChange = (selectedOptions) => {
+    setSelectedSkills(selectedOptions || []);
+  };
+
   const onSubmitHandler = (e) => {
     e.preventDefault();
-    dispatch(UpdateMyProfile(form, _CURRENT._id));
+    
+    // Get skill values only
+    const skillValues = selectedSkills.map(skill => skill.value);
+    
+    // Create the final form data
+    const updatedForm = {
+      ...form,
+      skills: skillValues
+    };
+    
+    console.log("Submitting form with skills:", updatedForm);
+    dispatch(UpdateMyProfile(updatedForm, _CURRENT?._id));
   };
 
   const onSubmit = async (data) => {
@@ -58,7 +88,7 @@ const Settings = () => {
 
         <div className="grid grid-cols-5 gap-8">
           <div className="col-span-5 xl:col-span-3">
-            <div className="h-145 rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
+            <div className="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
               <div className="border-b border-stroke px-7 py-4 dark:border-strokedark">
                 <h3 className="font-medium text-black dark:text-white">
                   Personal Information
@@ -125,6 +155,18 @@ const Settings = () => {
                     </div>
                   </div>
 
+                  {/* Add Skills Selection Component */}
+                  <div className="mb-5.5">
+                    <SkillsSelectGroup
+                      label="Professional Skills"
+                      name="skills"
+                      defaultValue={selectedSkills}
+                      action={handleSkillsChange}
+                      errors={content.skills}
+                      maxSkills={10}
+                    />
+                  </div>
+
                   <div className="flex justify-end gap-4.5">
                     <button
                       className="flex justify-center rounded bg-primary px-6 py-2 font-medium text-gray hover:shadow-1"
@@ -149,7 +191,7 @@ const Settings = () => {
                   <div className="mb-4 flex items-center gap-3">
                     <div className="h-14 w-14 rounded-full">
                       <img
-                        src={`http://localhost:5500/${_CURRENT.picture}`}
+                        src={`http://localhost:5500/${_CURRENT?.picture}`}
                         className="relative h-14 w-14 rounded-full"
                         alt="User"
                       />
@@ -221,7 +263,7 @@ const Settings = () => {
                   <div className="flex justify-end gap-4.5">
                     <button
                       className="flex justify-center rounded border border-stroke px-6 py-2 font-medium text-black hover:shadow-1 dark:border-strokedark dark:text-white"
-                      type="submit"
+                      type="button"
                     >
                       Cancel
                     </button>
