@@ -12,6 +12,7 @@ const fakeRouter = require("./routes/faker.router");
 const tasksRouter = require("./routes/tasks.router");
 const commentsRouter = require("./routes/comments.router");
 const notificationsRouter = require("./routes/notifications.router");
+const twoFactorAuthRouter = require("./routes/twoFactorAuth.router");
 const io = require("./socket");
 const passport = require("passport");
 
@@ -56,5 +57,7 @@ app.use("/api", [
   commentsRouter,
   notificationsRouter,
 ]);
+
+app.use("/api/auth/2fa", twoFactorAuthRouter);
 
 module.exports = app;

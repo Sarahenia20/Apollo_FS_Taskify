@@ -26,6 +26,10 @@ const usersSchema = new Schema(
     reset_token: {
       type: String,
     },
+    twoFactorEnabled: {
+      type: Boolean,
+      default: true,
+    },
   },
   { timestamp: true }
 );

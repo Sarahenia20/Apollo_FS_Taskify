@@ -3,6 +3,9 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const loginValidation = require("../../validation/loginValidation");
 
+// Mode test pour désactiver temporairement la 2FA
+const TEST_MODE = false; // Mettre à false pour activer la 2FA
+
 const Login = async (req, res) => {
   const { errors, isValid } = loginValidation(req.body);
   try {
@@ -19,20 +22,32 @@ const Login = async (req, res) => {
               errors.password = "Incorrect password";
               res.status(404).json(errors);
             } else {
-              var token = jwt.sign(
-                {
-                  id: user._id,
-                  fullName: user.fullName,
+              // Check if 2FA is enabled for this user
+              // Explicitly check if twoFactorEnabled is true (not undefined or false)
+              if (user.twoFactorEnabled === true && !TEST_MODE) {
+                // Return a response indicating 2FA is required
+                return res.status(200).json({
+                  message: "2FA_REQUIRED",
                   email: user.email,
-                  roles: user.roles,
-                },
-                process.env.PRIVATE_KEY,
-                { expiresIn: "1h" }
-              );
-              res.status(200).json({
-                message: "Success",
-                token: token,
-              });
+                  twoFactorRequired: true
+                });
+              } else {
+                // 2FA not required or TEST_MODE is enabled, proceed with normal login
+                var token = jwt.sign(
+                  {
+                    id: user._id,
+                    fullName: user.fullName,
+                    email: user.email,
+                    roles: user.roles,
+                  },
+                  process.env.PRIVATE_KEY,
+                  { expiresIn: "1h" }
+                );
+                res.status(200).json({
+                  message: "Success",
+                  token: token,
+                });
+              }
             }
           });
         }
