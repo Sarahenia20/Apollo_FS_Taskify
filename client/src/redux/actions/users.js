@@ -52,6 +52,7 @@ export const FindOneUser = (id) => async (dispatch) => {
     });
 };
 
+<<<<<<< Updated upstream
 export const UpdateUser = (form, id, setPopupOpen) => async (dispatch) => {
   dispatch(setRefresh(true));
   await axios
@@ -89,6 +90,24 @@ export const DeleteUsers = (id) => async (dispatch) => {
 export const UploadProfileImage = (formData) => async (dispatch) => {
   await axios
     .post("/api/images", formData, {
+=======
+// Fixed Redux action for image upload
+export const UploadProfileImage = (formData) => async (dispatch) => {
+  console.log('[ACTION] UploadProfileImage', 'Starting upload process');
+  
+  // Ensure auth headers are set correctly
+  checkAuthHeaders();
+  
+  dispatch(setRefresh(true));
+  
+  try {
+    // Add better debugging for FormData
+    console.log('[ACTION] UploadProfileImage FormData contains picture:', 
+      formData.has('picture') ? 'Yes' : 'No');
+    
+    // Improved error handling for the request
+    const res = await axios.post("/api/images", formData, {
+>>>>>>> Stashed changes
       headers: {
         'Content-Type': 'multipart/form-data'
       }
@@ -103,6 +122,40 @@ export const UploadProfileImage = (formData) => async (dispatch) => {
       dispatch(setErrors(err?.response?.data));
       throw err; // Rethrow for component error handling
     });
+<<<<<<< Updated upstream
+=======
+    
+    console.log('[ACTION] UploadProfileImage Success', res.data);
+    
+    // Check for proper response structure
+    if (!res.data || !res.data.data) {
+      throw new Error('Invalid response from server');
+    }
+    
+    const { data } = res.data;
+    
+    // Success notification
+    swal("Success", "Profile image updated successfully", "success");
+    
+    // Update the current user in Redux store with the new data
+    dispatch(_setCurrentUser(data));
+    dispatch(setRefresh(false));
+    
+    return data;
+  } catch (err) {
+    console.error('[ACTION] UploadProfileImage Error', err);
+    
+    // More detailed error message
+    const errorDetail = err.response?.data?.message || err.message || "Unknown error";
+    console.error('[ACTION] UploadProfileImage Error details:', errorDetail);
+    
+    dispatch(setErrors(err?.response?.data || { message: `Error uploading image: ${errorDetail}` }));
+    swal("Error", `Failed to upload profile image: ${errorDetail}`, "error");
+    dispatch(setRefresh(false));
+    
+    throw err;
+  }
+>>>>>>> Stashed changes
 };
 export const UpdateMyProfile = (form) => async (dispatch) => {
   try {

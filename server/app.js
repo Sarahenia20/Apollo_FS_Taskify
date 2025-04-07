@@ -14,6 +14,17 @@ const commentsRouter = require("./routes/comments.router");
 const notificationsRouter = require("./routes/notifications.router");
 const io = require("./socket");
 const passport = require("passport");
+<<<<<<< Updated upstream
+=======
+// index.js or your main router file
+const loginActivityRoutes = require('./routes/loginActivity');
+const testEmailRoute = require('./routes/test.route');
+// Import the new images router
+const imagesRouter = require('./routes/images.router');
+
+
+
+>>>>>>> Stashed changes
 
 require("dotenv").config();
 var app = express();
@@ -61,4 +72,16 @@ app.use("/api", [
   notificationsRouter,
 ]);
 
+<<<<<<< Updated upstream
 module.exports = app;
+=======
+app.use("/api/auth/2fa", twoFactorAuthRouter);
+app.use("/api", projectsRouter);
+// Add this with your other routes
+app.use('/api/login-activity', loginActivityRoutes);
+app.use('/api/test-email', testEmailRoute);
+// Register the images routes
+app.use('/api/images', imagesRouter);
+
+module.exports = app;
+>>>>>>> Stashed changes
