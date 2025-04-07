@@ -2,20 +2,19 @@
 const express = require("express");
 const Router = express.Router();
 const passport = require("passport");
-const cloudinaryController = require("../controllers/cloudinaryUpload");
+const { Upload, TestCloudinary } = require("../controllers/cloudinaryUpload");
 
 // Test route to check Cloudinary connectivity
 Router.get(
   "/test-cloudinary",
-  cloudinaryController.testCloudinary
+  TestCloudinary
 );
 
-// Image upload route - Apply middleware correctly
+// Image upload route with authentication
 Router.post(
   "/",
   passport.authenticate("jwt", { session: false }),
-  cloudinaryController.uploadMiddleware,  // Apply multer middleware first
-  cloudinaryController.uploadHandler      // Then handle the upload
+  Upload  // This handles both the middleware and the upload
 );
 
 module.exports = Router;

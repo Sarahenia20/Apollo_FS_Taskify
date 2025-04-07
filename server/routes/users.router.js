@@ -5,7 +5,14 @@ const passport = require("passport");
 
 // Debug logging
 console.log("Imported Controllers:", Object.keys(Controllers));
+// Add this to your router (routes/users.js)
 
+// Add POST route for creating users
+Router.post(
+  "/users", 
+  passport.authenticate("jwt", { session: false }),
+  Controllers.CreateUser
+);
 Router.get(
   "/users", 
   passport.authenticate("jwt", { session: false }),

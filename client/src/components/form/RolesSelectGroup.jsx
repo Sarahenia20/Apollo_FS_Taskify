@@ -7,11 +7,12 @@ const RolesSelectGroup = ({
   label = "Roles",
   name = "roles",
   disabled = false,
-  required = false,
+  required = true, // Changed default to true
   action,
   errors,
   defaultValue = [],
-  className
+  className,
+  value // Added value prop for controlled component
 }) => {
   const dispatch = useDispatch();
   const { roles } = useSelector((state) => state.roles);
@@ -32,7 +33,9 @@ const RolesSelectGroup = ({
     control: (provided, state) => ({
       ...provided,
       backgroundColor: 'transparent',
-      borderColor: state.isFocused ? '#3C50E0' : '#E2E8F0',
+      borderColor: state.isFocused 
+        ? '#3C50E0' 
+        : (errors ? '#FF0000' : '#E2E8F0'), // Add error state coloring
       boxShadow: 'none',
       '&:hover': {
         borderColor: '#3C50E0'
@@ -70,10 +73,16 @@ const RolesSelectGroup = ({
     })
   };
 
+  // Validation function
+  const validateRoles = (selectedRoles) => {
+    // Check if roles are required and no roles are selected
+    return required && (!selectedRoles || selectedRoles.length === 0);
+  };
+
   return (
     <div className="mb-4.5">
       <label className="mb-2.5 block font-medium text-black dark:text-white">
-        {label} {required && <span className="text-meta-1">*</span>}
+        {label} <span className="text-meta-1">*</span>
       </label>
 
       <div className="relative">
@@ -83,7 +92,11 @@ const RolesSelectGroup = ({
           isMulti
           isClearable
           isDisabled={disabled}
-          onChange={action}
+          onChange={(selectedOptions) => {
+            // Ensure action is called with selected options
+            action && action(selectedOptions);
+          }}
+          value={value} // Use controlled component pattern
           defaultValue={defaultValue}
           styles={customStyles}
           placeholder="Select user roles"
@@ -92,9 +105,10 @@ const RolesSelectGroup = ({
         />
       </div>
       
-      {errors && (
+      {/* Error handling */}
+      {(errors || (required && validateRoles(value))) && (
         <div className="text-sm text-meta-1 mt-1">
-          {errors}
+          {errors || "Role selection is required"}
         </div>
       )}
     </div>
