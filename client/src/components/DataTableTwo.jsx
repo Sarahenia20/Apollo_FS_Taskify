@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import { DataTable } from "simple-datatables";
-import "simple-datatables/dist/css/style.css";
+//import "simple-datatables/dist/css/style.css";
 import { MOCK_DATA } from "../data/mock";
 
 const dataTwo = MOCK_DATA;

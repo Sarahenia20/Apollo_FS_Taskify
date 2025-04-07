@@ -12,8 +12,11 @@ const fakeRouter = require("./routes/faker.router");
 const tasksRouter = require("./routes/tasks.router");
 const commentsRouter = require("./routes/comments.router");
 const notificationsRouter = require("./routes/notifications.router");
+const twoFactorAuthRouter = require("./routes/twoFactorAuth.router");
+const projectsRouter = require("./routes/projects.router");
 const io = require("./socket");
 const passport = require("passport");
+<<<<<<< HEAD
 <<<<<<< Updated upstream
 =======
 // index.js or your main router file
@@ -25,13 +28,15 @@ const imagesRouter = require('./routes/images.router');
 
 
 >>>>>>> Stashed changes
+=======
+// index.js or your main router file
+const loginActivityRoutes = require('./routes/loginActivity');
+const testEmailRoute = require('./routes/test.route');
+
+>>>>>>> c54add06db9787684cdcab2c38cb239831e451d0
 
 require("dotenv").config();
 var app = express();
-
-
-
- 
 
 // Configure helmet for content security policy
 app.use(
@@ -62,6 +67,7 @@ app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, "public")));
 
+
 app.use("/api", [
   authRouter,
   usersRouter,
@@ -72,16 +78,24 @@ app.use("/api", [
   notificationsRouter,
 ]);
 
+<<<<<<< HEAD
 <<<<<<< Updated upstream
 module.exports = app;
 =======
+=======
+>>>>>>> c54add06db9787684cdcab2c38cb239831e451d0
 app.use("/api/auth/2fa", twoFactorAuthRouter);
 app.use("/api", projectsRouter);
 // Add this with your other routes
 app.use('/api/login-activity', loginActivityRoutes);
 app.use('/api/test-email', testEmailRoute);
+<<<<<<< HEAD
 // Register the images routes
 app.use('/api/images', imagesRouter);
 
 module.exports = app;
 >>>>>>> Stashed changes
+=======
+
+module.exports = app;
+>>>>>>> c54add06db9787684cdcab2c38cb239831e451d0
