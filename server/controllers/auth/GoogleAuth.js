@@ -70,7 +70,7 @@ const getUserDataGoogle = async (req, res) => {
                 fullName: userData.name,
                 email: userData.email,
                 picture: userData.picture,
-                roles: 'DESIGNER',
+                roles: 'ENGINEER',
             });
             await user.save();
         }

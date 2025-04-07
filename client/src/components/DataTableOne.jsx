@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import { DataTable } from "simple-datatables";
-import "simple-datatables/dist/css/style.css";
+//import "simple-datatables/dist/css/style.css";
 import { useDispatch } from "react-redux";
 import { DeleteUsers, FindOneUser } from "../redux/actions/users";
 import { toggleModal } from "../redux/reducers/commons";
@@ -253,7 +253,7 @@ const DataTableOne = ({ data, popupOpen, setPopupOpen }) => {
                               data.picture
                                 ? data.picture.includes("https")
                                   ? data.picture
-                                  : `http://localhost:5500/${data.picture}`
+                                  : `http://localhost:5502${data.picture}`
                                 : ""
                             }`}
                             className="h-[30px] w-auto rounded-full"

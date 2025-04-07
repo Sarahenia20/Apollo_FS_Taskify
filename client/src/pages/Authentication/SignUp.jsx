@@ -1,6 +1,4 @@
 import React, { useState } from 'react';
-import DefaultLayout from '../../layout/DefaultLayout';
-import Breadcrumb from '../../components/Breadcrumb';
 import Logo from '../../images/logo/logo.svg';
 import LogoDark from '../../images/logo/logo-dark.svg';
 import regcover from '../../images/logo/regcover.svg';
