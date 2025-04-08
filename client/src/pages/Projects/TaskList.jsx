@@ -2,7 +2,10 @@ import React, { useEffect } from "react";
 import DefaultLayout from "../../layout/DefaultLayout";
 import Breadcrumb from "../../components/Breadcrumb";
 import TaskHeader from "../../components/TaskHeader";
+
 import ToDoList from "../../components/ToDoList";
+import { UseAuth } from "../../hooks/useAuth";
+import { ROLES } from "../../data/roles";
 const TaskList = () => {
   return (
     <DefaultLayout>
@@ -20,4 +23,7 @@ const TaskList = () => {
   );
 };
 
-export default TaskList
+export default UseAuth(
+  TaskList,
+  ROLES.filter((r) => r.title != "ENGINEER").map((i) => i.title)
+);

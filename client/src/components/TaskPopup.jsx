@@ -11,6 +11,7 @@ import moment from "moment";
 const TaskPopup = (props) => {
   const [users, setUsers] = useState([]);
 
+  // const role = ['Designer', 'Manager'];
   
   const {roles} = useSelector(s=>s.auth.user);
   const disabledSelects = {
@@ -95,8 +96,8 @@ const TaskPopup = (props) => {
 
   const isDisabled = (p, r)=>{
     if(!Array.isArray(r) || r.includes("ADMIN")) return false;
-    if(r.includes("CM") && p === "assigns") return false
-    else if(r.includes("ENGINEER") && p === "status") return false
+    if(r.includes("MANAGER") && p === "assigns") return false
+    else if(r.includes("DESIGNER") && p === "status") return false
     else if(r.includes("CM")) return false;
     return true;
   }
