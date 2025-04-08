@@ -1,4 +1,4 @@
-// controllers/cloudinaryUpload.js
+// controllers/cloudinaryUpload.js - FIXED VERSION
 const User = require("../models/users");
 const cloudinary = require("cloudinary").v2;
 const { CloudinaryStorage } = require("multer-storage-cloudinary");
@@ -71,12 +71,10 @@ const Upload = (req, res) => {
       res.status(200).send({
         status: "success",
         data: {
-          user: {
-            _id: user._id,
-            fullName: user.fullName,
-            email: user.email,
-            picture: user.picture
-          }
+          _id: user._id,
+          fullName: user.fullName,
+          email: user.email,
+          picture: user.picture
         },
         message: "Profile picture updated successfully"
       });
@@ -95,18 +93,18 @@ const TestCloudinary = (req, res) => {
     (error, result) => {
       if (error) {
         console.error("Cloudinary test error:", error);
-        return res.status(500).json({ 
-          status: "error", 
-          message: "Cloudinary connection failed", 
-          error: error 
+        return res.status(500).json({
+          status: "error",
+          message: "Cloudinary connection failed",
+          error: error
         });
       }
       
       console.log("Cloudinary test success:", result);
-      return res.status(200).json({ 
-        status: "success", 
-        message: "Cloudinary connection successful", 
-        result: result 
+      return res.status(200).json({
+        status: "success",
+        message: "Cloudinary connection successful",
+        result: result
       });
     }
   );

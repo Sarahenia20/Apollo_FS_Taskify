@@ -9,137 +9,279 @@ import {
   _setCurrentUser,
 } from "../reducers/users";
 import { setRefresh } from "../reducers/commons";
+import { setAuthToken } from "../../lib/setAuthToken"; // Correct import path
+
+// Add checkAuthHeaders function directly in this file to avoid import issues
+const checkAuthHeaders = () => {
+  const token = localStorage.getItem('token');
+  const currentHeader = axios.defaults.headers.common["Authorization"];
+  
+  console.log("[Auth] Current Authorization header:", currentHeader);
+  console.log("[Auth] Token in localStorage:", token ? "Present" : "Missing");
+  
+  // If token exists but header doesn't match, reapply it
+  if (token && (!currentHeader || currentHeader !== `Bearer ${token}`)) {
+    console.log("[Auth] Reapplying token to headers");
+    setAuthToken(token);
+    return true;
+  }
+  
+  return false;
+};
+
+// Debug logs
+const logAction = (action, data) => {
+  console.log(`[ACTION] ${action}`, data || '');
+};
 
 export const AddUser = (form, setPopupOpen) => async (dispatch) => {
-  await axios
-    .post("/api/register", form)
-    .then((res) => {
-      swal("Success", "User Added successfully", "success");
-      dispatch(_AddUser(res.data));
-
+  console.log('AddUser called with form data:', form);
+  
+  dispatch(setRefresh(true));
+  
+  try {
+    // Make the API request
+    const res = await axios.post("/api/users", form);
+    console.log('AddUser API response:', res.data);
+    
+    // Show success message
+    swal("Success", "User Added successfully", "success");
+    
+    // Update Redux store
+    dispatch(_AddUser(res.data.data || res.data));
+    
+    // Close the popup
+    if (typeof setPopupOpen === 'function') {
       setPopupOpen(false);
-    })
-    .catch((err) => {
-      dispatch(setErrors(err?.response?.data));
-    });
+    }
+    
+    // Refresh the user list to show the new user
+    dispatch(FindUsers());
+    
+    // Add a slight delay to ensure the UI updates
+    setTimeout(() => {
+      // Refresh the page to ensure everything is updated
+      window.location.reload();
+    }, 1000);
+    
+    dispatch(setRefresh(false));
+  } catch (err) {
+    console.error('AddUser API error:', err.response?.data || err.message);
+    
+    dispatch(setErrors(err?.response?.data || { message: "Error adding user" }));
+    swal("Error", err?.response?.data?.message || "Failed to add user", "error");
+    dispatch(setRefresh(false));
+  }
 };
 
 export const FindUsers = () => async (dispatch) => {
-  await axios
-    .get("/api/users")
-    .then((res) => {
-      const { data } = res.data;
-      dispatch(_FindUsers(data));
-    })
-    .catch((err) => {
-      dispatch(setErrors(err?.response?.data));
-    });
+  logAction('FindUsers');
+  
+  // Ensure auth headers are set correctly
+  checkAuthHeaders();
+  
+  dispatch(setRefresh(true));
+  
+  try {
+    const res = await axios.get("/api/users");
+    logAction('FindUsers Success', res.data);
+    
+    const { data } = res.data;
+    dispatch(_FindUsers(data || []));
+    dispatch(setRefresh(false));
+  } catch (err) {
+    logAction('FindUsers Error', err);
+    
+    dispatch(setErrors(err?.response?.data || { message: "Error fetching users" }));
+    dispatch(setRefresh(false));
+  }
 };
 
 export const FindOneUser = (id) => async (dispatch) => {
+  console.log('FindOneUser called with ID:', id);
+  
+  if (!id) {
+    console.log('Empty ID provided, returning empty object');
+    dispatch(_FindOneUser({}));
+    return;
+  }
+  
   dispatch(setRefresh(true));
-  await axios
-    .get(`/api/users/${id}`)
-    .then((res) => {
-      const data = res.data;
-      dispatch(_FindOneUser(data));
-      setTimeout(() => {
-        dispatch(setRefresh(false));
-      }, 2000);
-    })
-    .catch((err) => {
-      dispatch(setErrors(err?.response?.data));
-    });
+  
+  try {
+    const res = await axios.get(`/api/users/${id}`);
+    console.log('FindOneUser API response:', res.data);
+    
+    const data = res.data;
+    
+    // Dispatch the action to store the user data
+    dispatch(_FindOneUser(data));
+    
+    // Ensure the loading state is removed
+    setTimeout(() => {
+      dispatch(setRefresh(false));
+    }, 500);
+  } catch (err) {
+    console.error('FindOneUser API error:', err.response?.data || err.message);
+    dispatch(setErrors(err?.response?.data || { message: 'Failed to fetch user' }));
+    dispatch(setRefresh(false));
+  }
 };
 
 export const UpdateUser = (form, id, setPopupOpen) => async (dispatch) => {
+  logAction('UpdateUser', { form, id });
+  
+  if (!id) {
+    swal("Error", "User ID is missing", "error");
+    return;
+  }
+  
+  // Ensure auth headers are set correctly
+  checkAuthHeaders();
+  
   dispatch(setRefresh(true));
-  await axios
-    .put(`/api/users/${id}`, form)
-    .then((res) => {
-      const { data } = res.data;
-      swal("Success", "User Updated successfully" ,"success");
-      dispatch(_FindOneUser(data));
-      dispatch(FindUsers());
-      setTimeout(() => {
-        dispatch(setRefresh(false));
-      }, 2000);
-      setPopupOpen(false);
-    })
-    .catch((err) => {
-      dispatch(setErrors(err?.response?.data));
+  
+  try {
+    const res = await axios.put(`/api/users/${id}`, form);
+    logAction('UpdateUser Success', res.data);
+    
+    const { data } = res.data;
+    swal("Success", "User Updated successfully", "success");
+    dispatch(_FindOneUser(data));
+    dispatch(FindUsers());
+    
+    setTimeout(() => {
       dispatch(setRefresh(false));
-    });
+    }, 1000);
+    
+    if (typeof setPopupOpen === 'function') {
+      setPopupOpen(false);
+    }
+  } catch (err) {
+    logAction('UpdateUser Error', err);
+    
+    dispatch(setErrors(err?.response?.data || { message: "Error updating user" }));
+    swal("Error", err?.response?.data?.message || "Failed to update user", "error");
+    dispatch(setRefresh(false));
+  }
 };
 
 export const DeleteUsers = (id) => async (dispatch) => {
+  console.log('DeleteUsers called with ID:', id);
+  
+  if (!id) {
+    console.log('Empty ID provided, cannot delete');
+    return;
+  }
+  
+  // Use window.confirm for the confirmation dialog
   if (window.confirm("Do you want to delete this user?")) {
-    await axios
-      .delete(`/api/users/${id}`)
-      .then((res) => {
-        swal("Success", "User deleted successfully" , "success");
-        dispatch(_FilterUser(id));
-      })
-      .catch((err) => {
-        dispatch(setErrors(err?.response?.data));
-      });
+    console.log('User confirmed deletion');
+    dispatch(setRefresh(true));
+    
+    try {
+      console.log('Making delete API call to:', `/api/users/${id}`);
+      const res = await axios.delete(`/api/users/${id}`);
+      console.log('DeleteUsers API response:', res.data);
+      
+      // Show success message
+      swal("Success", "User deleted successfully", "success");
+      
+      // Update Redux state to remove the user
+      dispatch(_FilterUser(id));
+      
+      // Refresh user list 
+      dispatch(FindUsers());
+      
+      dispatch(setRefresh(false));
+    } catch (err) {
+      console.error('DeleteUsers API error:', err.response?.data || err.message);
+      dispatch(setErrors(err?.response?.data || { message: 'Failed to delete user' }));
+      
+      // Show error message
+      swal("Error", err?.response?.data?.message || "Failed to delete user", "error");
+      
+      dispatch(setRefresh(false));
+    }
+  } else {
+    console.log('User cancelled deletion');
   }
 };
-// Add this to your user actions.js file
+
 export const UploadProfileImage = (formData) => async (dispatch) => {
-  await axios
-    .post("/api/images", formData, {
+  logAction('UploadProfileImage');
+  
+  // Ensure auth headers are set correctly
+  checkAuthHeaders();
+  
+  dispatch(setRefresh(true));
+  
+  try {
+    console.log('[ACTION] UploadProfileImage FormData contains picture:', 
+      formData.has('picture') ? 'Yes' : 'No');
+      
+    const res = await axios.post("/api/images", formData, {
       headers: {
         'Content-Type': 'multipart/form-data'
       }
-    })
-    .then((res) => {
-      const { data } = res.data;
-      swal("Success", "Profile image updated successfully", "success");
-      dispatch(_setCurrentUser(data));
-      return data; // Return data for component usage
-    })
-    .catch((err) => {
-      dispatch(setErrors(err?.response?.data));
-      throw err; // Rethrow for component error handling
     });
+    logAction('UploadProfileImage Success', res.data);
+    
+    const { data } = res.data;
+    swal("Success", "Profile image updated successfully", "success");
+    dispatch(_setCurrentUser(data));
+    dispatch(setRefresh(false));
+    
+    return data;
+  } catch (err) {
+    logAction('UploadProfileImage Error', err);
+    
+    // More detailed error message
+    const errorDetail = err.response?.data?.message || err.message || "Unknown error";
+    console.error('[ACTION] UploadProfileImage Error details:', errorDetail);
+    
+    dispatch(setErrors(err?.response?.data || { message: `Error uploading image: ${errorDetail}` }));
+    swal("Error", `Failed to upload profile image: ${errorDetail}`, "error");
+    dispatch(setRefresh(false));
+    
+    throw err;
+  }
 };
-export const UpdateMyProfile = (form) => async (dispatch) => {
-  try {
-    console.log('Updating profile with:', form); // Debug logging
 
+export const UpdateMyProfile = (form) => async (dispatch) => {
+  logAction('UpdateMyProfile', form);
+  
+  // Ensure auth headers are set correctly
+  checkAuthHeaders();
+  
+  dispatch(setRefresh(true));
+  
+  try {
     const response = await axios.put('/api/profile', form);
+    logAction('UpdateMyProfile Success', response.data);
     
-    console.log('Profile update response:', response.data);
-    
-    // Destructure carefully
     const { data } = response.data;
 
     if (!data) {
       throw new Error('No user data returned');
     }
     
-    // Show success notification
     swal("Success", "Profile Updated successfully", "success");
-    
-    // Update current user in Redux store
     dispatch(_setCurrentUser(data));
+    dispatch(setRefresh(false));
     
-    return data; // Optional: return data for any additional handling
+    return data;
   } catch (err) {
-    console.error('Profile Update Error:', err);
+    logAction('UpdateMyProfile Error', err);
     
-    // More detailed error handling
     const errorMessage = err.response?.data?.message || 
                          err.message || 
                          "Failed to update profile";
     
-    // Dispatch errors
-    dispatch(setErrors(err.response?.data || {}));
-    
-    // Show error notification
+    dispatch(setErrors(err.response?.data || { message: errorMessage }));
     swal("Error", errorMessage, "error");
+    dispatch(setRefresh(false));
     
-    throw err; // Rethrow to allow component to handle
+    throw err;
   }
 };

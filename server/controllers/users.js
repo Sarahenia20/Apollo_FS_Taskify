@@ -1,43 +1,112 @@
 const usersModel = require("../models/users");
 const profileValidation = require("../validation/profileValidation");
+// Enhanced CreateUser method
+exports.CreateUser = async (req, res) => {
+  try {
+    console.log("[Backend] CreateUser request received");
+    console.log("[Backend] Create data:", req.body);
+    
+    // Validate the incoming data
+    if (!req.body.fullName || !req.body.email || !req.body.password) {
+      console.log("[Backend] Missing required fields");
+      return res.status(400).json({ 
+        message: "Required fields missing",
+        requiredFields: ["fullName", "email", "password"] 
+      });
+    }
 
-// GetAll users
+    // Check if user with this email already exists
+    const existingUser = await usersModel.findOne({ email: req.body.email });
+    if (existingUser) {
+      console.log(`[Backend] User with email ${req.body.email} already exists`);
+      return res.status(400).json({ 
+        message: "User with this email already exists" 
+      });
+    }
+
+    // Create a new user
+    const newUser = new usersModel(req.body);
+    
+    // Save the user to the database
+    const savedUser = await newUser.save();
+    console.log(`[Backend] User created: ${savedUser.fullName}`);
+
+    // Remove password from response
+    const userResponse = savedUser.toObject();
+    delete userResponse.password;
+    
+    // Return success
+    res.status(201).json({
+      success: true,
+      message: "User created successfully",
+      data: userResponse
+    });
+  } catch (error) {
+    console.error("[Backend] Error in CreateUser:", error);
+    res.status(500).json({ error: error.message });
+  }
+};
+// GetAll users with improved error handling
 exports.GetAll = async (req, res) => {
   try {
+    console.log("[Backend] GetAll users request received");
     const data = await usersModel.find();
+    console.log(`[Backend] Found ${data.length} users`);
     res.status(200).json({
       length: data.length,
       data: data,
     });
   } catch (error) {
-    res.status(404).json({ error: error.message });
+    console.error("[Backend] Error in GetAll:", error);
+    res.status(500).json({ error: error.message });
   }
 };
 
-// GetOne user
+// GetOne user with improved error handling
 exports.GetOne = async (req, res) => {
   try {
+    console.log(`[Backend] GetOne user request for ID: ${req.params.id}`);
     const data = await usersModel.findOne({ _id: req.params.id });
+    
+    if (!data) {
+      console.log(`[Backend] User with ID ${req.params.id} not found`);
+      return res.status(404).json({ error: "User not found" });
+    }
+    
+    console.log(`[Backend] Found user: ${data.fullName}`);
     res.status(200).json(data);
   } catch (error) {
-    res.status(404).json({ error: error.message });
+    console.error(`[Backend] Error in GetOne for ID ${req.params.id}:`, error);
+    res.status(500).json({ error: error.message });
   }
 };
 
-// UpdateOne user
+// UpdateOne user with improved error handling
 exports.UpdateOne = async (req, res) => {
   try {
+    console.log(`[Backend] UpdateOne user request for ID: ${req.params.id}`);
+    console.log(`[Backend] Update data:`, req.body);
+    
     const data = await usersModel.findOneAndUpdate(
       { _id: req.params.id },
       req.body,
-      { new: true }
+      { new: true, runValidators: true }
     );
+    
+    if (!data) {
+      console.log(`[Backend] User with ID ${req.params.id} not found for update`);
+      return res.status(404).json({ error: "User not found" });
+    }
+    
+    console.log(`[Backend] User updated: ${data.fullName}`);
     res.status(200).json({
-      success: "updated",
+      success: true,
+      message: "User updated successfully",
       data,
     });
   } catch (error) {
-    res.status(404).json({ error: error.message });
+    console.error(`[Backend] Error in UpdateOne for ID ${req.params.id}:`, error);
+    res.status(500).json({ error: error.message });
   }
 };
 
@@ -87,15 +156,26 @@ exports.UpdateProfile = async (req, res) => {
   }
 };
 
-// DeleteOne user
+// DeleteOne user with improved error handling
 exports.DeleteOne = async (req, res) => {
   try {
-    await usersModel.deleteOne({ _id: req.params.id });
-    res.status(201).json({
-      message: "deleted",
+    console.log(`[Backend] DeleteOne user request for ID: ${req.params.id}`);
+    
+    const result = await usersModel.deleteOne({ _id: req.params.id });
+    
+    if (result.deletedCount === 0) {
+      console.log(`[Backend] User with ID ${req.params.id} not found for deletion`);
+      return res.status(404).json({ error: "User not found" });
+    }
+    
+    console.log(`[Backend] User deleted successfully`);
+    res.status(200).json({
+      success: true,
+      message: "User deleted successfully"
     });
   } catch (error) {
-    res.status(404).json({ error: error.message });
+    console.error(`[Backend] Error in DeleteOne for ID ${req.params.id}:`, error);
+    res.status(500).json({ error: error.message });
   }
 };
 

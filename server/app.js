@@ -14,12 +14,12 @@ const commentsRouter = require("./routes/comments.router");
 const notificationsRouter = require("./routes/notifications.router");
 const twoFactorAuthRouter = require("./routes/twoFactorAuth.router");
 const projectsRouter = require("./routes/projects.router");
-const io = require("./socket");
-const passport = require("passport");
-// index.js or your main router file
 const loginActivityRoutes = require('./routes/loginActivity');
 const testEmailRoute = require('./routes/test.route');
-
+// Import the images router
+const imagesRouter = require('./routes/images.router');
+const io = require("./socket");
+const passport = require("passport");
 
 require("dotenv").config();
 var app = express();
@@ -66,8 +66,10 @@ app.use("/api", [
 
 app.use("/api/auth/2fa", twoFactorAuthRouter);
 app.use("/api", projectsRouter);
-// Add this with your other routes
+// Add login activity routes
 app.use('/api/login-activity', loginActivityRoutes);
 app.use('/api/test-email', testEmailRoute);
+// Register the images routes
+app.use('/api/images', imagesRouter);
 
 module.exports = app;
