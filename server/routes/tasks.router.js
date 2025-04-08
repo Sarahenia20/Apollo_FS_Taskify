@@ -8,6 +8,10 @@ Router.post(
   passport.authenticate("jwt", { session: false }),
   Controllers.Add
 );
+
+Router.post("/tasks/addFromSuggestion",  passport.authenticate("jwt", { session: false }),
+Controllers.AddFromSuggestion
+);
 Router.get(
   "/tasks",
   passport.authenticate("jwt", { session: false }),

@@ -18,6 +18,7 @@ const loginActivityRoutes = require('./routes/loginActivity');
 const testEmailRoute = require('./routes/test.route');
 // Import the images router
 const imagesRouter = require('./routes/images.router');
+const taskGeneratorRouter=require("./routes/tasksGenerator.router");
 const io = require("./socket");
 const passport = require("passport");
 
@@ -55,6 +56,7 @@ app.use(express.static(path.join(__dirname, "public")));
 
 
 app.use("/api", [
+  projectsRouter,
   authRouter,
   usersRouter,
   roleRouter,
@@ -62,10 +64,10 @@ app.use("/api", [
   tasksRouter,
   commentsRouter,
   notificationsRouter,
+  taskGeneratorRouter
 ]);
 
 app.use("/api/auth/2fa", twoFactorAuthRouter);
-app.use("/api", projectsRouter);
 // Add login activity routes
 app.use('/api/login-activity', loginActivityRoutes);
 app.use('/api/test-email', testEmailRoute);

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import TaskPopup from "./TaskPopup";
 import { useDispatch } from "react-redux";
+import TaskGenerator from "./taskGenerator";
 
 const TaskHeader = () => {
   const [popupOpen, setPopupOpen] = useState(false);
@@ -8,6 +9,7 @@ const TaskHeader = () => {
   const trigger = useRef(null);
   const popup = useRef(null);
   const dispatch = useDispatch();
+  const [generateTaskIsOpen,setGenerateTask]=useState(false);
   // close on click outside
   useEffect(() => {
     const clickHandler = ({ target }) => {
@@ -65,6 +67,12 @@ const TaskHeader = () => {
           </svg>
           Add task
         </button>
+        <button onClick={()=>setGenerateTask(true)}>
+          Generate Task 
+        </button>
+        {generateTaskIsOpen && 
+        <TaskGenerator setGenerateTask={setGenerateTask}/>
+        }
 
         {/* <!-- ===== Task Popup Start ===== --> */}
         <TaskPopup

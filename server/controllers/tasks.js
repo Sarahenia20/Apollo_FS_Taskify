@@ -42,6 +42,21 @@ const Add = async (req, res) => {
   }
 };
 
+
+const AddFromSuggestion = async (req, res) => {
+   try {
+     
+    const data = await tasksModel.create(req.body);
+      res.status(201).json({
+        success: true,
+        data: data,
+      });
+    
+  } catch (error) {
+    res.status(404).json({ error: error.message });
+  }
+};
+
 /* GetAll tasks */
 const GetAll = async (req, res) => {
   try {
@@ -152,4 +167,5 @@ module.exports = {
   GetOne,
   UpdateOne,
   DeleteOne,
+  AddFromSuggestion
 };
