@@ -261,3 +261,59 @@ export const DeleteAttachmentAction = (id) => async (dispatch) => {
       });
   }
 };
+// Action to reschedule task via drag and drop
+export const RescheduleTaskAction = (id, newDates) => async (dispatch) => {
+  console.log("RescheduleTaskAction called with:", { id, newDates });
+  dispatch(setRefresh(true));
+  
+  try {
+    // Format dates to ensure they're properly formatted for the API
+    const formattedDates = {
+      start_date: typeof newDates.start_date === 'string' 
+        ? newDates.start_date 
+        : new Date(newDates.start_date).toISOString(),
+      end_date: typeof newDates.end_date === 'string' 
+        ? newDates.end_date 
+        : new Date(newDates.end_date).toISOString(),
+      is_all_day: newDates.is_all_day
+    };
+    
+    console.log("Making API call with formatted dates:", formattedDates);
+    
+    // Make API call to reschedule the task
+    const response = await axios.patch(`/api/tasks/${id}/reschedule`, formattedDates);
+    
+    // If successful, update the task in Redux
+    if (response.data && response.data.success) {
+      console.log("Reschedule successful:", response.data);
+      
+      // Update the specific task in the state
+      dispatch(_FindOneTask(response.data.data));
+      
+      // Refresh all tasks to ensure the list is up to date
+      dispatch(FindTaskAction());
+      
+      // Show success message
+      swal("Success", "Task rescheduled successfully", "success");
+    } else {
+      // Handle API success but response indicates failure
+      console.error("API returned success: false", response.data);
+      swal("Error", response.data?.error || "Failed to reschedule task", "error");
+    }
+  } catch (error) {
+    // Log detailed error information
+    console.error("Reschedule error:", error);
+    console.error("Error details:", error.response?.data);
+    
+    // Show error message
+    swal("Error", error.response?.data?.error || "Failed to reschedule task", "error");
+    
+    // Set errors in Redux store
+    dispatch(setErrors(error.response?.data || { error: "Failed to reschedule task" }));
+  } finally {
+    // Always reset the refresh state
+    setTimeout(() => {
+      dispatch(setRefresh(false));
+    }, 500);
+  }
+};

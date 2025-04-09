@@ -1,3 +1,4 @@
+// src/components/TaskPopup.jsx
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { FindUsers } from "../redux/actions/users";
@@ -10,9 +11,10 @@ import InputGroup from "./form/InputGroup";
 // Mock data imports
 import { MOCK_DATA, MOCK_PRIORITY, MOCK_STATUS, MOCK_TYPE } from "../data/mock";
 
-const TaskPopup = (props) => {
+const TaskPopup = ({ popupOpen, setPopupOpen, taskData = null, isEditMode = false }) => {
   const [users, setUsers] = useState([]);
   const [files, setFiles] = useState([]);
+  const [isEditing, setIsEditing] = useState(false);
   
   // Redux state
   const { roles } = useSelector(s => s.auth.user);
@@ -23,17 +25,82 @@ const TaskPopup = (props) => {
   const dispatch = useDispatch();
 
   // Form state
-  const [form, setForm] = useState({});
+  const [form, setForm] = useState({
+    // Default values
+    is_all_day: true,
+    priority: "2",
+    status: "1",
+    type: "1"
+  });
 
-  // Initialize form with existing task data when available
+  // Set editing mode based on props
   useEffect(() => {
-    setForm(_ONE);
-  }, [_ONE]);
+    setIsEditing(isEditMode);
+  }, [isEditMode]);
+
+  // When popup opens/closes or taskData changes, handle the form state
+  useEffect(() => {
+    if (popupOpen) {
+      console.log("Popup opened with taskData:", taskData);
+      console.log("Is edit mode:", isEditMode);
+      
+      if (isEditMode && taskData && taskData._id) {
+        console.log("Loading task data for editing:", taskData);
+        
+        // Format dates and times for form inputs
+        let formattedTask = { ...taskData };
+        
+        // Process dates to ISO format for form inputs
+        if (formattedTask.start_date) {
+          formattedTask.start_date = new Date(formattedTask.start_date).toISOString().slice(0, 16);
+        }
+        
+        if (formattedTask.end_date) {
+          formattedTask.end_date = new Date(formattedTask.end_date).toISOString().slice(0, 16);
+        }
+        
+        console.log("Formatted task data:", formattedTask);
+        setForm(formattedTask);
+        setIsEditing(true);
+      } else if (_ONE && _ONE._id) {
+        // Fallback to Redux state if taskData is not provided
+        console.log("Loading task data from Redux state:", _ONE);
+        
+        // Format dates for form
+        let formattedTask = { ..._ONE };
+        
+        // Process dates to ISO format for form inputs
+        if (formattedTask.start_date) {
+          formattedTask.start_date = new Date(formattedTask.start_date).toISOString().slice(0, 16);
+        }
+        
+        if (formattedTask.end_date) {
+          formattedTask.end_date = new Date(formattedTask.end_date).toISOString().slice(0, 16);
+        }
+        
+        setForm(formattedTask);
+        setIsEditing(true);
+      } else {
+        // Clear form for adding a new task
+        console.log("Setting up form for new task");
+        setForm({
+          is_all_day: true,
+          priority: "2",
+          status: "1",
+          type: "1"
+        });
+        setIsEditing(false);
+      }
+    } else {
+      // When popup closes, reset everything
+      setFiles([]);
+    }
+  }, [popupOpen, taskData, _ONE, isEditMode]);
 
   // Fetch users when component mounts
   useEffect(() => {
     dispatch(FindUsers());
-  }, []);
+  }, [dispatch]);
 
   // Format users for select dropdown
   useEffect(() => {
@@ -106,16 +173,48 @@ const TaskPopup = (props) => {
 
   // Form handlers
   const clearForm = () => {
-    dispatch(_FindOneTask({}));
-    setForm({});
+    setForm({
+      is_all_day: true,
+      priority: "2",
+      status: "1",
+      type: "1"
+    });
     setFiles([]);
+    setIsEditing(false);
+    dispatch(_FindOneTask({}));
   };
 
   const OnChangeHandler = (e) => {
-    setForm({
-      ...form,
-      [e.target.name]: e.target.value,
-    });
+    const { name, value } = e.target;
+    
+    // Special handling for dates to preserve time component
+    if (name === 'start_date' || name === 'end_date') {
+      // Get current date value and extract time part if exists
+      const currentValue = form[name] || '';
+      let timePart;
+      
+      if (form.is_all_day) {
+        // For all-day events, use the start/end of day
+        timePart = name === 'start_date' ? 'T00:00:00' : 'T23:59:59';
+      } else {
+        // For time-specific events, use current time or defaults
+        timePart = currentValue.includes('T') 
+          ? 'T' + currentValue.split('T')[1]
+          : (name === 'start_date' ? 'T09:00:00' : 'T17:00:00');
+      }
+      
+      // Combine new date with existing time
+      setForm({
+        ...form,
+        [name]: value + timePart
+      });
+    } else {
+      // Normal handling for other fields
+      setForm({
+        ...form,
+        [name]: value,
+      });
+    }
   };
 
   const OnChangeSelect = (e, name) => {
@@ -158,31 +257,60 @@ const TaskPopup = (props) => {
   
     // Handle assigns field
     if (formattedForm.assigns) {
-      formattedForm.assigns = formattedForm.assigns.map(a => a._id || a);
+      if (Array.isArray(formattedForm.assigns)) {
+        // If it's already an array, map it to get IDs
+        formattedForm.assigns = formattedForm.assigns.map(a => {
+          return typeof a === 'object' ? (a._id || a.value) : a;
+        });
+      } else if (typeof formattedForm.assigns === 'object' && !Array.isArray(formattedForm.assigns)) {
+        // If it's a single object, convert to array with ID
+        formattedForm.assigns = [formattedForm.assigns.value || formattedForm.assigns._id];
+      }
     }
+  
+    // Process the dates based on all-day status
+    if (formattedForm.is_all_day) {
+      // For all-day events, set time to start/end of day
+      if (formattedForm.start_date) {
+        const datePart = formattedForm.start_date.split('T')[0];
+        formattedForm.start_date = `${datePart}T00:00:00`;
+      }
+      
+      if (formattedForm.end_date) {
+        const datePart = formattedForm.end_date.split('T')[0];
+        formattedForm.end_date = `${datePart}T23:59:59`;
+      }
+    }
+    
+    console.log("Submitting form data:", formattedForm);
   
     // Prepare file for upload
     const fileToUpload = files.length > 0 ? files[0] : null;
   
-    if (!Object.keys(_ONE).length > 0) {
+    if (!isEditing) {
       // Create task
-      dispatch(AddTaskAction(formattedForm, fileToUpload ? [fileToUpload] : [], props.setPopupOpen));
+      dispatch(AddTaskAction(formattedForm, fileToUpload ? [fileToUpload] : [], setPopupOpen));
     } else {
-      // Update task
-      dispatch(UpdateTaskAction(formattedForm, _ONE?._id, fileToUpload ? [fileToUpload] : [], props.setPopupOpen));
+      // Update task - make sure we have a valid ID
+      const taskId = formattedForm._id || (taskData && taskData._id) || (_ONE && _ONE._id);
+      if (!taskId) {
+        console.error("Missing task ID for update operation");
+        return;
+      }
+      dispatch(UpdateTaskAction(formattedForm, taskId, fileToUpload ? [fileToUpload] : [], setPopupOpen));
     }
   };
   
   return (
     <div
       className={`fixed left-0 top-0 z-99999 flex h-screen w-full justify-center overflow-y-auto bg-black/80 px-4 py-5 ${
-        props.popupOpen === true ? "block" : "hidden"
+        popupOpen === true ? "block" : "hidden"
       }`}
     >
       <div className="relative m-auto w-full max-w-180 rounded-sm border border-stroke bg-gray p-4 shadow-default dark:border-strokedark dark:bg-meta-4 sm:p-8 xl:p-10">
         <button
           onClick={() => {
-            props.setPopupOpen(false);
+            setPopupOpen(false);
             clearForm();
             dispatch(setRefresh(false));
           }}
@@ -204,6 +332,11 @@ const TaskPopup = (props) => {
             />
           </svg>
         </button>
+        
+        <h2 className="mb-6 text-2xl font-semibold text-black dark:text-white">
+          {isEditing ? "Edit Task" : "Add New Task"}
+        </h2>
+        
         {!refresh ? (
           <div className="max-h-[80vh] overflow-y-auto">
             <form onSubmit={onSubmitHandler} className="space-y-6">
@@ -236,7 +369,9 @@ const TaskPopup = (props) => {
                 defaultValue={
                   form?.assigns
                     ? users.filter((obj1) =>
-                        form?.assigns.some((a) => a._id === obj1.value)
+                        Array.isArray(form?.assigns)
+                          ? form?.assigns.some((a) => (a._id || a) === obj1.value)
+                          : (form?.assigns._id || form?.assigns) === obj1.value
                       )
                     : []
                 }
@@ -252,6 +387,7 @@ const TaskPopup = (props) => {
                 required={true}
                 errors={content.title}
                 defaultValue={form?.title}
+                value={form?.title || ""}
                 className="w-full rounded-sm border border-stroke bg-white px-4.5 py-3 focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-boxdark dark:focus:border-primary"
               />
 
@@ -277,38 +413,121 @@ const TaskPopup = (props) => {
                 )}
               </div>
 
+              {/* All Day switch */}
+              <div className="mb-5">
+                <label
+                  htmlFor="is_all_day"
+                  className="mb-2.5 block font-medium text-black dark:text-white"
+                >
+                  All Day Event
+                </label>
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="is_all_day"
+                    name="is_all_day"
+                    checked={form?.is_all_day === undefined ? true : form?.is_all_day}
+                    onChange={(e) => {
+                      setForm({
+                        ...form,
+                        is_all_day: e.target.checked
+                      });
+                    }}
+                    className="mr-2 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                  />
+                  <label htmlFor="is_all_day" className="text-sm text-gray-600 dark:text-gray-400">
+                    Task spans the entire day
+                  </label>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                 <div className="mb-5">
                   <label
                     htmlFor="start_date"
                     className="mb-2.5 block font-medium text-black dark:text-white"
                   >
-                    Start date
+                    Start Date
                   </label>
-                  <input
-                    type="date"
-                    name="start_date"
-                    value={form?.start_date ? form?.start_date : ""}
-                    onChange={OnChangeHandler}
-                    disabled={isDisabled("start_date", roles)}
-                    className="w-full rounded-sm border border-stroke bg-white px-4.5 py-3 focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-boxdark dark:focus:border-primary"
-                  />
+                  <div className={form?.is_all_day ? '' : 'grid grid-cols-2 gap-2'}>
+                    <input
+                      type="date"
+                      name="start_date"
+                      value={form?.start_date ? form.start_date.split('T')[0] : ""}
+                      onChange={OnChangeHandler}
+                      disabled={isDisabled("start_date", roles)}
+                      className="w-full rounded-sm border border-stroke bg-white px-4.5 py-3 focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-boxdark dark:focus:border-primary"
+                    />
+                    
+                    {!form?.is_all_day && (
+                      <input
+                        type="time"
+                        name="start_time"
+                        value={
+                          form?.start_date && form.start_date.includes('T') 
+                            ? form.start_date.split('T')[1].substring(0, 5) 
+                            : "09:00"
+                        }
+                        onChange={(e) => {
+                          // Combine date and time
+                          const datePart = form?.start_date
+                            ? form.start_date.split('T')[0]
+                            : new Date().toISOString().split('T')[0];
+                          
+                          setForm({
+                            ...form,
+                            start_date: `${datePart}T${e.target.value}:00`
+                          });
+                        }}
+                        disabled={isDisabled("start_date", roles)}
+                        className="w-full rounded-sm border border-stroke bg-white px-4.5 py-3 focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-boxdark dark:focus:border-primary"
+                      />
+                    )}
+                  </div>
                 </div>
+                
                 <div className="mb-5">
                   <label
                     htmlFor="end_date"
                     className="mb-2.5 block font-medium text-black dark:text-white"
                   >
-                    End date
+                    End Date
                   </label>
-                  <input
-                    type="date"
-                    name="end_date"
-                    value={form?.end_date ? form?.end_date : ""}
-                    onChange={OnChangeHandler}
-                    disabled={isDisabled("end_date", roles)}
-                    className="w-full rounded-sm border border-stroke bg-white px-4.5 py-3 focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-boxdark dark:focus:border-primary"
-                  />
+                  <div className={form?.is_all_day ? '' : 'grid grid-cols-2 gap-2'}>
+                    <input
+                      type="date"
+                      name="end_date"
+                      value={form?.end_date ? form.end_date.split('T')[0] : ""}
+                      onChange={OnChangeHandler}
+                      disabled={isDisabled("end_date", roles)}
+                      className="w-full rounded-sm border border-stroke bg-white px-4.5 py-3 focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-boxdark dark:focus:border-primary"
+                    />
+                    
+                    {!form?.is_all_day && (
+                      <input
+                        type="time"
+                        name="end_time"
+                        value={
+                          form?.end_date && form.end_date.includes('T') 
+                            ? form.end_date.split('T')[1].substring(0, 5) 
+                            : "17:00"
+                        }
+                        onChange={(e) => {
+                          // Combine date and time
+                          const datePart = form?.end_date
+                            ? form.end_date.split('T')[0]
+                            : new Date().toISOString().split('T')[0];
+                          
+                          setForm({
+                            ...form,
+                            end_date: `${datePart}T${e.target.value}:00`
+                          });
+                        }}
+                        disabled={isDisabled("end_date", roles)}
+                        className="w-full rounded-sm border border-stroke bg-white px-4.5 py-3 focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-boxdark dark:focus:border-primary"
+                      />
+                    )}
+                  </div>
                 </div>
               </div>
               
@@ -460,7 +679,7 @@ const TaskPopup = (props) => {
                 className="flex w-full items-center justify-center gap-2 rounded bg-primary px-4.5 py-2.5 font-medium text-white hover:bg-primary-dark transition-colors duration-300"
                 type="submit"
               >
-                {Object.keys(_ONE).length > 0 ? "Update" : "Save"} Task
+                {isEditing ? "Update" : "Save"} Task
               </button>
             </form>
           </div>

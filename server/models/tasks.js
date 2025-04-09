@@ -1,3 +1,4 @@
+// models/tasks.js
 const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
@@ -44,6 +45,16 @@ const tasksSchema = new Schema(
         },
         message: 'End date must be after start date'
       }
+    },
+    // New field: Store full day events separately
+    is_all_day: {
+      type: Boolean,
+      default: true
+    },
+    // New field: For recurring tasks (optional enhancement)
+    recurrence: {
+      type: Object,
+      default: null
     },
     priority: {
       type: String,
@@ -122,6 +133,12 @@ const tasksSchema = new Schema(
 // Virtual to get task age
 tasksSchema.virtual('taskAge').get(function() {
   return Math.floor((Date.now() - this.createdAt) / (1000 * 60 * 60 * 24));
+});
+
+// Virtual to get task duration in minutes
+tasksSchema.virtual('durationMinutes').get(function() {
+  if (!this.start_date || !this.end_date) return 0;
+  return Math.floor((this.end_date - this.start_date) / (1000 * 60));
 });
 
 // Middleware to validate dates before save

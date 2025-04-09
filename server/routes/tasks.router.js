@@ -71,5 +71,12 @@ Router.delete(
   passport.authenticate("jwt", { session: false }),
   Controllers.DeleteAttachment
 );
+// Reschedule task (update date via drag and drop)
+Router.patch(
+  "/tasks/:id/reschedule",
+  passport.authenticate("jwt", { session: false }),
+  logRouteAccess,
+  Controllers.RescheduleTask
+);
 
 module.exports = Router;

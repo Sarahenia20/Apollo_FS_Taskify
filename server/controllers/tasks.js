@@ -443,7 +443,110 @@ const AddFromSuggestion = async (req, res) => {
     });
   }
 };
+// Add this to your controllers/tasks.js file
 
+/* Reschedule Task (Update date/time via drag and drop) */
+const RescheduleTask = async (req, res) => {
+  console.log("RescheduleTask controller called with data:", req.body);
+  
+  try {
+    // Extract the task ID from URL parameters
+    const { id } = req.params;
+    
+    // Extract new dates from request body
+    const { start_date, end_date, is_all_day } = req.body;
+
+    // Validate input
+    if (!start_date || !end_date) {
+      console.log("Missing required fields:", { start_date, end_date });
+      return res.status(400).json({ 
+        success: false,
+        error: 'Start date and end date are required',
+      });
+    }
+
+    // Find the task
+    const task = await tasksModel.findById(id);
+    if (!task) {
+      console.log("Task not found:", id);
+      return res.status(404).json({ 
+        success: false,
+        error: 'Task not found' 
+      });
+    }
+
+    // Convert string dates to Date objects
+    let newStartDate, newEndDate;
+    
+    try {
+      newStartDate = new Date(start_date);
+      newEndDate = new Date(end_date);
+      
+      // Validate date objects
+      if (isNaN(newStartDate.getTime()) || isNaN(newEndDate.getTime())) {
+        throw new Error("Invalid date format");
+      }
+      
+      console.log("Parsed dates:", {
+        newStartDate: newStartDate.toISOString(),
+        newEndDate: newEndDate.toISOString(),
+      });
+    } catch (dateError) {
+      console.error("Date parsing error:", dateError);
+      return res.status(400).json({ 
+        success: false,
+        error: 'Invalid date format',
+        details: dateError.message
+      });
+    }
+    
+    // Validate dates
+    if (newEndDate < newStartDate) {
+      console.log("End date before start date:", { start: newStartDate, end: newEndDate });
+      return res.status(400).json({ 
+        success: false,
+        error: 'End date cannot be before start date',
+      });
+    }
+
+    // Update task dates
+    task.start_date = newStartDate;
+    task.end_date = newEndDate;
+    
+    // Update all-day status if provided
+    if (typeof is_all_day !== 'undefined') {
+      task.is_all_day = is_all_day;
+    }
+
+    // Save the task
+    const updatedTask = await task.save();
+    console.log("Task updated successfully:", updatedTask._id);
+
+    // Return the updated task
+    res.status(200).json({
+      success: true,
+      message: 'Task rescheduled successfully',
+      data: updatedTask
+    });
+  } catch (error) {
+    console.error('Task Reschedule Error:', error);
+    
+    // Handle specific MongoDB errors
+    if (error.name === 'CastError') {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Invalid task ID' 
+      });
+    }
+    
+    // General error handling
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to reschedule task', 
+      details: error.message 
+    });
+  }
+};
 // Update the module exports to include the new method
 module.exports = {
   Add,
@@ -453,5 +556,6 @@ module.exports = {
   DeleteOne,
   AddFromSuggestion,
   DownloadAttachment,
+  RescheduleTask,
   DeleteAttachment
 };
