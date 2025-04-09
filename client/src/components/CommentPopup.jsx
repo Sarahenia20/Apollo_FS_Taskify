@@ -78,15 +78,16 @@ const CommentPopup = (props) => {
                 >
                   <div className="flex flex-row items-center gap-4">
                     <img
-                      src={`${
-                        c.by
+                      src={
+                        c.by && c.by.picture
                           ? c.by.picture.includes("https")
                             ? c.by.picture
                             : `http://localhost:5500/${c.by.picture}`
-                          : ""
-                      }`}
+                          : ""  // Or provide a fallback image
+                      }                            
                       className="h-[30px] w-auto rounded-full"
                     />
+                    
                     {c.image ? <img width={100} style={{maxHeight: 50, objectFit: "contain"}} src={c.image} /> : null}
                     <span>{c.content}</span>
                   </div>

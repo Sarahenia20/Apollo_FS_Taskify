@@ -12,6 +12,7 @@ const fakeRouter = require("./routes/faker.router");
 const tasksRouter = require("./routes/tasks.router");
 const commentsRouter = require("./routes/comments.router");
 const notificationsRouter = require("./routes/notifications.router");
+const teamsRouter = require("./routes/teams.router");
 const io = require("./socket");
 const passport = require("passport");
 
@@ -43,6 +44,8 @@ app.use(
   })
 );
 
+
+
 require("./middlewares/passport-jwt")(passport);
 mongoose
   .connect(process.env.MONGO_URI)
@@ -68,6 +71,7 @@ app.use("/api", [
   tasksRouter,
   commentsRouter,
   notificationsRouter,
+  teamsRouter,
 ]);
 
 module.exports = app;

@@ -2,9 +2,20 @@ var express = require('express');
 const axios = require("axios");
 const jwt = require('jsonwebtoken');
 const UserModel = require('../../models/users');
-require('dotenv').config();
+//require('dotenv').config();
 
+const dotenv = require('dotenv');
+const fs = require('fs');
 
+// Load .env (default environment)
+if (fs.existsSync('.env')) {
+    dotenv.config({ path: '.env' });
+}
+
+// Load .env.development (additional variables)
+if (fs.existsSync('.env.development')) {
+    dotenv.config({ path: '.env.development' });
+}
 
 
 //const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));
@@ -78,7 +89,7 @@ const getUsertData = async (req, res) => {
                 fullName: response.data.name,
                 email: userEmail,
                 picture:response.data.avatar_url,
-                roles: 'DESIGNER',
+                roles: 'ENGINEER',
             });
             await user.save();
         }

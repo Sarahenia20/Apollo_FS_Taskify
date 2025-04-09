@@ -1,10 +1,10 @@
 import React, { useState, useRef, useEffect } from "react";
-import TaskPopup from "./TaskPopup";
+import teamPopup from "./teamPopup";
 import { useDispatch } from "react-redux";
 
 
 
-const TaskHeader = () => {
+const TeamsHeader = () => {
   const [popupOpen, setPopupOpen] = useState(false);
 
   const trigger = useRef(null);
@@ -41,7 +41,7 @@ const TaskHeader = () => {
     <div className="flex flex-col gap-y-4 rounded-sm border border-stroke bg-white p-3 shadow-default dark:border-strokedark dark:bg-boxdark sm:flex-row sm:items-center sm:justify-between">
       <div>
         <h3 className="pl-2 text-title-lg font-semibold text-black dark:text-white">
-          Tasks
+          Teams
         </h3>
       </div>
 
@@ -67,11 +67,11 @@ const TaskHeader = () => {
               fill=""
             />
           </svg>
-          Add task
+          Add Team
         </button>
 
         {/* <!-- ===== Task Popup Start ===== --> */}
-        <TaskPopup
+        <teamPopup
           popupOpen={popupOpen}
           setPopupOpen={setPopupOpen}
           popup={popup}
@@ -82,4 +82,4 @@ const TaskHeader = () => {
   );
 };
 
-export default TaskHeader;
+export default TeamsHeader;

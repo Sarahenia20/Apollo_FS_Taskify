@@ -8,6 +8,8 @@ import Calendar from "./pages/Calendar";
 import AdvancedChart from "./pages/Chart/AdvancedChart";
 import BasicChart from "./pages/Chart/BasicChart";
 import Analytics from "./pages/Dashboard/Analytics";
+import Teams from "./pages/Teams/team";
+import TeamsAdmin from "./pages/Teams/teamAdmin";
 import Kanban from "./pages/Kanban";
 
 import ErrorPage from "./pages/Pages/ErrorPage";
@@ -106,6 +108,7 @@ const App = () => {
           <Route path="/unauthorized" element={<Unauthorized />} />
           <Route path="/projects/project-list" element={<ProjectList />} />
           <Route path="/users" element={<Users />} />
+          <Route path="/Teams" element={<TeamsAdmin />} />
           <Route path="/roles" element={<Roles />} />
           <Route path="/auth/signin" element={<SignIn />} />
           <Route path="/auth/signup" element={<SignUp />} />

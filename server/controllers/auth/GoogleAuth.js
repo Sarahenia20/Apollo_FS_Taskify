@@ -2,7 +2,19 @@
 const axios = require('axios');
 const jwt = require('jsonwebtoken');
 const UserModel = require('../../models/users');
-require('dotenv').config();
+//require('dotenv').config();
+const dotenv = require('dotenv');
+const fs = require('fs');
+
+// Load .env (default environment)
+if (fs.existsSync('.env')) {
+    dotenv.config({ path: '.env' });
+}
+
+// Load .env.development (additional variables)
+if (fs.existsSync('.env.development')) {
+    dotenv.config({ path: '.env.development' });
+}
 
 const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
@@ -57,7 +69,7 @@ const getUserDataGoogle = async (req, res) => {
                 fullName: userData.name,
                 email: userData.email,
                 picture: userData.picture,
-                roles: 'DESIGNER',
+                roles: 'ENGINEER',
             });
             await user.save();
         }
