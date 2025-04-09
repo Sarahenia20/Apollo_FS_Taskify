@@ -27,21 +27,11 @@ require("dotenv").config();
 
 var app = express();
 
-// Enable CORS for all routes
+// Enable CORS if needed
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://127.0.0.1:3000'], // Adjust to your frontend URL
+  origin: ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:5173'],
   credentials: true
 }));
-
-// Debugging middleware
-const debugMiddleware = (req, res, next) => {
-  console.log('Request Details:');
-  console.log('Method:', req.method);
-  console.log('Path:', req.path);
-  console.log('Headers:', req.headers);
-  console.log('Body:', req.body);
-  next();
-};
 
 // Configure helmet for content security policy 
 app.use(
@@ -54,6 +44,26 @@ app.use(
     },
   })
 );
+
+// Add basic request logging middleware
+app.use(logger("dev"));
+
+// IMPORTANT: Body parsing middleware needs to come BEFORE routes
+// Increased limits for JSON and URL-encoded data
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(cookieParser());
+
+// Debugging middleware - place after body parsers but before routes
+const debugMiddleware = (req, res, next) => {
+  console.log('Request Details:');
+  console.log('Method:', req.method);
+  console.log('Path:', req.path);
+  console.log('Headers:', req.headers);
+  console.log('Body:', req.body);
+  next();
+};
+app.use(debugMiddleware);
 
 // Passport JWT configuration
 require("./middlewares/passport-jwt")(passport);
@@ -72,15 +82,8 @@ mongoose
   )
   .catch((err) => {
     console.error("MongoDB Connection Error:", err);
-    process.exit(1); // Exit process on connection failure
+    console.log(err);
   });
-
-// Middleware setup
-app.use(logger("dev"));
-app.use(debugMiddleware); // Add debugging middleware
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-app.use(cookieParser());
 
 // Static file serving
 app.use(express.static(path.join(__dirname, "public")));
@@ -112,25 +115,6 @@ app.use((err, req, res, next) => {
     message: err.message || 'An unexpected error occurred',
     stack: process.env.NODE_ENV === 'development' ? err.stack : {}
   });
-});
-
-// Catch-all for unhandled routes
-app.use((req, res, next) => {
-  res.status(404).json({
-    message: 'Route not found',
-    path: req.path,
-    method: req.method
-  });
-});
-
-// Logging unhandled promise rejections
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
-});
-
-// Logging uncaught exceptions
-process.on('uncaughtException', (error) => {
-  console.error('Uncaught Exception:', error);
 });
 
 module.exports = app;

@@ -36,8 +36,11 @@ Project title : ${title}
     const json = text.substring(jsonStart, jsonEnd);
 
     return JSON.parse(json);
-  } catch (err) {
-    console.error("Error generating tasks:", err);
+  } // To this more detailed version:
+  catch (err) {
+    console.error("Error generating tasks - Full details:", err);
+    console.error("Error message:", err.message);
+    console.error("Error stack:", err.stack);
     return [];
   }
 }
