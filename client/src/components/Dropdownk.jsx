@@ -105,7 +105,7 @@ const DropdownDefault = (props) => {
               </clipPath>
             </defs>
           </svg>
-          Edit
+          Edit Task
         </button>
 
         {props.keepDelete === undefined || props.keepDelete ? <button
@@ -167,7 +167,7 @@ const DropdownDefault = (props) => {
               </clipPath>
             </defs>
           </svg>
-          Comment
+          See & Comment
         </button>
       </div>
       <TaskPopup

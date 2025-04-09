@@ -10,7 +10,7 @@ export const MOCK_PRIORITY = [
   {
     label: "medium",
     value: "2",
-    color: "bg-secondary",
+    color: "bg-primary",
     complexity: "moderate",
     impact: "notable",
     requiredSkillLevel: "intermediate"
@@ -18,7 +18,7 @@ export const MOCK_PRIORITY = [
   {
     label: "high",
     value: "3",
-    color: "bg-red",
+    color: "bg-secondary",
     complexity: "complex",
     impact: "significant",
     requiredSkillLevel: "senior"
@@ -26,7 +26,7 @@ export const MOCK_PRIORITY = [
   {
     label: "critical",
     value: "4",
-    color: "bg-danger",
+    color: "bg-red",
     complexity: "highly intricate",
     impact: "transformative",
     requiredSkillLevel: "expert"
