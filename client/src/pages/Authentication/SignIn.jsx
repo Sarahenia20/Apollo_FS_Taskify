@@ -6,9 +6,16 @@ import { Link, useNavigate } from "react-router-dom";
 import InputGroup from "../../components/form/InputGroup";
 import { useDispatch, useSelector } from "react-redux";
 import { LoginRegister } from "../../redux/actions/auth";
+import OtpVerification from "../../components/OtpVerification";
+import axios from "axios";
+import AuthGithub from '../../components/AuthGithub';
+import AuthGoogle from '../../components/AuthGoogle';
+
 
 const SignIn = () => {
   const [form, setfForm] = useState({});
+  const [showOtpModal, setShowOtpModal] = useState(false);
+  const [userEmail, setUserEmail] = useState("");
   const dispatch = useDispatch();
   const { content } = useSelector((state) => state.errors);
 
@@ -19,9 +26,24 @@ const SignIn = () => {
     });
   };
 
-  const onSubmitHandler = (e) => {
+  const onSubmitHandler = async (e) => {
     e.preventDefault();
-    dispatch(LoginRegister(form));
+    try {
+      const response = await axios.post("/api/login", form);
+      
+      // Check if 2FA is required
+      if (response.data.twoFactorRequired) {
+        setUserEmail(response.data.email);
+        setShowOtpModal(true);
+      } else {
+        // Normal login flow
+        const { token } = response.data;
+        dispatch(LoginRegister(form));
+      }
+    } catch (error) {
+      // Let the existing error handling in redux take care of this
+      dispatch({ type: "SET_ERRORS", payload: error?.response?.data });
+    }
   };
 
   return (
@@ -122,6 +144,8 @@ const SignIn = () => {
                   />
                 </div>
 
+                
+
                 <div className="mt-6 text-center">
                   <p>
                     Don’t have an account?{" "}
@@ -131,10 +155,21 @@ const SignIn = () => {
                   </p>
                 </div>
               </form>
+              <AuthGoogle></AuthGoogle>
+
+              <AuthGithub></AuthGithub>
             </div>
           </div>
         </div>
       </div>
+
+      {/* OTP Verification Modal */}
+      {showOtpModal && (
+        <OtpVerification
+          email={userEmail}
+          onClose={() => setShowOtpModal(false)}
+        />
+      )}
     </>
   );
 };

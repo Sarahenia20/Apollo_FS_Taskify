@@ -1,5 +1,4 @@
 import React, { useState } from 'react'
-import DropdownDefault from './DropdownDefault'
 
 const FeaturedCampaigns = () => {
   const [openTab, setOpenTab] = useState(1)
@@ -16,7 +15,7 @@ const FeaturedCampaigns = () => {
           </h2>
           <p className='text-sm font-medium'>75% activity growth</p>
         </div>
-        <DropdownDefault />
+        <Dropdownk />
       </div>
 
       <div className='px-6 pt-6 pb-7.5'>

@@ -10,6 +10,12 @@ export const LoginRegister = (form) => async (dispatch) => {
   await axios
     .post("/api/login", form)
     .then((res) => {
+      // Check if 2FA is required
+      if (res.data.twoFactorRequired) {
+        // This will be handled by the SignIn component
+        return;
+      }
+      
       const { token } = res.data;
       const decoded = jwtDecode(token);
       localStorage.setItem("token", token);

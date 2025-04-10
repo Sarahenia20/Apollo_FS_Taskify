@@ -1,43 +1,40 @@
-const isEmpty = require("./isEmpty.js");
-const validator = require("validator");
+const Validator = require('validator');
 
-module.exports = function tasksValidation(data) {
+function isEmpty(value) {
+  return (
+    value === undefined ||
+    value === null ||
+    (typeof value === 'object' && Object.keys(value).length === 0) ||
+    (typeof value === 'string' && value.trim().length === 0)
+  );
+}
+
+module.exports = function validateTaskInput(data) {
   let errors = {};
 
-  /*   data.project = !isEmpty(data.project) ? data.project : "";
-  if (!data.project.length != 0) {
-    errors.project = "required project";
+  // Ensure data is an object
+  data = data || {};
+
+  // Convert to string or empty string if undefined
+  data.title = !isEmpty(data.title) ? data.title.toString().trim() : '';
+  data.description = !isEmpty(data.description) ? data.description.toString().trim() : '';
+
+  // Title validation
+  if (Validator.isEmpty(data.title)) {
+    errors.title = 'Task title is required';
+  } else if (!Validator.isLength(data.title, { min: 3, max: 100 })) {
+    errors.title = 'Task title must be between 3 and 100 characters';
   }
 
-  data.priority = !isEmpty(data.priority) ? data.priority : "";
-  if (!data.priority.length != 0) {
-    errors.priority = "required priority";
-  }
-
-
-  
-  data.status = !isEmpty(data.status) ? data.status : "";
-  if (!data.status) {
-    errors.status = "required status";
-  }
-
-  data.assigns = !isEmpty(data.assigns) ? data.assigns : "";
-  if (!data.assigns) {
-    errors.assigns = "required assigns";
-  } */
-
-  data.title = !isEmpty(data.title) ? data.title : "";
-  if (validator.isEmpty(data.title)) {
-    errors.title = "required title";
-  }
-
-  data.description = !isEmpty(data.description) ? data.description : "";
-  if (validator.isEmpty(data.description)) {
-    errors.description = "required description";
+  // Description validation
+  if (Validator.isEmpty(data.description)) {
+    errors.description = 'Task description is required';
+  } else if (!Validator.isLength(data.description, { min: 10, max: 500 })) {
+    errors.description = 'Task description must be between 10 and 500 characters';
   }
 
   return {
     errors,
-    isValid: isEmpty(errors),
+    isValid: Object.keys(errors).length === 0
   };
 };
