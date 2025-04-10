@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom'
-import DropdownDefault from './DropdownDefault';
+import Dropdownk from './Dropdownk';
 
 const ExternalLink = () => {
   return (
@@ -12,7 +12,7 @@ const ExternalLink = () => {
           </h2>
           <p className='text-sm font-medium'>Most used resources</p>
         </div>
-        <DropdownDefault />
+        <Dropdownk />
       </div>
 
       <div className='px-3 pb-5'>

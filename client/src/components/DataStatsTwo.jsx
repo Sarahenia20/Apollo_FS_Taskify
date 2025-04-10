@@ -1,5 +1,4 @@
 import React from 'react';
-import DropdownDefault from './DropdownDefault';
 
 const DataStatsTwo = () => {
   return (
@@ -11,7 +10,7 @@ const DataStatsTwo = () => {
           </h2>
           <p className='font-medium'>Latest social statistics</p>
         </div>
-        <DropdownDefault />
+        <Dropdownk />
       </div>
 
       <div className='grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-6 2xl:gap-7.5'>

@@ -1,4 +1,4 @@
-export const ROLES = [
+/*export const ROLES = [
   {
     title: "ADMIN",
     avatar: "AD",
@@ -18,4 +18,31 @@ export const ROLES = [
     description:
       "The Engineer is in charge of the production process for Taskify, They can manage task status, communicate with other members as well. ",
   },
+];*/
+// src/data/roles.js
+export const ROLES = [
+  {
+    title: "Admin",
+    description: "Full system access with ability to manage users, roles, and all system settings.",
+    avatar: "A",
+    permissions: ["Create Task", "View Tasks", "Edit Tasks", "Delete Tasks", "Manage Users", "View Reports", "Manage Projects"]
+  },
+  {
+    title: "Project Manager",
+    description: "Manages projects, tasks, and team members. Can create and assign tasks, view reports, and manage project settings.",
+    avatar: "P",
+    permissions: ["Create Task", "View Tasks", "Edit Tasks", "View Reports", "Manage Projects"]
+  },
+  {
+    title: "Developer",
+    description: "Works on assigned tasks and can update task progress. Limited access to project settings.",
+    avatar: "D",
+    permissions: ["View Tasks", "Edit Tasks"]
+  },
+  {
+    title: "Viewer",
+    description: "Can only view tasks and reports. No ability to make changes to the system.",
+    avatar: "V",
+    permissions: ["View Tasks", "View Reports"]
+  }
 ];

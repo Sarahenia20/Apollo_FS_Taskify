@@ -22,6 +22,7 @@ const DropdownUser = () => {
     };
     fetchData();
   }, []);
+  
   // close on click outside
   useEffect(() => {
     const clickHandler = ({ target }) => {
@@ -67,9 +68,17 @@ const DropdownUser = () => {
 
         <span className="h-12 w-12 rounded-full">
           <img
-            src={`http://localhost:5500/${_CURRENT.picture}`}
+            src={_CURRENT.picture && _CURRENT.picture.startsWith('http') 
+              ? _CURRENT.picture 
+              : _CURRENT.picture 
+                ? `http://localhost:5500/${_CURRENT.picture}` 
+                : UserOne}
             className="h-12 w-12 rounded-full"
             alt="User"
+            onError={(e) => {
+              e.target.onerror = null;
+              e.target.src = UserOne;
+            }}
           />
         </span>
 

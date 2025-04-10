@@ -1,10 +1,10 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import InputGroup from "./form/InputGroup";
-import SelectGroup from "./form/SelectGroup"
+import RolesSelectGroup from "./form/RolesSelectGroup"; // Import specialized roles component
+import SkillsSelectGroup from "./form/SkillsSelectGroup"; // Import specialized skills component
 import { useDispatch, useSelector } from "react-redux";
 import { AddUser, UpdateUser } from "../redux/actions/users";
 import { _FindOneUser } from "../redux/reducers/users";
-import { ROLES } from "../data/roles";
 import { setRefresh } from "../redux/reducers/commons";
 
 const UserPopup = (props) => {
@@ -14,13 +14,6 @@ const UserPopup = (props) => {
   const { content } = useSelector((state) => state.errors);
   const { _ONE } = useSelector((state) => state.users);
 
-  const options = ROLES.map((role) => {
-    return {
-      value: role.title,
-      label: role.title,
-    };
-  });
-
   const OnChangeHandler = (e) => {
     setForm({
       ...form,
@@ -28,24 +21,61 @@ const UserPopup = (props) => {
     });
   };
 
-  const OnChangeSelect = (e) => {
+  // Handler for roles selection
+  const OnChangeRoles = (selectedRoles) => {
     setForm({
       ...form,
-      roles: e,
+      roles: selectedRoles,
     });
   };
+
+  // Handler for skills selection
+  const OnChangeSkills = (selectedSkills) => {
+    setForm({
+      ...form,
+      skills: selectedSkills,
+    });
+  };
+
   useEffect(() => {
     setForm(_ONE);
   }, [_ONE]);
 
   const onSubmitHandler = (e) => {
     e.preventDefault();
+    
+    // Format both roles and skills data before sending
+    const formattedData = {
+      ...form,
+      // Convert roles from array of objects to array of strings if needed
+      roles: form.roles ? 
+        (Array.isArray(form.roles) ? 
+          form.roles.map(role => typeof role === 'object' ? role.value : role) : 
+          [form.roles]) : 
+        [],
+      // Convert skills from array of objects to array of strings if needed
+      skills: form.skills ? 
+        (Array.isArray(form.skills) ? 
+          form.skills.map(skill => typeof skill === 'object' ? skill.value : skill) : 
+          [form.skills]) : 
+        []
+    };
+    
+    // For debugging - check what's being sent
+    console.log("Submitting form data:", formattedData);
+    
     if (!Object.keys(_ONE).length > 0) {
-      dispatch(AddUser(form, props.setPopupOpen));
+      // Make sure password is included for new users
+      if (!formattedData.password) {
+        alert("Password is required for new users");
+        return;
+      }
+      dispatch(AddUser(formattedData, props.setPopupOpen));
     } else {
-      dispatch(UpdateUser(form, _ONE?._id, props.setPopupOpen));
+      dispatch(UpdateUser(formattedData, _ONE?._id, props.setPopupOpen));
     }
   };
+  
   return (
     <div
       className={`fixed left-0 top-0 z-99999 flex h-screen w-full justify-center overflow-y-scroll bg-black/80 px-4 py-5 ${
@@ -113,21 +143,46 @@ const UserPopup = (props) => {
                 errors={content?.phone ?? ""}
                 defaultValue={form?.phone ?? ""}
               />
-              <SelectGroup
+              
+              {/* Add password field for new users */}
+              {!Object.keys(_ONE).length > 0 && (
+                <div className="mb-5.5">
+                  <label className="mb-3 block text-sm font-medium text-black dark:text-white">
+                    Password <span className="text-meta-1">*</span>
+                  </label>
+                  <input
+                    type="password"
+                    name="password"
+                    placeholder="Enter password"
+                    required
+                    onChange={OnChangeHandler}
+                    className="w-full rounded border border-stroke bg-transparent py-3 px-5 text-black dark:text-white outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input"
+                  />
+                  {content?.password && (
+                    <p className="text-meta-1">{content.password}</p>
+                  )}
+                </div>
+              )}
+              
+              {/* Using the specialized RolesSelectGroup */}
+              <RolesSelectGroup
                 label="Roles"
                 name="roles"
                 required={true}
-                action={OnChangeSelect}
+                action={OnChangeRoles}
                 errors={content?.roles ?? ""}
-                defaultValue={
-                  form?.roles
-                    ? options.filter((obj) =>
-                        form?.roles.some((r) => r === obj.value)
-                      )
-                    : []
-                }
-                options={options}
-                isMulti={true}
+                defaultValue={form?.roles || []}
+              />
+              
+              {/* Using the SkillsSelectGroup from your friend */}
+              <SkillsSelectGroup
+                label="Skills"
+                name="skills"
+                required={false}
+                action={OnChangeSkills}
+                errors={content?.skills ?? ""}
+                defaultValue={form?.skills || []}
+                maxSkills={10}
               />
 
               <button
@@ -138,14 +193,14 @@ const UserPopup = (props) => {
               </button>
             </div>
           ) : (
-            <div class="bg-gray-900 flex min-h-screen items-center justify-center">
-              <div class="w-[200px]">
-                <div class="space-y-5 rounded-2xl bg-white/5 p-4 shadow-xl shadow-black/5">
-                  <div class="bg-rose-100/10 h-24 rounded-lg"></div>
-                  <div class="space-y-3">
-                    <div class="bg-rose-100/10 h-3 w-3/5 rounded-lg"></div>
-                    <div class="bg-rose-100/20 h-3 w-4/5 rounded-lg"></div>
-                    <div class="bg-rose-100/20 h-3 w-2/5 rounded-lg"></div>
+            <div className="bg-gray-900 flex min-h-screen items-center justify-center">
+              <div className="w-[200px]">
+                <div className="space-y-5 rounded-2xl bg-white/5 p-4 shadow-xl shadow-black/5">
+                  <div className="bg-rose-100/10 h-24 rounded-lg"></div>
+                  <div className="space-y-3">
+                    <div className="bg-rose-100/10 h-3 w-3/5 rounded-lg"></div>
+                    <div className="bg-rose-100/20 h-3 w-4/5 rounded-lg"></div>
+                    <div className="bg-rose-100/20 h-3 w-2/5 rounded-lg"></div>
                   </div>
                 </div>
               </div>
