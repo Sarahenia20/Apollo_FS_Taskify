@@ -1,5 +1,5 @@
 import React from 'react';
-import DropdownDefault from './DropdownDefault'
+import Dropdownk from './Dropdownk'
 import User17 from '../images/user/user-17.png'
 import User18 from '../images/user/user-18.png'
 import User19 from '../images/user/user-19.png'
@@ -18,7 +18,7 @@ const LeadsReport = () => {
                 Leads Report
               </h2>
             </div>
-            <DropdownDefault />
+            <Dropdownk />
           </div>
         </div>
 

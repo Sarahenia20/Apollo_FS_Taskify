@@ -1,6 +1,6 @@
 import React, { Component } from 'react';
 import ReactApexChart from 'react-apexcharts'
-import DropdownDefault from './DropdownDefault';
+import Dropdownk from './Dropdownk';
 
 class ChartSix extends Component {
   constructor(props) {
@@ -164,7 +164,7 @@ class ChartSix extends Component {
               Average cost per interaction
             </span>
           </div>
-          <DropdownDefault />
+          <Dropdownk />
         </div>
         <div>
           <div id='chartSix' className='-ml-5'>

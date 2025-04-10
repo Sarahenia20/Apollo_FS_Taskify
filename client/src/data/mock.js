@@ -35,7 +35,7 @@ export const MOCK_PRIORITY = [
 
 export const MOCK_STATUS = [
   {
-    label: "on hold",
+    label: "To do",
     value: "1",
     color: "bg-red",
     reason: "awaiting resources",
@@ -49,14 +49,14 @@ export const MOCK_STATUS = [
     estimatedCompletion: "in progress"
   },
   {
-    label: "completed",
+    label: "In review",
     value: "3",
     color: "bg-meta-3",
     verification: "passed",
     deploymentStatus: "ready"
   },
   {
-    label: "blocked",
+    label: "Completed",
     value: "4",
     color: "bg-warning",
     blockers: "external dependencies",

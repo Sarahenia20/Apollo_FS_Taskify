@@ -9,153 +9,99 @@ import {
   _FindTasks,
 } from "../reducers/tasks";
 
-// Updated Add Task Action with file upload support
+// Helper function to handle common API response patterns
+const handleApiResponse = async (apiCall, dispatch, successCallback) => {
+  try {
+    const res = await apiCall();
+    if (successCallback) successCallback(res);
+    dispatch(setErrors({}));
+    return res;
+  } catch (error) {
+    dispatch(setErrors(error.response?.data || { error: "An unexpected error occurred" }));
+    throw error;
+  } finally {
+    dispatch(setRefresh(false));
+  }
+};
+
+// Common fields that need JSON stringification
+const JSON_FIELDS = new Set(['assigns', 'project', 'priority', 'status', 'type']);
+
+// Prepare form data with optional file
+const prepareFormData = (form, file) => {
+  const formData = new FormData();
+  
+  Object.entries(form).forEach(([key, value]) => {
+    formData.append(key, JSON_FIELDS.has(key) ? JSON.stringify(value) : value);
+  });
+  
+  if (file) {
+    formData.append('attachment', file);
+  }
+  
+  return formData;
+};
+
+// Add Task Action with file upload support
 export const AddTaskAction = (form, files, setPopupOpen) => async (dispatch) => {
   dispatch(setRefresh(true));
   
-  // Check if files are provided
-  if (files && files.length > 0) {
-    // Create FormData object for file upload
-    const formData = new FormData();
-    
-    // Add all form fields to FormData
-    for (const key in form) {
-      if (key === 'assigns' || key === 'project' || key === 'priority' || key === 'status' || key === 'type') {
-        formData.append(key, JSON.stringify(form[key]));
-      } else {
-        formData.append(key, form[key]);
-      }
-    }
-    
-    // Add file
-    formData.append('attachment', files[0]);
-    
-    await axios
-      .post("/api/tasks", formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
+  const apiCall = files?.length > 0
+    ? () => axios.post("/api/tasks", prepareFormData(form, files[0]), {
+        headers: { 'Content-Type': 'multipart/form-data' }
       })
-      .then((res) => {
-        dispatch(_AddTask(res.data.data));
-        setPopupOpen(false);
-        dispatch(setRefresh(false));
-        dispatch(setErrors({}));
-      })
-      .catch((error) => {
-        dispatch(setErrors(error.response.data));
-        dispatch(setRefresh(false));
-      });
-  } else {
-    // No files, use regular JSON request
-    await axios
-      .post("/api/tasks", form)
-      .then((res) => {
-        dispatch(_AddTask(res.data.data));
-        setPopupOpen(false);
-        dispatch(setRefresh(false));
-        dispatch(setErrors({}));
-      })
-      .catch((error) => {
-        dispatch(setErrors(error.response.data));
-        dispatch(setRefresh(false));
-      });
-  }
+    : () => axios.post("/api/tasks", form);
+
+  await handleApiResponse(apiCall, dispatch, (res) => {
+    dispatch(_AddTask(res.data.data));
+    setPopupOpen(false);
+  });
 };
 
-// Updated Update Task Action with file upload support
+// Update Task Action with file upload support
 export const UpdateTaskAction = (form, id, files, setPopupOpen) => async (dispatch) => {
   dispatch(setRefresh(true));
   
-  // Check if files are provided
-  if (files && files.length > 0) {
-    // Create FormData object for file upload
-    const formData = new FormData();
-    
-    // Add all form fields to FormData
-    for (const key in form) {
-      if (key === 'assigns' || key === 'project' || key === 'priority' || key === 'status' || key === 'type') {
-        formData.append(key, JSON.stringify(form[key]));
-      } else {
-        formData.append(key, form[key]);
-      }
-    }
-    
-    // Add file
-    formData.append('attachment', files[0]);
-    
-    await axios
-      .put(`/api/tasks/${id}`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      })
-      .then((res) => {
-        dispatch(_FindOneTask(id));
-        dispatch(FindTaskAction());
-        setPopupOpen(false);
-        dispatch(setRefresh(false));
-        dispatch(setErrors({}));
-      })
-      .catch((error) => {
-        dispatch(setErrors(error.response.data));
-        dispatch(setRefresh(false));
-      });
-  } else {
-    // No files, use regular JSON request
-    await axios
-      .put(`/api/tasks/${id}`, form)
-      .then((res) => {
-        dispatch(_FindOneTask(id));
-        dispatch(FindTaskAction());
-        setPopupOpen(false);
-        dispatch(setRefresh(false));
-        dispatch(setErrors({}));
-      })
-      .catch((error) => {
-        dispatch(setErrors(error.response.data));
-        dispatch(setRefresh(false));
-      });
-  }
-};
-
-const toBase64 = (file) =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = reject;
-  });
-
-export const AddCommentAction = (form, id, setPopupOpen) => async (dispatch) => {
   try {
-    let uploaded = "";
-    if (form.file) {
-      // Resize and convert image to base64 to reduce payload size
-      const resizedImage = await resizeImage(form.file, 800, 800); // Max width/height 800px
-      uploaded = resizedImage.split(',')[1]; // Remove data URL prefix
+    // Prepare the data for API
+    const payload = {
+      ...form,
+      // Convert selects back to IDs
+      project: form.project?.value || form.project,
+      assigns: form.assigns?.map(a => a.value) || form.assigns
+    };
+
+    const apiCall = files?.length > 0
+      ? () => axios.put(`/api/tasks/${id}`, prepareFormData(payload, files[0]), {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        })
+      : () => axios.put(`/api/tasks/${id}`, payload);
+
+    const response = await apiCall();
+    console.log("Update response:", response.data);
+
+    if (response.data.success) {
+      // Refresh both the single task and task list
+      await dispatch(FindOneTaskAction(id));
+      await dispatch(FindTaskAction());
+      
+      swal("Success", "Task updated successfully", "success");
+      if (setPopupOpen) setPopupOpen(false);
+    } else {
+      throw new Error(response.data.message || "Update failed");
     }
-    
-    await axios
-      .post(`/api/tasks/${id}/comments`, { 
-        comment: form.comment, 
-        file: uploaded 
-      })
-      .then((res) => {
-        dispatch(FindOneTaskAction(id));
-        dispatch(setErrors({}));
-      })
-      .catch((error) => {
-        dispatch(setErrors(error.response.data));
-      });
   } catch (error) {
-    console.error("Error processing comment:", error);
-    dispatch(setErrors({ comment: "Failed to process comment" }));
+    console.error("Update error:", error);
+    dispatch(setErrors(error.response?.data || { 
+      error: error.message || "Failed to update task" 
+    }));
+    swal("Error", error.response?.data?.message || "Failed to update task", "error");
+  } finally {
+    dispatch(setRefresh(false));
   }
 };
 
-// Helper function to resize image before upload
-// Helper function to resize image before upload
+// Image resizing helper
 const resizeImage = (file, maxWidth, maxHeight) => {
   return new Promise((resolve) => {
     const reader = new FileReader();
@@ -164,156 +110,124 @@ const resizeImage = (file, maxWidth, maxHeight) => {
       const img = new Image();
       img.src = event.target.result;
       img.onload = () => {
-        // Calculate new dimensions
-        let width = img.width;
-        let height = img.height;
-        
-        if (width > maxWidth) {
-          height = (maxWidth / width) * height;
-          width = maxWidth;
-        }
-        
-        if (height > maxHeight) {
-          width = (maxHeight / height) * width;
-          height = maxHeight;
-        }
-        
-        // Create canvas and resize
         const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
         const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, width, height);
         
-        // Convert to lower quality JPEG
-        const resizedImage = canvas.toDataURL('image/jpeg', 0.7); // 70% quality
-        resolve(resizedImage);
+        // Calculate new dimensions maintaining aspect ratio
+        const ratio = Math.min(maxWidth / img.width, maxHeight / img.height);
+        canvas.width = img.width * ratio;
+        canvas.height = img.height * ratio;
+        
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/jpeg', 0.7));
       };
     };
   });
 };
 
+export const AddCommentAction = (form, id, setPopupOpen) => async (dispatch) => {
+  dispatch(setRefresh(true));
+  
+  try {
+    const fileData = form.file 
+      ? (await resizeImage(form.file, 800, 800)).split(',')[1]
+      : undefined;
+
+    await handleApiResponse(
+      () => axios.post(`/api/tasks/${id}/comments`, { 
+        comment: form.comment, 
+        file: fileData 
+      }),
+      dispatch,
+      () => dispatch(FindOneTaskAction(id))
+    );
+  } catch (error) {
+    dispatch(setErrors({ comment: "Failed to process comment" }));
+  }
+};
+
 export const DeleteCommentAction = (id, id_c) => async (dispatch) => {
-  await axios
-    .delete(`/api/tasks/${id}/comments/${id_c}`)
-    .then((res) => {
-      dispatch(FindOneTaskAction(id));
-      dispatch(setErrors({}));
-    })
-    .catch((error) => {
-      dispatch(setErrors(error.response.data));
-    });
+  dispatch(setRefresh(true));
+  await handleApiResponse(
+    () => axios.delete(`/api/tasks/${id}/comments/${id_c}`),
+    dispatch,
+    () => dispatch(FindOneTaskAction(id))
+  );
 };
 
 export const FindTaskAction = () => async (dispatch) => {
-  await axios
-    .get("/api/tasks")
-    .then((res) => {
-      dispatch(_FindTasks(res.data.data));
-    })
-    .catch((error) => {
-      dispatch(setErrors(error.response.data));
-    });
+  dispatch(setRefresh(true));
+  await handleApiResponse(
+    () => axios.get("/api/tasks"),
+    dispatch,
+    (res) => dispatch(_FindTasks(res.data.data))
+  );
 };
 
 export const FindOneTaskAction = (id) => async (dispatch) => {
   dispatch(setRefresh(true));
-  await axios
-    .get(`/api/tasks/${id}`)
-    .then((res) => {
+  await handleApiResponse(
+    () => axios.get(`/api/tasks/${id}`),
+    dispatch,
+    (res) => {
       dispatch(_FindOneTask(res.data));
-      setTimeout(() => {
-        dispatch(setRefresh(false));
-      }, 2000);
-      dispatch(setErrors({}));
-    })
-    .catch((error) => {
-      dispatch(setErrors(error.response.data));
-      dispatch(setRefresh(false));
-    });
+      setTimeout(() => dispatch(setRefresh(false)), 2000);
+    }
+  );
+  return res.data;
 };
 
 export const DeleteTaskAction = (id) => async (dispatch) => {
   if (window.confirm("Do you want to delete this task?")) {
-    await axios
-      .delete(`/api/tasks/${id}`)
-      .then((res) => {
+    dispatch(setRefresh(true));
+    await handleApiResponse(
+      () => axios.delete(`/api/tasks/${id}`),
+      dispatch,
+      () => {
         dispatch(_DeleteTasks(id));
         swal("Success", "Task deleted successfully", "success");
-      })
-      .catch((error) => {
-        dispatch(setErrors(error.response.data));
-      });
+      }
+    );
   }
 };
 
-// Add new action to delete attachment
 export const DeleteAttachmentAction = (id) => async (dispatch) => {
   if (window.confirm("Do you want to delete this attachment?")) {
-    await axios
-      .delete(`/api/tasks/${id}/attachment`)
-      .then((res) => {
-        dispatch(FindOneTaskAction(id));
-        dispatch(FindTaskAction());
-      })
-      .catch((error) => {
-        dispatch(setErrors(error.response.data));
-      });
+    dispatch(setRefresh(true));
+    await handleApiResponse(
+      () => axios.delete(`/api/tasks/${id}/attachment`),
+      dispatch,
+      async () => {
+        await dispatch(FindOneTaskAction(id));
+        await dispatch(FindTaskAction());
+      }
+    );
   }
 };
-// Action to reschedule task via drag and drop
+
 export const RescheduleTaskAction = (id, newDates) => async (dispatch) => {
-  console.log("RescheduleTaskAction called with:", { id, newDates });
   dispatch(setRefresh(true));
   
   try {
-    // Format dates to ensure they're properly formatted for the API
     const formattedDates = {
-      start_date: typeof newDates.start_date === 'string' 
-        ? newDates.start_date 
-        : new Date(newDates.start_date).toISOString(),
-      end_date: typeof newDates.end_date === 'string' 
-        ? newDates.end_date 
-        : new Date(newDates.end_date).toISOString(),
+      start_date: new Date(newDates.start_date).toISOString(),
+      end_date: new Date(newDates.end_date).toISOString(),
       is_all_day: newDates.is_all_day
     };
     
-    console.log("Making API call with formatted dates:", formattedDates);
-    
-    // Make API call to reschedule the task
     const response = await axios.patch(`/api/tasks/${id}/reschedule`, formattedDates);
     
-    // If successful, update the task in Redux
-    if (response.data && response.data.success) {
-      console.log("Reschedule successful:", response.data);
-      
-      // Update the specific task in the state
+    if (response.data?.success) {
       dispatch(_FindOneTask(response.data.data));
-      
-      // Refresh all tasks to ensure the list is up to date
-      dispatch(FindTaskAction());
-      
-      // Show success message
+      await dispatch(FindTaskAction());
       swal("Success", "Task rescheduled successfully", "success");
     } else {
-      // Handle API success but response indicates failure
-      console.error("API returned success: false", response.data);
       swal("Error", response.data?.error || "Failed to reschedule task", "error");
     }
   } catch (error) {
-    // Log detailed error information
-    console.error("Reschedule error:", error);
-    console.error("Error details:", error.response?.data);
-    
-    // Show error message
-    swal("Error", error.response?.data?.error || "Failed to reschedule task", "error");
-    
-    // Set errors in Redux store
     dispatch(setErrors(error.response?.data || { error: "Failed to reschedule task" }));
+    swal("Error", error.response?.data?.error || "Failed to reschedule task", "error");
   } finally {
-    // Always reset the refresh state
-    setTimeout(() => {
-      dispatch(setRefresh(false));
-    }, 500);
+    setTimeout(() => dispatch(setRefresh(false)), 500);
   }
 };

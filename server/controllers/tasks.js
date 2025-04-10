@@ -389,60 +389,7 @@ const DeleteAttachment = async (req, res) => {
 };
 
 // Add this method to your existing tasks.js controller
-const AddFromSuggestion = async (req, res) => {
-  try {
-    // Parse stringified fields if needed
-    const parsedBody = { ...req.body };
-    const fieldsToParseAsJSON = ['assigns', 'project', 'priority', 'status', 'type'];
 
-    fieldsToParseAsJSON.forEach(field => {
-      if (typeof parsedBody[field] === 'string') {
-        try {
-          parsedBody[field] = JSON.parse(parsedBody[field]);
-        } catch (parseError) {
-          console.warn(`Could not parse ${field}:`, parseError);
-        }
-      }
-    });
-
-    // Transform body to match model expectations
-    const transformedBody = {
-      project: parsedBody.project?.value || parsedBody.project,
-      assigns: Array.isArray(parsedBody.assigns) 
-        ? parsedBody.assigns.map(a => a.value || a)
-        : parsedBody.assigns,
-      title: parsedBody.title,
-      description: parsedBody.description,
-      start_date: parsedBody.start_date,
-      end_date: parsedBody.end_date,
-      priority: parsedBody.priority?.value || parsedBody.priority,
-      status: parsedBody.status?.value || parsedBody.status,
-      type: parsedBody.type?.value || parsedBody.type
-    };
-
-    // Validate transformed body
-    const { errors, isValid } = tasksValidation(transformedBody);
-    
-    if (!isValid) {
-      console.error('Validation Errors:', errors);
-      return res.status(400).json(errors);
-    }
-
-    // Create task
-    const data = await tasksModel.create(transformedBody);
-    
-    res.status(201).json({
-      success: true,
-      data: data
-    });
-  } catch (error) {
-    console.error('Add Task from Suggestion Error:', error);
-    res.status(500).json({ 
-      error: 'Failed to add task from suggestion', 
-      details: error.message 
-    });
-  }
-};
 // Add this to your controllers/tasks.js file
 
 /* Reschedule Task (Update date/time via drag and drop) */
@@ -544,6 +491,77 @@ const RescheduleTask = async (req, res) => {
       success: false,
       error: 'Failed to reschedule task', 
       details: error.message 
+    });
+  }
+};
+
+const AddFromSuggestion = async (req, res) => {
+  try {
+    // Log the raw request body for debugging
+    console.log('AddFromSuggestion request body:', req.body);
+
+    // For suggestion-based creation, we might not need to parse JSON fields
+    // since they might come as direct values rather than stringified JSON
+    const transformedBody = {
+      project: req.body.project, // Directly use the project ID
+      assigns: req.body.assigns || [], // Use directly or default to empty array
+      title: req.body.title,
+      description: req.body.description,
+      start_date: req.body.start_date,
+      end_date: req.body.end_date,
+      priority: req.body.priority || 'medium', // Default priority if not provided
+      status: req.body.status || 'todo', // Default status if not provided
+      type: req.body.type || 'task' // Default type if not provided
+    };
+
+    // Log the transformed body for debugging
+    console.log('Transformed body:', transformedBody);
+
+    // Validate transformed body
+    const { errors, isValid } = tasksValidation(transformedBody);
+    
+    if (!isValid) {
+      console.error('Validation Errors:', errors);
+      return res.status(400).json(errors);
+    }
+
+    // Create task
+    const data = await tasksModel.create(transformedBody);
+
+    // Notification logic for assigned users
+    if (transformedBody.assigns && transformedBody.assigns.length) {
+      const sockets_of_these_people = transformedBody.assigns.reduce(
+        (t, n) => [...t, ...socket.methods.getUserSockets(n)],
+        []
+      );
+
+      // Create notifications for each assigned user
+      const notifications = await Promise.all(
+        transformedBody.assigns.map(async (assigned) => 
+          await addNotification({
+            receiver: assigned,
+            link: "#",
+            text: `You have been assigned a new task: ${transformedBody.title}`
+          })
+        )
+      );
+
+      // Emit socket notifications
+      if (sockets_of_these_people.length > 0) {
+        socket.io.to(sockets_of_these_people).emit("notification", notifications);
+      }
+    }
+    
+    res.status(201).json({
+      success: true,
+      data: data
+    });
+  } catch (error) {
+    console.error('Add Task from Suggestion Error:', error);
+    res.status(500).json({ 
+      error: 'Failed to add task from suggestion', 
+      details: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 };
