@@ -18,7 +18,7 @@ const TeamPopup = ({ popupOpen, setPopupOpen, editingId, popup }) => {
 
   const [form, setForm] = useState({
     Name: "",
-    description: "",
+    description: "", 
     members: [],
     pictureprofile: null
   });
@@ -108,12 +108,11 @@ const TeamPopup = ({ popupOpen, setPopupOpen, editingId, popup }) => {
   const handleChange = (e) => {
     const { name, value } = e.target;
     
-    // Debug log to verify changes
-    console.log(`Changing ${name} to:`, value);
+    console.log(`Changing ${name} to:`, value); // Debug log
     
     setForm(prevForm => ({
       ...prevForm,
-      [name]: value // Ensure this matches your input's name attribute
+      [name]: value // This should update the correct property
     }));
   };
 
@@ -333,17 +332,25 @@ const TeamPopup = ({ popupOpen, setPopupOpen, editingId, popup }) => {
               </label>
             </div>
 
-            <InputGroup
-              label="Team Name"
-              name="Name"
-              placeholder="Enter team name"
-              value={form.Name}        // Now properly bound to form state
-              onChange={handleChange}  // Now properly connected
-              required
-              error={errors.Name}      // Now properly passed
-              disabled={isDisabled("Name")}
-              className="mb-4"
-            />
+           
+<div className="mb-4">
+  <label className="mb-2.5 block font-medium text-black dark:text-white">
+    Team Name <span className="text-meta-1">*</span>
+  </label>
+  <input
+    type="text"
+    name="Name" 
+    placeholder="Enter team name"
+    value={form.Name || ''} 
+    onChange={handleChange}
+    required
+    disabled={isDisabled("Name")}
+    className="w-full rounded-sm border border-stroke bg-white px-4.5 py-3 focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-boxdark dark:focus:border-primary"
+  />
+  {errors.Name && (
+    <div className="text-sm text-red">{errors.Name}</div>
+  )}
+</div>
 
             <div className="mb-5">
               <label className="mb-2.5 block font-medium text-black dark:text-white">
@@ -364,27 +371,48 @@ const TeamPopup = ({ popupOpen, setPopupOpen, editingId, popup }) => {
             </div>
 
             <div className="mb-5">
-              <label className="mb-2.5 block font-medium text-black dark:text-white">
-                Team Members <span className="text-meta-1">*</span>
-              </label>
-              <SelectGroup
-                options={usersOptions}
-                isMulti
-                value={getSelectedMembers()}
-                onChange={handleMemberChange}
-                placeholder="Select team members..."
-                disabled={isDisabled("members")}
-                className="react-select-container" // Add this
-                classNamePrefix="react-select"    // Add this
-                menuPortalTarget={document.body}  // Add this to render menu outside popup
-                styles={{
-                          menuPortal: base => ({ ...base, zIndex: 99999 })
-                        }}
-              />
-              {errors.members && (
-                <div className="text-sm text-red">{errors.members}</div>
-              )}
-            </div>
+  <label className="mb-2.5 block font-medium text-black dark:text-white">
+    Team Members <span className="text-meta-1">*</span>
+  </label>
+  <select
+    multiple
+    value={form.members.map(m => m.user)}
+    onChange={(e) => {
+      const selectedOptions = Array.from(e.target.selectedOptions).map(option => option.value);
+      const members = selectedOptions.map(userId => ({
+        user: userId,
+        role: form.members.find(m => m.user === userId)?.role || "ENGINEER"
+      }));
+      
+      // Always include current user as admin if not editing
+      if (!editingId && user?._id && !selectedOptions.includes(user._id)) {
+        members.push({
+          user: user._id,
+          role: "ADMIN"
+        });
+      }
+      
+      setForm(prev => ({
+        ...prev,
+        members
+      }));
+    }}
+    className="w-full rounded-sm border border-stroke bg-white px-4.5 py-3 focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-boxdark dark:focus:border-primary"
+  >
+    {usersOptions.map(user => (
+      <option 
+        key={user.value} 
+        value={user.value}
+        disabled={!editingId && user.value === user._id} // Can't remove creator in new team
+      >
+        {user.label}
+      </option>
+    ))}
+  </select>
+  {errors.members && (
+    <div className="text-sm text-red">{errors.members}</div>
+  )}
+</div>
 
             {form.members.length > 0 && (
               <div className="mb-5">

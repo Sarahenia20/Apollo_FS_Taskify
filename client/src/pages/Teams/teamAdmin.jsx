@@ -89,7 +89,7 @@ const TeamsAdmin = () => {
   };
 
   const handleDeleteTeam = async (teamId) => {
-    
+        console.log("delete button");
         await dispatch(DeleteTeamAction(teamId));
         dispatch(GetAllTeamsAction())
         // No need to manually refresh - handled in action
@@ -226,12 +226,17 @@ const TeamsAdmin = () => {
           </div>
         </div>
 
-        {/* Team Popup */}
         <TeamPopup
-  popupOpen={popupOpen} // Make sure this is the correct state variable
-  setPopupOpen={setPopupOpen} // Make sure this is the correct setter
-  popup={popup} // Make sure this ref is properly initialized
+  popupOpen={popupOpen}
+  setPopupOpen={setPopupOpen}
+  popup={popup}
   editingId={editingId}
+  currentTeam={editingId ? currentTeam : null} // Pass currentTeam only when editing
+  onSuccess={() => {
+    setPopupOpen(false);
+    setEditingId(null);
+    dispatch(GetAllTeamsAction()); // Refresh after successful create/update
+  }}
 />
       </div>
     </DefaultLayout>

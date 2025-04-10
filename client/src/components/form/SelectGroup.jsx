@@ -1,27 +1,28 @@
-import React from "react";
+import React, { useEffect } from "react";
 import Select from "react-select";
+import { ROLES } from "../../data/roles";
+import { useDispatch, useSelector } from "react-redux";
+import { setRefresh } from "../../redux/reducers/commons";
 
 const SelectGroup = ({
   label,
   name,
-  disabled = false,
-  error = null,
-  onChange,  // Changed from 'action' to standard 'onChange'
-  required = false,
-  value,     // Changed from 'defaultValue' to 'value' for controlled component
-  options = [],
-  className = "",
-  isMulti = false,
-  loading = false,
-  ...props  // Capture any additional props
+  disabled,
+  errors,
+  action,
+  required,
+  defaultValue,
+  options,
+  className,
+  isMulti,
+  loading,
+  mode,
 }) => {
   return (
     <div className="mb-4.5">
-      {label && (
-        <label className="mb-2.5 block font-medium text-black dark:text-white">
-          {label} {required && <span className="text-meta-1">*</span>}
-        </label>
-      )}
+      <label className="mb-2.5 block font-medium text-black dark:text-white">
+        {label} {required && <span className="text-meta-1">*</span>}
+      </label>
 
       <div className="relative">
         <Select
@@ -29,19 +30,18 @@ const SelectGroup = ({
           name={name}
           isClearable={true}
           isDisabled={disabled}
-          onChange={onChange}
-          value={value}
-          isLoading={loading}
+          onChange={action}
+          defaultValue={defaultValue}
+          isLoading={!defaultValue.length ? true : false}
           isMulti={isMulti}
-          classNamePrefix="react-select"
           className={
-            className ||
-            `react-select-container w-full rounded border border-stroke bg-transparent outline-none transition focus:border-primary dark:border-form-strokedark dark:bg-form-input`
+            className
+              ? className
+              : `relative z-20 w-full appearance-none rounded border border-stroke bg-transparent px-5 py-3 outline-none transition focus:border-primary active:border-primary dark:border-form-strokedark dark:bg-form-input dark:focus:border-primary`
           }
-          {...props}
         />
       </div>
-      {error && <div className="mt-1 text-sm text-red">{error}</div>}
+      {errors && <div className="text-sm text-red">{errors}</div>}
     </div>
   );
 };
