@@ -6,6 +6,7 @@ import { notificationSlice } from "./reducers/notifications";
 import { tasksSlice } from "./reducers/tasks";
 import { usersSlice } from "./reducers/users";
 import rolesReducer from "./reducers/roles";
+import projectsReducer from "./reducers/projects";
 
 export const store = configureStore({
   reducer: {
@@ -16,5 +17,6 @@ export const store = configureStore({
     commons: commonSlice.reducer,
     notifications: notificationSlice.reducer,
     roles: rolesReducer,
+    projects: projectsReducer,
   },
 });

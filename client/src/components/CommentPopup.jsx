@@ -1,6 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { AddCommentAction, DeleteCommentAction } from "../redux/actions/tasks";
+import { 
+  AddCommentAction, 
+  DeleteCommentAction, 
+  DeleteAttachmentAction,
+  FindOneTaskAction
+} from "../redux/actions/tasks";
 
 const CommentPopup = (props) => {
   const [form, setForm] = useState({});
@@ -8,11 +13,48 @@ const CommentPopup = (props) => {
   const { content } = useSelector((state) => state.errors);
   const { _ONE } = useSelector((state) => state.tasks);
   const ref = useRef();
+  const fileInputRef = useRef();
+  const [selectedfile, setselectedfile] = useState(null);
 
+  // Load task data when popup opens
+  useEffect(() => {
+    if (props.popupOpen && props.taskId) {
+      dispatch(FindOneTaskAction(props.taskId));
+    }
+  }, [props.popupOpen, props.taskId, dispatch]);
+
+  // Update form when task data changes
   useEffect(() => {
     setForm(_ONE);
   }, [_ONE]);
 
+  // Add this useEffect to properly handle task data
+useEffect(() => {
+  if (props.popupOpen && props.taskId) {
+    console.log("Fetching task data for ID:", props.taskId);
+    dispatch(FindOneTaskAction(props.taskId))
+      .then((action) => {
+        console.log("Task fetch completed:", action.payload);
+        setForm(action.payload || {});
+      })
+      .catch((error) => {
+        console.error("Failed to fetch task:", error);
+      });
+  }
+}, [props.popupOpen, props.taskId, dispatch]);
+
+// Modify how you display comments to handle loading state
+{!_ONE ? (
+  <div className="flex justify-center py-4">
+    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+  </div>
+) : (
+  (_ONE?.comments || []).map((c) => (
+    <div key={c._id} className="comment">
+      <p>{c.content}</p>
+    </div>
+  ))
+)}
   const OnChangeHandler = (e) => {
     setForm({
       ...form,
@@ -22,14 +64,24 @@ const CommentPopup = (props) => {
 
   const onSubmitHandler = (e) => {
     e.preventDefault();
+    if (!_ONE?._id) return;
+    
     dispatch(AddCommentAction(form, _ONE._id, props.setPopupOpen));
     ref.current.value = "";
-    setselectedfile(null)
+    setselectedfile(null);
   };
 
-  const fileInputRef = useRef();
-
-  const [selectedfile, setselectedfile] = useState(null);
+  const formatDate = (dateString) => {
+    if (!dateString) return "Not set";
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
 
   return (
     <div
@@ -37,7 +89,7 @@ const CommentPopup = (props) => {
         props.popupOpen === true ? "block" : "hidden"
       }`}
     >
-      <div className="relative m-auto w-full max-w-180 rounded-sm border border-stroke bg-gray p-4 shadow-default dark:border-strokedark dark:bg-meta-4 sm:p-8 xl:p-10">
+      <div className="relative m-auto w-full max-w-4xl rounded-sm border border-stroke bg-gray p-4 shadow-default dark:border-strokedark dark:bg-meta-4 sm:p-8 xl:p-10">
         <button
           onClick={() => {
             props.setPopupOpen(false);
@@ -61,72 +113,155 @@ const CommentPopup = (props) => {
           </svg>
         </button>
 
-        <div className="p-6.5">
-          <div className="mb-5">
-            <label
-              htmlFor="taskDescription"
-              className="mb-2.5 block font-medium text-black dark:text-white"
-            >
-              Comment <span className="text-meta-1">*</span>
-            </label>
-
-            {(form?.comments || []).map((c) => {
-              return (
-                <div
-                  key={c._id}
-                  className="flex items-center justify-between p-4"
-                >
-                  <div className="flex flex-row items-center gap-4">
-                    <img
-                      src={`${
-                        c.by
-                          ? c.by.picture.includes("https")
-                            ? c.by.picture
-                            : `http://localhost:5500/${c.by.picture}`
-                          : ""
-                      }`}
-                      className="h-[30px] w-auto rounded-full"
-                    />
-                    {c.image ? <img width={100} style={{maxHeight: 50, objectFit: "contain"}} src={c.image} /> : null}
-                    <span>{c.content}</span>
-                  </div>
-
-                  <button
-                    className="text-md flex h-[50px] w-[50px] items-center gap-2 rounded-sm px-4 py-1.5 text-left hover:bg-gray hover:text-primary dark:hover:bg-meta-4"
-                    onClick={() =>
-                      dispatch(DeleteCommentAction(_ONE._id, c._id))
-                    }
-                  >
-                    <svg
-                      className="fill-current"
-                      width="18"
-                      height="18"
-                      viewBox="0 0 18 18"
-                      fill="none"
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <path
-                        d="M13.7535 2.47502H11.5879V1.9969C11.5879 1.15315 10.9129 0.478149 10.0691 0.478149H7.90352C7.05977 0.478149 6.38477 1.15315 6.38477 1.9969V2.47502H4.21914C3.40352 2.47502 2.72852 3.15002 2.72852 3.96565V4.8094C2.72852 5.42815 3.09414 5.9344 3.62852 6.1594L4.07852 15.4688C4.13477 16.6219 5.09102 17.5219 6.24414 17.5219H11.7004C12.8535 17.5219 13.8098 16.6219 13.866 15.4688L14.3441 6.13127C14.8785 5.90627 15.2441 5.3719 15.2441 4.78127V3.93752C15.2441 3.15002 14.5691 2.47502 13.7535 2.47502ZM7.67852 1.9969C7.67852 1.85627 7.79102 1.74377 7.93164 1.74377H10.0973C10.2379 1.74377 10.3504 1.85627 10.3504 1.9969V2.47502H7.70664V1.9969H7.67852ZM4.02227 3.96565C4.02227 3.85315 4.10664 3.74065 4.24727 3.74065H13.7535C13.866 3.74065 13.9785 3.82502 13.9785 3.96565V4.8094C13.9785 4.9219 13.8941 5.0344 13.7535 5.0344H4.24727C4.13477 5.0344 4.02227 4.95002 4.02227 4.8094V3.96565ZM11.7285 16.2563H6.27227C5.79414 16.2563 5.40039 15.8906 5.37227 15.3844L4.95039 6.2719H13.0785L12.6566 15.3844C12.6004 15.8625 12.2066 16.2563 11.7285 16.2563Z"
-                        fill=""
-                      />
-                      <path
-                        d="M9.00039 9.11255C8.66289 9.11255 8.35352 9.3938 8.35352 9.75942V13.3313C8.35352 13.6688 8.63477 13.9782 9.00039 13.9782C9.33789 13.9782 9.64727 13.6969 9.64727 13.3313V9.75942C9.64727 9.3938 9.33789 9.11255 9.00039 9.11255Z"
-                        fill=""
-                      />
-                      <path
-                        d="M11.2502 9.67504C10.8846 9.64692 10.6033 9.90004 10.5752 10.2657L10.4064 12.7407C10.3783 13.0782 10.6314 13.3875 10.9971 13.4157C11.0252 13.4157 11.0252 13.4157 11.0533 13.4157C11.3908 13.4157 11.6721 13.1625 11.6721 12.825L11.8408 10.35C11.8408 9.98442 11.5877 9.70317 11.2502 9.67504Z"
-                        fill=""
-                      />
-                      <path
-                        d="M6.72245 9.67504C6.38495 9.70317 6.1037 10.0125 6.13182 10.35L6.3287 12.825C6.35683 13.1625 6.63808 13.4157 6.94745 13.4157C6.97558 13.4157 6.97558 13.4157 7.0037 13.4157C7.3412 13.3875 7.62245 13.0782 7.59433 12.7407L7.39745 10.2657C7.39745 9.90004 7.08808 9.64692 6.72245 9.67504Z"
-                        fill=""
-                      />
-                    </svg>
-                  </button>
+        <div className="flex flex-col gap-6">
+          {/* Task Details Section */}
+          <div className="rounded-lg border border-stroke bg-white p-6 dark:border-strokedark dark:bg-boxdark">
+            <h2 className="mb-4 text-2xl font-bold text-black dark:text-white">
+              {_ONE?.title || "Task Details"}
+            </h2>
+            
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+              {/* Left Column */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <span className="rounded-md bg-blue-100 px-3 py-1 text-sm font-medium text-blue-800">
+                    {_ONE?.project?.name || "No Project"}
+                  </span>
                 </div>
-              );
-            })}
+                
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Description</h3>
+                  <p className="text-gray-700 dark:text-gray-300">
+                    {_ONE?.description || "No description provided"}
+                  </p>
+                </div>
+              </div>
+              
+              {/* Right Column */}
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Timeline</h3>
+                  <div className="mt-1 space-y-1 text-sm">
+                    <div className="flex items-center gap-2">
+                      <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      <span>Start: {formatDate(_ONE?.start_date)}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span>End: {formatDate(_ONE?.end_date)}</span>
+                    </div>
+                  </div>
+                </div>
+                
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Assignees</h3>
+                  <div className="mt-1 flex flex-wrap gap-2">
+                    {(_ONE?.assigns || []).map((assignee, index) => (
+                      <div key={index} className="flex items-center gap-2">
+                        <img
+                          src={assignee.picture?.includes("https") 
+                            ? assignee.picture 
+                            : `http://localhost:5500/${assignee.picture}`}
+                          alt={assignee.name}
+                          className="h-6 w-6 rounded-full"
+                        />
+                        <span>{assignee.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
 
+          {/* Comments Section */}
+          <div className="rounded-lg border border-stroke bg-white p-6 dark:border-strokedark dark:bg-boxdark">
+            <h3 className="mb-4 text-xl font-semibold text-black dark:text-white">
+              Comments & Discussion
+            </h3>
+
+            {/* Comments List */}
+            <div className="mb-6 max-h-96 space-y-4 overflow-y-auto">
+              {(_ONE?.comments || []).length > 0 ? (
+                (_ONE.comments || []).map((c) => (
+                  <div
+                    key={c._id}
+                    className="rounded-lg border border-stroke p-4 dark:border-strokedark"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-3">
+                        <img
+                          src={c.by?.picture?.includes("https")
+                            ? c.by.picture
+                            : `http://localhost:5500/${c.by?.picture}`}
+                          alt="User"
+                          className="h-10 w-10 rounded-full"
+                        />
+                        <div>
+                          <h4 className="font-medium text-black dark:text-white">
+                            {c.by?.name || "Unknown User"}
+                          </h4>
+                          <p className="text-xs text-gray-500">
+                            {new Date(c.createdAt).toLocaleString()}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => dispatch(DeleteCommentAction(_ONE._id, c._id))}
+                        className="text-red-500 hover:text-red-600"
+                      >
+                        <svg
+                          className="h-5 w-5"
+                          viewBox="0 0 20 20"
+                          fill="currentColor"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                      </button>
+                    </div>
+                    <div className="mt-3">
+                      <p className="text-gray-700 dark:text-gray-300">{c.content}</p>
+                      {c.image && (
+                        <div className="mt-2">
+                          <img
+                            src={c.image}
+                            alt="Comment attachment"
+                            className="max-h-40 rounded-md"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="flex flex-col items-center justify-center py-8 text-center">
+                  <svg
+                    className="mb-3 h-12 w-12 text-gray-400"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1}
+                      d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                    />
+                  </svg>
+                  <p className="text-gray-500">No comments yet</p>
+                </div>
+              )}
+            </div>
+
+            {/* Add Comment Form (Original Structure Preserved) */}
             <div className="sticky bottom-0 border-t border-stroke bg-white px-6 py-5 dark:border-strokedark dark:bg-boxdark">
               <form
                 className="flex flex-col space-x-4.5"
@@ -232,5 +367,6 @@ const CommentPopup = (props) => {
     </div>
   );
 };
+
 
 export default CommentPopup;

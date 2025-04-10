@@ -1,5 +1,5 @@
 import React from 'react';
-import DropdownDefault from './DropdownDefault';
+import Dropdownk from './Dropdownk';
 import User14 from '../images/user/user-14.png'
 import User15 from '../images/user/user-15.png'
 import User16 from '../images/user/user-16.png'
@@ -13,7 +13,7 @@ const Feedback = () => {
             Feedback
           </h2>
         </div>
-        <DropdownDefault />
+        <Dropdownk />
       </div>
 
       <div className='p-6'>

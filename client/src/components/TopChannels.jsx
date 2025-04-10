@@ -1,5 +1,5 @@
 import React from 'react';
-import DropdownDefault from './DropdownDefault';
+import Dropdownk from './Dropdownk';
 
 const TopChannels = () => {
   return (
@@ -11,7 +11,7 @@ const TopChannels = () => {
           </h3>
         </div>
         <div>
-          <DropdownDefault/>
+          <Dropdownk/>
         </div>
       </div>
 

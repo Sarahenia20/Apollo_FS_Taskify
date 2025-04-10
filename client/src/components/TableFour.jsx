@@ -5,7 +5,7 @@ import BrandTwo from '../images/brand/brand-02.svg'
 import BrandFour from '../images/brand/brand-04.svg'
 import BrandFive from '../images/brand/brand-05.svg'
 import BrandSix from '../images/brand/brand-06.svg'
-import DropdownDefault from './DropdownDefault';
+import Dropdownk from './Dropdownk';
 
 const TableFour = () => {
   return (
@@ -17,7 +17,7 @@ const TableFour = () => {
               Top Channels
             </h4>
           </div>
-          <DropdownDefault />
+          <Dropdownk />
         </div>
 
         <div className='flex flex-col'>
