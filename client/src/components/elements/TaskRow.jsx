@@ -3,8 +3,12 @@ import { MOCK_PRIORITY } from "../../data/mock";
 import Dropdownk from "../Dropdownk";
 
 const TaskRow = (props) => {
-  // Add a handler for clicking on the task row
-  const handleTaskClick = () => {
+  // Handler for clicking on the task row
+  const handleTaskClick = (e) => {
+    // Prevent clicking if we're clicking the dropdown or its children
+    const dropdownClicked = e.target.closest('.dropdown-container');
+    if (dropdownClicked) return;
+
     // Check if onTaskSelect is provided by parent component
     if (props.onTaskSelect && typeof props.onTaskSelect === 'function') {
       props.onTaskSelect(props);
@@ -139,7 +143,7 @@ const TaskRow = (props) => {
         </div>
       </div>
 
-      <div className="flex items-center justify-between space-x-2" onClick={(e) => e.stopPropagation()}>
+      <div className="flex items-center justify-between space-x-2 dropdown-container" onClick={(e) => e.stopPropagation()}>
         <span
           className={`rounded bg-meta-3/[0.08] px-2.5 py-1.5 text-sm font-medium text-white ${
             props.priority &&
@@ -150,7 +154,6 @@ const TaskRow = (props) => {
             MOCK_PRIORITY.filter((p) => p.value === props.priority)[0]?.label || "Normal"}
         </span>
 
-        {/* Restore the dropdown with original functionality */}
         <Dropdownk 
           className="rotate-180" 
           {...props} 
