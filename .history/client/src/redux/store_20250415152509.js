@@ -15,8 +15,6 @@ export const store = configureStore({
     tasks: tasksSlice.reducer,
     errors: errorsSlice.reducer,
     commons: commonSlice.reducer,
-    notifications: notificationSlice.reducer,
-    teams: teamsSlice.reducer
-
+    notifications: notificationSlice.reducer
   },
 });

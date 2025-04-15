@@ -32,8 +32,6 @@ import Reset from "./pages/Authentication/Reset";
 import Unauthorized from "./pages/Unauthorized";
 import { Logout } from "./redux/actions/auth";
 import { notificationSlice } from "./redux/reducers/notifications";
-import TeamsAdmin from "./pages/Teams/teamAdmin";
-
 
 const socketClient = io("http://localhost:3002", {
   transports: ["websocket"],
@@ -105,7 +103,6 @@ const App = () => {
           <Route path="/pages/pricing-tables" element={<PricingTables />} />
           <Route path="/*" element={<ErrorPage />} />
           <Route path="/projects/task-list" element={<TaskList />} />
-          <Route path="/Teams" element={<TeamsAdmin />} />
           <Route path="/unauthorized" element={<Unauthorized />} />
           <Route path="/projects/project-list" element={<ProjectList />} />
           <Route path="/users" element={<Users />} />

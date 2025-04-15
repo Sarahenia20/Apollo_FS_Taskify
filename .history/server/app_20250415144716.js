@@ -61,7 +61,6 @@ app.use("/api", [
   tasksRouter,
   commentsRouter,
   notificationsRouter,
-  teamsRouter,
 ]);
 
 app.use("/api", projectsRouter);

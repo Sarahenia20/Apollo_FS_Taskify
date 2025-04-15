@@ -105,7 +105,6 @@ const App = () => {
           <Route path="/pages/pricing-tables" element={<PricingTables />} />
           <Route path="/*" element={<ErrorPage />} />
           <Route path="/projects/task-list" element={<TaskList />} />
-          <Route path="/Teams" element={<TeamsAdmin />} />
           <Route path="/unauthorized" element={<Unauthorized />} />
           <Route path="/projects/project-list" element={<ProjectList />} />
           <Route path="/users" element={<Users />} />
