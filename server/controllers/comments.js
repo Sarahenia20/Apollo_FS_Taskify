@@ -113,14 +113,14 @@ const AddComment = async (req, res) => {
     });
   }
 };
-
 /**
- * Delete a comment from a task with better error handling and response
+ * Delete a comment from a task with authorization
  */
 const DeleteComment = async (req, res) => {
   console.log('Delete Comment Request:', {
     taskId: req.params.id,
-    commentId: req.params.c_id
+    commentId: req.params.c_id,
+    userId: req.user?.id
   });
 
   try {
@@ -139,7 +139,48 @@ const DeleteComment = async (req, res) => {
       });
     }
     
-    // Find the task and remove the comment
+    // First get the task to check comment ownership
+    const task = await tasksModel.findById(req.params.id)
+      .populate({
+        path: 'comments.by',
+        select: 'fullName email picture'
+      });
+    
+    if (!task) {
+      return res.status(404).json({
+        success: false,
+        message: "Task not found"
+      });
+    }
+    
+    // Find the comment
+    const comment = task.comments.find(c => 
+      c._id.toString() === req.params.c_id
+    );
+    
+    if (!comment) {
+      return res.status(404).json({
+        success: false,
+        message: "Comment not found"
+      });
+    }
+    
+    // Check authorization - only allow comment creator or admin to delete
+    const isCommentCreator = comment.by && 
+      comment.by._id && 
+      comment.by._id.toString() === req.user.id;
+    
+    const isAdmin = req.user.roles && 
+      req.user.roles.includes('ADMIN');
+    
+    if (!isCommentCreator && !isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: "You don't have permission to delete this comment"
+      });
+    }
+    
+    // Delete the comment
     const updatedTask = await tasksModel.findByIdAndUpdate(
       req.params.id,
       {
@@ -158,14 +199,6 @@ const DeleteComment = async (req, res) => {
       path: 'comments.by',
       select: 'fullName email picture'
     });
-    
-    // Check if task exists
-    if (!updatedTask) {
-      return res.status(404).json({
-        success: false,
-        message: "Task not found"
-      });
-    }
     
     // Return success with the full updated task
     return res.status(200).json({

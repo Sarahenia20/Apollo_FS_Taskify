@@ -2,15 +2,17 @@ import React, { useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { 
   AddCommentAction, 
-  DeleteCommentAction,
-  FindOneTaskAction
+  DeleteCommentAction
 } from "../redux/actions/tasks";
+import axios from "axios";
 
 const CommentPopup = ({ popupOpen, setPopupOpen, popup, taskId }) => {
   const [form, setForm] = useState({});
   const [loading, setLoading] = useState(false);
   const [localComments, setLocalComments] = useState([]);
   const [optimisticCommentId, setOptimisticCommentId] = useState(null);
+  const [taskBasicInfo, setTaskBasicInfo] = useState(null);
+  const [initialLoading, setInitialLoading] = useState(false);
   
   const dispatch = useDispatch();
   const { content } = useSelector((state) => state.errors);
@@ -25,13 +27,51 @@ const CommentPopup = ({ popupOpen, setPopupOpen, popup, taskId }) => {
   // Determine the correct task ID
   const effectiveTaskId = taskId || (_ONE && _ONE._id);
   
-  // When the popup opens, try to get existing comments from the response that came with AddComment
+  // Load comments directly when popup opens
   useEffect(() => {
-    if (popupOpen && effectiveTaskId && _ONE && _ONE.comments) {
-      console.log("Setting comments from _ONE:", _ONE.comments);
-      setLocalComments(_ONE.comments);
+    if (popupOpen && effectiveTaskId) {
+      console.log("Loading initial comments for task:", effectiveTaskId);
+      loadTaskComments(effectiveTaskId);
     }
-  }, [popupOpen, effectiveTaskId, _ONE]);
+  }, [popupOpen, effectiveTaskId]);
+  
+  // Load task info from Redux if available
+  useEffect(() => {
+    if (_ONE && typeof _ONE === 'object' && _ONE._id) {
+      setTaskBasicInfo(_ONE);
+      setForm(_ONE);
+    }
+  }, [_ONE]);
+
+  // Direct API call to get comments (bypassing the 500 error in task fetch)
+  const loadTaskComments = async (id) => {
+    setInitialLoading(true);
+    
+    try {
+      // Direct API call to task comments endpoint
+      const response = await axios.get(`/api/tasks/${id}/comments`);
+      
+      if (response.data && response.data.comments) {
+        console.log("Comments loaded successfully:", response.data.comments);
+        setLocalComments(response.data.comments);
+      } else {
+        console.log("No comments returned from API");
+        setLocalComments([]);
+      }
+    } catch (error) {
+      console.error("Error loading comments:", error);
+      
+      // Fallback: Try to get comments from existing task data
+      if (_ONE && Array.isArray(_ONE.comments)) {
+        console.log("Using comments from existing task data:", _ONE.comments);
+        setLocalComments(_ONE.comments);
+      } else {
+        setLocalComments([]);
+      }
+    } finally {
+      setInitialLoading(false);
+    }
+  };
 
   const OnChangeHandler = (e) => {
     setForm({
@@ -93,10 +133,8 @@ const CommentPopup = ({ popupOpen, setPopupOpen, popup, taskId }) => {
         setLoading(false);
         setOptimisticCommentId(null);
         
-        // If we get a full task response with comments, update local state
-        if (response && response.data && response.data.data && response.data.data.comments) {
-          setLocalComments(response.data.data.comments);
-        }
+        // Reload comments after adding
+        loadTaskComments(effectiveTaskId);
       })
       .catch((error) => {
         console.error("Error adding comment:", error);
@@ -131,13 +169,27 @@ const CommentPopup = ({ popupOpen, setPopupOpen, popup, taskId }) => {
     }
   };
 
-  // Fix image URL by ensuring no double slashes
-  const fixImageUrl = (url) => {
-    if (!url) return "/assets/images/user/user-default.png"; // Use a local default image
-    if (url.includes("https")) return url;
-    return `http://localhost:5500${url.startsWith('/') ? '' : '/'}${url}`;
-  };
+  // Update the fixImageUrl function in your CommentPopup component
+
+// Replace the current fixImageUrl function with this improved version
+const fixImageUrl = (url) => {
+  // If no image URL provided, return default avatar
+  if (!url) return "/assets/images/user/user-default.png";
   
+  // If it's a full URL (starts with http/https), use it directly
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url;
+  }
+  
+  // For image URLs from comments
+  if (url.startsWith('/uploads/comments/')) {
+    // Make sure to point to your actual backend URL where static files are served
+    return `http://localhost:5500${url}`; // Adjust this URL to match your backend
+  }
+  
+  // For user profile images or other paths
+  return `http://localhost:5500${url.startsWith('/') ? '' : '/'}${url}`;
+};
   // Get project name from different formats
   const getProjectName = () => {
     if (!_ONE) return "Task";
@@ -153,28 +205,45 @@ const CommentPopup = ({ popupOpen, setPopupOpen, popup, taskId }) => {
     return "Task";
   };
 
-  // Handle deleting a comment properly
-  const handleDeleteComment = (commentId) => {
-    // If it's a temporary/optimistic comment, just remove it from local state
+  // Check if current user can delete a comment
+  const canDeleteComment = (comment) => {
+    // Allow if it's the user's own comment
+    if (comment.by && user && comment.by._id === user.id) {
+      return true;
+    }
+    
+    // Allow if user is an admin
+    if (user && user.roles && user.roles.includes("ADMIN")) {
+      return true;
+    }
+    
+    // Default: not allowed
+    return false;
+  };
+
+  // Handle deleting a comment with authorization check
+  const handleDeleteComment = (commentId, comment) => {
+    // If it's a temporary comment, just remove from local state
     if (commentId.startsWith('temp-')) {
       setLocalComments(prev => prev.filter(c => c._id !== commentId));
       return;
     }
     
-    // Otherwise, call the API
+    // Check authorization
+    if (!canDeleteComment(comment)) {
+      alert("You don't have permission to delete this comment");
+      return;
+    }
+    
+    // Delete via API
     dispatch(DeleteCommentAction(effectiveTaskId, commentId))
-      .then(response => {
-        // If we get back full data with comments, update the local state
-        if (response && response.data && response.data.data && response.data.data.comments) {
-          setLocalComments(response.data.data.comments);
-        } else {
-          // Otherwise just remove it from local state
-          setLocalComments(prev => prev.filter(c => c._id !== commentId));
-        }
+      .then(() => {
+        // Remove from local state
+        setLocalComments(prev => prev.filter(c => c._id !== commentId));
       })
       .catch(error => {
         console.error("Error deleting comment:", error);
-        // Show error but don't change UI (keep the comment visible)
+        alert("Failed to delete comment. Please try again.");
       });
   };
 
@@ -226,11 +295,19 @@ const CommentPopup = ({ popupOpen, setPopupOpen, popup, taskId }) => {
           <div className="rounded-lg border border-stroke bg-white p-6 dark:border-strokedark dark:bg-boxdark">
             <h3 className="mb-4 text-xl font-semibold text-black dark:text-white">
               Comments & Discussion
+              {initialLoading && 
+                <span className="ml-2 inline-block h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent"></span>
+              }
             </h3>
 
             {/* Comments List */}
             <div className="mb-6 max-h-96 space-y-4 overflow-y-auto">
-              {localComments && localComments.length > 0 ? (
+              {initialLoading ? (
+                <div className="flex flex-col items-center justify-center py-8 text-center">
+                  <div className="mb-3 h-12 w-12 animate-spin rounded-full border-4 border-gray-300 border-t-primary"></div>
+                  <p className="text-gray-500">Loading comments...</p>
+                </div>
+              ) : localComments && localComments.length > 0 ? (
                 localComments.map((c) => (
                   <div
                     key={c._id}
@@ -258,22 +335,25 @@ const CommentPopup = ({ popupOpen, setPopupOpen, popup, taskId }) => {
                           </p>
                         </div>
                       </div>
-                      <button
-                        onClick={() => handleDeleteComment(c._id)}
-                        className="text-red-500 hover:text-red-600"
-                      >
-                        <svg
-                          className="h-5 w-5"
-                          viewBox="0 0 20 20"
-                          fill="currentColor"
+                      {/* Only show delete button if user can delete this comment */}
+                      {(canDeleteComment(c) || c._id === optimisticCommentId) && (
+                        <button
+                          onClick={() => handleDeleteComment(c._id, c)}
+                          className="text-red-500 hover:text-red-600"
                         >
-                          <path
-                            fillRule="evenodd"
-                            d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
-                      </button>
+                          <svg
+                            className="h-5 w-5"
+                            viewBox="0 0 20 20"
+                            fill="currentColor"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                        </button>
+                      )}
                     </div>
                     <div className="mt-3">
                       <p className="text-gray-700 dark:text-gray-300">{c.content}</p>
@@ -339,6 +419,7 @@ const CommentPopup = ({ popupOpen, setPopupOpen, popup, taskId }) => {
                       }}
                       ref={fileInputRef}
                       type="file"
+                      accept="image/*"
                       style={{
                         display: "none",
                       }}
