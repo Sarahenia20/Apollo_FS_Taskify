@@ -127,7 +127,10 @@ const toBase64 = (file) =>
     reader.onerror = reject;
   });
 
-export const AddCommentAction = (form, id, setPopupOpen) => async (dispatch) => {
+// Update your AddCommentAction to be more robust
+export const AddCommentAction = (form, id) => async (dispatch) => {
+  dispatch(setRefresh(true));
+  
   try {
     let uploaded = "";
     if (form.file) {
@@ -136,21 +139,31 @@ export const AddCommentAction = (form, id, setPopupOpen) => async (dispatch) => 
       uploaded = resizedImage.split(',')[1]; // Remove data URL prefix
     }
     
-    await axios
-      .post(`/api/tasks/${id}/comments`, { 
-        comment: form.comment, 
-        file: uploaded 
-      })
-      .then((res) => {
-        dispatch(FindOneTaskAction(id));
-        dispatch(setErrors({}));
-      })
-      .catch((error) => {
-        dispatch(setErrors(error.response.data));
-      });
+    const response = await axios.post(`/api/tasks/${id}/comments`, { 
+      comment: form.comment, 
+      file: uploaded 
+    });
+    
+    // Set any errors back to empty
+    dispatch(setErrors({}));
+    dispatch(setRefresh(false));
+    
+    // Return the response for use in the component
+    return response;
   } catch (error) {
     console.error("Error processing comment:", error);
-    dispatch(setErrors({ comment: "Failed to process comment" }));
+    
+    // Set any errors from the server
+    if (error.response && error.response.data) {
+      dispatch(setErrors(error.response.data));
+    } else {
+      dispatch(setErrors({ comment: "Failed to process comment" }));
+    }
+    
+    dispatch(setRefresh(false));
+    
+    // Re-throw for component-level error handling
+    throw error;
   }
 };
 
@@ -217,20 +230,45 @@ export const FindTaskAction = () => async (dispatch) => {
 };
 
 export const FindOneTaskAction = (id) => async (dispatch) => {
+  console.log('FindOneTaskAction called with ID:', id);
   dispatch(setRefresh(true));
-  await axios
-    .get(`/api/tasks/${id}`)
-    .then((res) => {
-      dispatch(_FindOneTask(res.data));
-      setTimeout(() => {
-        dispatch(setRefresh(false));
-      }, 2000);
-      dispatch(setErrors({}));
-    })
-    .catch((error) => {
-      dispatch(setErrors(error.response.data));
+  
+  try {
+    const response = await axios.get(`/api/tasks/${id}`);
+    console.log('FindOneTaskAction response:', response.data);
+    
+    // Dispatch the action with the full response data
+    dispatch(_FindOneTask(response.data));
+    
+    // Set refresh to false with a slight delay to ensure UI updates
+    setTimeout(() => {
       dispatch(setRefresh(false));
-    });
+    }, 300);
+    
+    dispatch(setErrors({}));
+    
+    // Return the response for promise chaining
+    return response;
+  } catch (error) {
+    console.error('FindOneTaskAction error:', error);
+    console.error('Error response:', error.response?.data);
+    
+    // Handle 404 specially
+    if (error.response?.status === 404) {
+      console.log('Task not found');
+    }
+    
+    // Handle 500 errors
+    if (error.response?.status === 500) {
+      console.error('Server error when fetching task. Check your backend logs!');
+    }
+    
+    dispatch(setErrors(error.response?.data || { message: 'Failed to fetch task' }));
+    dispatch(setRefresh(false));
+    
+    // Re-throw for promise handling
+    throw error;
+  }
 };
 
 export const DeleteTaskAction = (id) => async (dispatch) => {
@@ -315,5 +353,36 @@ export const RescheduleTaskAction = (id, newDates) => async (dispatch) => {
     setTimeout(() => {
       dispatch(setRefresh(false));
     }, 500);
+  }
+};
+// Add this new action to your tasks.js Redux actions file
+
+export const GetTaskCommentsAction = (taskId) => async (dispatch) => {
+  console.log('GetTaskCommentsAction called with task ID:', taskId);
+  dispatch(setRefresh(true));
+  
+  try {
+    const response = await axios.get(`/api/tasks/${taskId}/comments`);
+    console.log('Comments fetched successfully:', response.data);
+    
+    dispatch(setRefresh(false));
+    dispatch(setErrors({}));
+    
+    // Return the comments array from the response
+    return response.data.comments || [];
+  } catch (error) {
+    console.error('Error fetching comments:', error);
+    
+    if (error.response) {
+      console.error('Error response:', error.response.data);
+      dispatch(setErrors(error.response.data));
+    } else {
+      dispatch(setErrors({ message: 'Network error when fetching comments' }));
+    }
+    
+    dispatch(setRefresh(false));
+    
+    // Return empty array in case of error
+    return [];
   }
 };

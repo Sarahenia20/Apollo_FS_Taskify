@@ -170,32 +170,90 @@ const GetAll = async (req, res) => {
   }
 };
 
-/* Get single task */
+/* Get single task with improved error handling */
 const GetOne = async (req, res) => {
+  console.log('GetOne Task Request:', { 
+    taskId: req.params.id,
+    userID: req.user?.id
+  });
+  
   try {
-    const task = await tasksModel.findById(req.params.id)
-      .populate('assigns', 'fullName email')
-      .populate('comments.by', 'fullName email');
-
-    if (!task) {
-      return res.status(404).json({ error: 'Task not found' });
+    // Validate task ID
+    if (!req.params.id || !mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ 
+        success: false,
+        message: "Invalid task ID provided"
+      });
+    }
+    
+    // Find the task by ID with comprehensive population - Add detailed try/catch for debugging
+    let task;
+    try {
+      task = await tasksModel.findById(req.params.id);
+      console.log('Raw task found:', task ? task._id : 'Not found');
+    } catch (findError) {
+      console.error('Error finding task by ID:', findError);
+      return res.status(500).json({
+        success: false,
+        message: "Database error when finding task",
+        error: findError.message
+      });
     }
 
-    res.status(200).json({
+    // Check if task exists before trying to populate
+    if (!task) {
+      console.log('Task not found:', req.params.id);
+      return res.status(404).json({ 
+        success: false,
+        message: "Task not found" 
+      });
+    }
+
+    // Populate assigns separately with error handling
+    try {
+      await task.populate({
+        path: 'assigns',
+        select: 'fullName email picture',
+      });
+      console.log('Assigns populated successfully');
+    } catch (assignsError) {
+      console.error('Error populating assigns:', assignsError);
+      // Continue instead of failing - partial data is better than none
+    }
+
+    // Populate comments.by separately with error handling
+    try {
+      await task.populate({
+        path: 'comments.by',
+        select: 'fullName email picture',
+      });
+      console.log('Comments populated successfully:', task.comments?.length || 0);
+    } catch (commentsError) {
+      console.error('Error populating comments:', commentsError);
+      // Continue instead of failing - partial data is better than none
+    }
+
+    // Log successful retrieval
+    console.log('Task data prepared for response:', {
+      id: task._id,
+      title: task.title,
+      commentCount: task.comments?.length || 0
+    });
+
+    // Return the task data
+    return res.status(200).json({
       success: true,
       data: task
     });
   } catch (error) {
-    console.error('Get Single Task Error:', error);
+    console.error('GetOne Task Error:', error);
     
-    // Handle specific MongoDB errors
-    if (error.name === 'CastError') {
-      return res.status(400).json({ error: 'Invalid task ID' });
-    }
-
-    res.status(500).json({ 
-      error: 'Failed to retrieve task', 
-      details: error.message 
+    // Return detailed error information
+    return res.status(500).json({ 
+      success: false,
+      message: "Server error when retrieving task",
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 };

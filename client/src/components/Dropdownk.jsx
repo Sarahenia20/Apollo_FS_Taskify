@@ -16,6 +16,9 @@ const Dropdownk = (props) => {
 
   const [popupOpenComment, setPopupOpenComment] = useState(false);
   const popupComment = useRef(null);
+  
+  // Store current task ID for comment popup
+  const [commentTaskId, setCommentTaskId] = useState(null);
 
   const deleteTask = (id) => {
     dispatch(DeleteTaskAction(id));
@@ -46,6 +49,37 @@ const Dropdownk = (props) => {
     document.addEventListener("keydown", keyHandler);
     return () => document.removeEventListener("keydown", keyHandler);
   });
+
+  // Handle task editing with proper project retrieval
+  const handleEditTask = (e) => {
+    e.stopPropagation();
+    
+    // Make sure we have the task ID
+    if (props._id) {
+      // Use FindOneTaskAction to get full task details including project
+      dispatch(FindOneTaskAction(props._id));
+      setPopupOpen(true);
+      setDropdownOpen(false);
+    } else if (props.onEdit) {
+      // If onEdit handler is provided, use it instead
+      props.onEdit(e);
+      setDropdownOpen(false);
+    }
+  };
+  
+  // Handle opening the comment popup
+  const handleOpenComments = (e) => {
+    e.stopPropagation();
+    if (props._id) {
+      console.log("Opening comment popup for task ID:", props._id);
+      setCommentTaskId(props._id);
+      dispatch(FindOneTaskAction(props._id));
+      setPopupOpenComment(true);
+      setDropdownOpen(false);
+    } else {
+      console.error("Cannot open comments: No task ID available");
+    }
+  };
 
   return (
     <div className="relative" onClick={(e) => e.stopPropagation()}>
@@ -87,19 +121,7 @@ const Dropdownk = (props) => {
       >
         <button
           className="flex w-full items-center gap-2 rounded-sm px-4 py-1.5 text-left text-sm hover:bg-gray dark:hover:bg-meta-4"
-          onClick={(e) => {
-            e.stopPropagation();
-            // Use the task ID directly from props
-            if (props._id) {
-              dispatch(FindOneTaskAction(props._id));
-              setPopupOpen(true);
-              setDropdownOpen(false);
-            } else if (props.onEdit) {
-              // If onEdit handler is provided, use it instead
-              props.onEdit(e);
-              setDropdownOpen(false);
-            }
-          }}
+          onClick={handleEditTask}
         >
           <svg
             className="fill-current"
@@ -160,12 +182,7 @@ const Dropdownk = (props) => {
         ) : null}
         <button
           className="flex w-full items-center gap-2 rounded-sm px-4 py-1.5 text-left text-sm hover:bg-gray dark:hover:bg-meta-4"
-          onClick={(e) => {
-            e.stopPropagation();
-            dispatch(FindOneTaskAction(props._id));
-            setPopupOpenComment(true);
-            setDropdownOpen(false);
-          }}
+          onClick={handleOpenComments}
         >
           <svg
             className="fill-current"
@@ -198,6 +215,7 @@ const Dropdownk = (props) => {
         popupOpen={popupOpenComment}
         setPopupOpen={setPopupOpenComment}
         popup={popupComment}
+        taskId={commentTaskId}
       />
     </div>
   );

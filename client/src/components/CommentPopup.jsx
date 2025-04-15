@@ -1,17 +1,37 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { AddCommentAction, DeleteCommentAction } from "../redux/actions/tasks";
+import { 
+  AddCommentAction, 
+  DeleteCommentAction,
+  FindOneTaskAction
+} from "../redux/actions/tasks";
 
-const CommentPopup = (props) => {
+const CommentPopup = ({ popupOpen, setPopupOpen, popup, taskId }) => {
   const [form, setForm] = useState({});
+  const [loading, setLoading] = useState(false);
+  const [localComments, setLocalComments] = useState([]);
+  const [optimisticCommentId, setOptimisticCommentId] = useState(null);
+  
   const dispatch = useDispatch();
   const { content } = useSelector((state) => state.errors);
   const { _ONE } = useSelector((state) => state.tasks);
+  const { refresh } = useSelector((state) => state.commons);
+  const { user } = useSelector((state) => state.auth);
+  
   const ref = useRef();
+  const fileInputRef = useRef();
+  const [selectedfile, setselectedfile] = useState(null);
 
+  // Determine the correct task ID
+  const effectiveTaskId = taskId || (_ONE && _ONE._id);
+  
+  // When the popup opens, try to get existing comments from the response that came with AddComment
   useEffect(() => {
-    setForm(_ONE);
-  }, [_ONE]);
+    if (popupOpen && effectiveTaskId && _ONE && _ONE.comments) {
+      console.log("Setting comments from _ONE:", _ONE.comments);
+      setLocalComments(_ONE.comments);
+    }
+  }, [popupOpen, effectiveTaskId, _ONE]);
 
   const OnChangeHandler = (e) => {
     setForm({
@@ -22,26 +42,152 @@ const CommentPopup = (props) => {
 
   const onSubmitHandler = (e) => {
     e.preventDefault();
-    dispatch(AddCommentAction(form, _ONE._id, props.setPopupOpen));
+    
+    if (!effectiveTaskId) {
+      console.error("Cannot add comment: No task ID available");
+      return;
+    }
+    
+    // Get comment text
+    const commentText = ref.current.value;
+    if (!commentText || commentText.trim() === '') {
+      return;
+    }
+    
+    console.log("Submitting comment for task:", effectiveTaskId);
+    setLoading(true);
+    
+    // Create a temporary ID for optimistic UI update
+    const tempId = `temp-${Date.now()}`;
+    setOptimisticCommentId(tempId);
+    
+    // Add comment optimistically to local state
+    const optimisticComment = {
+      _id: tempId,
+      content: commentText,
+      by: user || {
+        fullName: "You",
+        email: "",
+        picture: null
+      },
+      createdAt: new Date(),
+      image: selectedfile ? URL.createObjectURL(selectedfile) : null
+    };
+    
+    setLocalComments(prev => [...prev, optimisticComment]);
+    
+    // Clear form fields
     ref.current.value = "";
-    setselectedfile(null)
+    
+    // Prepare form data for the API
+    const commentData = {
+      comment: commentText,
+      file: selectedfile
+    };
+    
+    // Send to server
+    dispatch(AddCommentAction(commentData, effectiveTaskId))
+      .then((response) => {
+        console.log("Comment added successfully");
+        setselectedfile(null);
+        setLoading(false);
+        setOptimisticCommentId(null);
+        
+        // If we get a full task response with comments, update local state
+        if (response && response.data && response.data.data && response.data.data.comments) {
+          setLocalComments(response.data.data.comments);
+        }
+      })
+      .catch((error) => {
+        console.error("Error adding comment:", error);
+        setLoading(false);
+        
+        // Keep the optimistic comment but mark it as failed
+        setLocalComments(prev => 
+          prev.map(comment => 
+            comment._id === tempId
+              ? { ...comment, failed: true }
+              : comment
+          )
+        );
+      });
   };
 
-  const fileInputRef = useRef();
+  const formatDate = (dateString) => {
+    if (!dateString) return "Just now";
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return "Just now";
+      
+      return date.toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'short', 
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch (e) {
+      return "Just now";
+    }
+  };
 
-  const [selectedfile, setselectedfile] = useState(null);
+  // Fix image URL by ensuring no double slashes
+  const fixImageUrl = (url) => {
+    if (!url) return "/assets/images/user/user-default.png"; // Use a local default image
+    if (url.includes("https")) return url;
+    return `http://localhost:5500${url.startsWith('/') ? '' : '/'}${url}`;
+  };
+  
+  // Get project name from different formats
+  const getProjectName = () => {
+    if (!_ONE) return "Task";
+    
+    if (typeof _ONE.project === 'object' && _ONE.project?.name) {
+      return _ONE.project.name;
+    }
+    
+    if (typeof _ONE.project === 'string') {
+      return _ONE.project;
+    }
+    
+    return "Task";
+  };
+
+  // Handle deleting a comment properly
+  const handleDeleteComment = (commentId) => {
+    // If it's a temporary/optimistic comment, just remove it from local state
+    if (commentId.startsWith('temp-')) {
+      setLocalComments(prev => prev.filter(c => c._id !== commentId));
+      return;
+    }
+    
+    // Otherwise, call the API
+    dispatch(DeleteCommentAction(effectiveTaskId, commentId))
+      .then(response => {
+        // If we get back full data with comments, update the local state
+        if (response && response.data && response.data.data && response.data.data.comments) {
+          setLocalComments(response.data.data.comments);
+        } else {
+          // Otherwise just remove it from local state
+          setLocalComments(prev => prev.filter(c => c._id !== commentId));
+        }
+      })
+      .catch(error => {
+        console.error("Error deleting comment:", error);
+        // Show error but don't change UI (keep the comment visible)
+      });
+  };
 
   return (
     <div
       className={`fixed left-0 top-0 z-99999 flex h-screen w-full justify-center overflow-y-scroll bg-black/80 px-4 py-5 ${
-        props.popupOpen === true ? "block" : "hidden"
+        popupOpen === true ? "block" : "hidden"
       }`}
     >
-      <div className="relative m-auto w-full max-w-180 rounded-sm border border-stroke bg-gray p-4 shadow-default dark:border-strokedark dark:bg-meta-4 sm:p-8 xl:p-10">
+      <div className="relative m-auto w-full max-w-4xl rounded-sm border border-stroke bg-gray p-4 shadow-default dark:border-strokedark dark:bg-meta-4 sm:p-8 xl:p-10">
+        {/* Close button */}
         <button
-          onClick={() => {
-            props.setPopupOpen(false);
-          }}
+          onClick={() => setPopupOpen(false)}
           className="absolute right-1 top-1 sm:right-5 sm:top-5"
         >
           <svg
@@ -61,72 +207,112 @@ const CommentPopup = (props) => {
           </svg>
         </button>
 
-        <div className="p-6.5">
-          <div className="mb-5">
-            <label
-              htmlFor="taskDescription"
-              className="mb-2.5 block font-medium text-black dark:text-white"
-            >
-              Comment <span className="text-meta-1">*</span>
-            </label>
+        <div className="flex flex-col gap-6">
+          {/* Task Details Section - Simplified */}
+          <div className="rounded-lg border border-stroke bg-white p-6 dark:border-strokedark dark:bg-boxdark">
+            <h2 className="mb-4 text-2xl font-bold text-black dark:text-white">
+              {_ONE?.title || "Task Comments"}
+              {(loading || refresh) && <span className="ml-2 inline-block h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent"></span>}
+            </h2>
+            
+            <div className="flex items-center gap-2">
+              <span className="rounded-md bg-blue-100 px-3 py-1 text-sm font-medium text-blue-800">
+                {getProjectName()}
+              </span>
+            </div>
+          </div>
 
-            {(form?.comments || []).map((c) => {
-              return (
-                <div
-                  key={c._id}
-                  className="flex items-center justify-between p-4"
-                >
-                  <div className="flex flex-row items-center gap-4">
-                    <img
-                      src={`${
-                        c.by
-                          ? c.by.picture.includes("https")
-                            ? c.by.picture
-                            : `http://localhost:5500/${c.by.picture}`
-                          : ""
-                      }`}
-                      className="h-[30px] w-auto rounded-full"
-                    />
-                    {c.image ? <img width={100} style={{maxHeight: 50, objectFit: "contain"}} src={c.image} /> : null}
-                    <span>{c.content}</span>
-                  </div>
+          {/* Comments Section */}
+          <div className="rounded-lg border border-stroke bg-white p-6 dark:border-strokedark dark:bg-boxdark">
+            <h3 className="mb-4 text-xl font-semibold text-black dark:text-white">
+              Comments & Discussion
+            </h3>
 
-                  <button
-                    className="text-md flex h-[50px] w-[50px] items-center gap-2 rounded-sm px-4 py-1.5 text-left hover:bg-gray hover:text-primary dark:hover:bg-meta-4"
-                    onClick={() =>
-                      dispatch(DeleteCommentAction(_ONE._id, c._id))
-                    }
+            {/* Comments List */}
+            <div className="mb-6 max-h-96 space-y-4 overflow-y-auto">
+              {localComments && localComments.length > 0 ? (
+                localComments.map((c) => (
+                  <div
+                    key={c._id}
+                    className={`rounded-lg border border-stroke p-4 dark:border-strokedark ${c._id === optimisticCommentId ? 'bg-blue-50 dark:bg-blue-900/10' : ''} ${c.failed ? 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800' : ''}`}
                   >
-                    <svg
-                      className="fill-current"
-                      width="18"
-                      height="18"
-                      viewBox="0 0 18 18"
-                      fill="none"
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <path
-                        d="M13.7535 2.47502H11.5879V1.9969C11.5879 1.15315 10.9129 0.478149 10.0691 0.478149H7.90352C7.05977 0.478149 6.38477 1.15315 6.38477 1.9969V2.47502H4.21914C3.40352 2.47502 2.72852 3.15002 2.72852 3.96565V4.8094C2.72852 5.42815 3.09414 5.9344 3.62852 6.1594L4.07852 15.4688C4.13477 16.6219 5.09102 17.5219 6.24414 17.5219H11.7004C12.8535 17.5219 13.8098 16.6219 13.866 15.4688L14.3441 6.13127C14.8785 5.90627 15.2441 5.3719 15.2441 4.78127V3.93752C15.2441 3.15002 14.5691 2.47502 13.7535 2.47502ZM7.67852 1.9969C7.67852 1.85627 7.79102 1.74377 7.93164 1.74377H10.0973C10.2379 1.74377 10.3504 1.85627 10.3504 1.9969V2.47502H7.70664V1.9969H7.67852ZM4.02227 3.96565C4.02227 3.85315 4.10664 3.74065 4.24727 3.74065H13.7535C13.866 3.74065 13.9785 3.82502 13.9785 3.96565V4.8094C13.9785 4.9219 13.8941 5.0344 13.7535 5.0344H4.24727C4.13477 5.0344 4.02227 4.95002 4.02227 4.8094V3.96565ZM11.7285 16.2563H6.27227C5.79414 16.2563 5.40039 15.8906 5.37227 15.3844L4.95039 6.2719H13.0785L12.6566 15.3844C12.6004 15.8625 12.2066 16.2563 11.7285 16.2563Z"
-                        fill=""
-                      />
-                      <path
-                        d="M9.00039 9.11255C8.66289 9.11255 8.35352 9.3938 8.35352 9.75942V13.3313C8.35352 13.6688 8.63477 13.9782 9.00039 13.9782C9.33789 13.9782 9.64727 13.6969 9.64727 13.3313V9.75942C9.64727 9.3938 9.33789 9.11255 9.00039 9.11255Z"
-                        fill=""
-                      />
-                      <path
-                        d="M11.2502 9.67504C10.8846 9.64692 10.6033 9.90004 10.5752 10.2657L10.4064 12.7407C10.3783 13.0782 10.6314 13.3875 10.9971 13.4157C11.0252 13.4157 11.0252 13.4157 11.0533 13.4157C11.3908 13.4157 11.6721 13.1625 11.6721 12.825L11.8408 10.35C11.8408 9.98442 11.5877 9.70317 11.2502 9.67504Z"
-                        fill=""
-                      />
-                      <path
-                        d="M6.72245 9.67504C6.38495 9.70317 6.1037 10.0125 6.13182 10.35L6.3287 12.825C6.35683 13.1625 6.63808 13.4157 6.94745 13.4157C6.97558 13.4157 6.97558 13.4157 7.0037 13.4157C7.3412 13.3875 7.62245 13.0782 7.59433 12.7407L7.39745 10.2657C7.39745 9.90004 7.08808 9.64692 6.72245 9.67504Z"
-                        fill=""
-                      />
-                    </svg>
-                  </button>
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-3">
+                        <img
+                          src={fixImageUrl(c.by?.picture)}
+                          alt="User"
+                          className="h-10 w-10 rounded-full"
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.src = "/assets/images/user/user-default.png";
+                          }}
+                        />
+                        <div>
+                          <h4 className="font-medium text-black dark:text-white">
+                            {c.by?.fullName || "You"}
+                          </h4>
+                          <p className="text-xs text-gray-500">
+                            {formatDate(c.createdAt)}
+                            {c.failed && <span className="ml-2 text-red-500">Failed to send</span>}
+                            {c._id === optimisticCommentId && <span className="ml-2 text-blue-500">Sending...</span>}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleDeleteComment(c._id)}
+                        className="text-red-500 hover:text-red-600"
+                      >
+                        <svg
+                          className="h-5 w-5"
+                          viewBox="0 0 20 20"
+                          fill="currentColor"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                      </button>
+                    </div>
+                    <div className="mt-3">
+                      <p className="text-gray-700 dark:text-gray-300">{c.content}</p>
+                      {c.image && (
+                        <div className="mt-2">
+                          <img
+                            src={typeof c.image === 'string' ? c.image : URL.createObjectURL(c.image)}
+                            alt="Comment attachment"
+                            className="max-h-40 rounded-md"
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                            }}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="flex flex-col items-center justify-center py-8 text-center">
+                  <svg
+                    className="mb-3 h-12 w-12 text-gray-400"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1}
+                      d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                    />
+                  </svg>
+                  <p className="text-gray-500">No comments yet</p>
                 </div>
-              );
-            })}
+              )}
+            </div>
 
+            {/* Add Comment Form */}
             <div className="sticky bottom-0 border-t border-stroke bg-white px-6 py-5 dark:border-strokedark dark:bg-boxdark">
               <form
                 className="flex flex-col space-x-4.5"
@@ -145,16 +331,11 @@ const CommentPopup = (props) => {
                     <input
                       name="file"
                       onChange={(e) => {
-                        setForm((f) => ({
-                          ...f,
-                          file:
-                            e.target.files.length > 0
-                              ? e.target.files[0]
-                              : null,
-                        }));
-                        setselectedfile(
-                          e.target.files.length === 0 ? null : e.target.files[0]
-                        );
+                        if (e.target.files.length > 0) {
+                          setselectedfile(e.target.files[0]);
+                        } else {
+                          setselectedfile(null);
+                        }
                       }}
                       ref={fileInputRef}
                       type="file"
@@ -188,41 +369,59 @@ const CommentPopup = (props) => {
                   <button
                     type="submit"
                     className="flex h-13 w-full max-w-13 items-center justify-center rounded-md bg-primary text-white hover:bg-opacity-90"
+                    disabled={loading || refresh}
                   >
-                    <svg
-                      width="24"
-                      height="24"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <path
-                        d="M22 2L11 13"
-                        stroke="white"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                      <path
-                        d="M22 2L15 22L11 13L2 9L22 2Z"
-                        stroke="white"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
+                    {loading || refresh ? (
+                      <div className="animate-spin h-5 w-5 border-2 border-white rounded-full border-t-transparent" />
+                    ) : (
+                      <svg
+                        width="24"
+                        height="24"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path
+                          d="M22 2L11 13"
+                          stroke="white"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                        <path
+                          d="M22 2L15 22L11 13L2 9L22 2Z"
+                          stroke="white"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    )}
                   </button>
                 </div>
                 {content.comment && (
-                  <div className="flex justify-start text-sm text-red">
+                  <div className="flex justify-start text-sm text-red mt-2">
                     {content.comment}
                   </div>
                 )}
                 {selectedfile ? (
-                  <img
-                    style={{ width: 100, height: 100, objectFit: "contain" }}
-                    src={URL.createObjectURL(selectedfile)}
-                  />
+                  <div className="mt-2 flex items-center">
+                    <img
+                      style={{ width: 100, height: 100, objectFit: "contain" }}
+                      src={URL.createObjectURL(selectedfile)}
+                      alt="Selected attachment"
+                      className="rounded"
+                    />
+                    <button 
+                      type="button"
+                      className="ml-2 text-red-500 hover:text-red-700"
+                      onClick={() => setselectedfile(null)}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                        <path d="M8 0C3.6 0 0 3.6 0 8s3.6 8 8 8 8-3.6 8-8-3.6-8-8-8zm3.5 10.1l-1.4 1.4L8 9.4l-2.1 2.1-1.4-1.4L6.6 8 4.5 5.9l1.4-1.4L8 6.6l2.1-2.1 1.4 1.4L9.4 8l2.1 2.1z" />
+                      </svg>
+                    </button>
+                  </div>
                 ) : null}
               </form>
             </div>
