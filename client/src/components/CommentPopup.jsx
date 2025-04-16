@@ -1,56 +1,216 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { 
-  AddCommentAction, 
-  DeleteCommentAction
+import {
+  AddCommentAction,
+  DeleteCommentAction,
+  FindOneTaskAction,
 } from "../redux/actions/tasks";
 import axios from "axios";
 
-const CommentPopup = ({ popupOpen, setPopupOpen, popup, taskId }) => {
+// Enhanced trigger phrases for English and French
+const triggerPhrases = {
+  hello: {
+    label: "Greeting (EN)",
+    options: [
+      "Hello! Any updates on this task?",
+      "Hey there, how’s the progress?",
+      "Hi, quick check-in on this task.",
+    ],
+  },
+  bonjour: {
+    label: "Salutation (FR)",
+    options: [
+      "Bonjour ! Des mises à jour sur cette tâche ?",
+      "Salut, comment avance-t-on ?",
+      "Bonjour, un point rapide sur cette tâche.",
+    ],
+  },
+  thanks: {
+    label: "Appreciation (EN)",
+    options: [
+      "Thanks for the great work!",
+      "Awesome job on this task!",
+      "Really appreciate your efforts.",
+    ],
+  },
+  merci: {
+    label: "Gratitude (FR)",
+    options: [
+      "Merci pour le super travail !",
+      "Excellent boulot sur cette tâche !",
+      "Vraiment reconnaissant pour vos efforts.",
+    ],
+  },
+  when: {
+    label: "Scheduling (EN)",
+    options: [
+      "When’s the expected completion?",
+      "Any timeline updates?",
+      "What’s the deadline looking like?",
+    ],
+  },
+  quand: {
+    label: "Planification (FR)",
+    options: [
+      "Quand est-ce qu’on finit ?",
+      "Des nouvelles sur le calendrier ?",
+      "Quel est l’échéance prévue ?",
+    ],
+  },
+  update: {
+    label: "Status (EN)",
+    options: [
+      "Any progress updates?",
+      "What’s the latest on this?",
+      "Can you share the current status?",
+    ],
+  },
+  mise: {
+    label: "Statut (FR)",
+    options: [
+      "Des mises à jour sur l’avancement ?",
+      "Quoi de neuf sur cette tâche ?",
+      "Pouvez-vous partager l’état actuel ?",
+    ],
+  },
+};
+
+// Custom hook for comment suggestions
+const useCommentSuggestions = () => {
+  const [suggestions, setSuggestions] = useState([]);
+  const [commentInput, setCommentInput] = useState("");
+
+  const handleInputChange = useCallback((e) => {
+    const val = e.target.value;
+    setCommentInput(val);
+
+    console.log("Comment input:", val); // Debug input
+
+    const lastWord = val
+      .trim()
+      .split(/\s+/)
+      .pop()?.toLowerCase() || "";
+    const matchedPhrases = Object.entries(triggerPhrases)
+      .filter(([key]) => lastWord.includes(key))
+      .flatMap(([, phraseObj]) => phraseObj.options);
+
+    console.log("Matched phrases:", matchedPhrases); // Debug matches
+
+    setSuggestions(matchedPhrases.length > 0 ? matchedPhrases : []);
+  }, []);
+
+  const applySuggestion = useCallback((suggestion) => {
+    setCommentInput((prev) => `${prev.trim()} ${suggestion}`);
+    setSuggestions([]);
+  }, []);
+
+  return {
+    commentInput,
+    suggestions,
+    handleInputChange,
+    applySuggestion,
+    setCommentInput,
+  };
+};
+
+const CommentPopup = ({ popupOpen, setPopupOpen, taskId, task }) => {
+  // State declarations
+  const [taskBasicInfo, setTaskBasicInfo] = useState(task || null);
   const [form, setForm] = useState({});
   const [loading, setLoading] = useState(false);
   const [localComments, setLocalComments] = useState([]);
   const [optimisticCommentId, setOptimisticCommentId] = useState(null);
-  const [taskBasicInfo, setTaskBasicInfo] = useState(null);
   const [initialLoading, setInitialLoading] = useState(false);
-  
+  const [taskDetailsLoading, setTaskDetailsLoading] = useState(false);
+  const [selectedfile, setselectedfile] = useState(null);
+
   const dispatch = useDispatch();
   const { content } = useSelector((state) => state.errors);
   const { _ONE } = useSelector((state) => state.tasks);
   const { refresh } = useSelector((state) => state.commons);
   const { user } = useSelector((state) => state.auth);
-  
-  const ref = useRef();
-  const fileInputRef = useRef();
-  const [selectedfile, setselectedfile] = useState(null);
 
-  // Determine the correct task ID
+  const fileInputRef = useRef();
+  const {
+    commentInput,
+    suggestions,
+    handleInputChange,
+    applySuggestion,
+    setCommentInput,
+  } = useCommentSuggestions();
+
   const effectiveTaskId = taskId || (_ONE && _ONE._id);
-  
-  // Load comments directly when popup opens
+
+  // Load task details and comments when popup opens
   useEffect(() => {
     if (popupOpen && effectiveTaskId) {
-      console.log("Loading initial comments for task:", effectiveTaskId);
+      if (task) {
+        console.log("Using task data from props:", task);
+        setTaskBasicInfo(task);
+        setForm(task);
+      } else {
+        console.log("Loading data for task:", effectiveTaskId);
+        setTaskDetailsLoading(true);
+
+        dispatch(FindOneTaskAction(effectiveTaskId))
+          .then((action) => {
+            console.log("Task fetch completed:", action.payload);
+            if (action.payload) {
+              setTaskBasicInfo(action.payload);
+              setForm(action.payload);
+              console.log("Task title:", action.payload.title, "Task ID:", action.payload._id);
+            }
+          })
+          .catch((error) => {
+            console.error("Failed to fetch task details:", error);
+          })
+          .finally(() => {
+            setTaskDetailsLoading(false);
+          });
+      }
+
       loadTaskComments(effectiveTaskId);
     }
-  }, [popupOpen, effectiveTaskId]);
-  
+  }, [popupOpen, effectiveTaskId, task, dispatch]);
+
   // Load task info from Redux if available
   useEffect(() => {
-    if (_ONE && typeof _ONE === 'object' && _ONE._id) {
+    if (_ONE && typeof _ONE === "object" && _ONE._id) {
       setTaskBasicInfo(_ONE);
-      setForm(_ONE);
     }
   }, [_ONE]);
 
-  // Direct API call to get comments (bypassing the 500 error in task fetch)
+  // Check if the comment belongs to the current user
+  const isUserOwnComment = (comment) => {
+    if (
+      comment &&
+      comment._id &&
+      typeof comment._id === "string" &&
+      comment._id.startsWith("temp-")
+    ) {
+      return true;
+    }
+
+    if (!user || !user.id || !comment.by) {
+      return false;
+    }
+
+    if (typeof comment.by === "object" && comment.by._id) {
+      return String(comment.by._id) === String(user.id);
+    } else if (typeof comment.by === "string") {
+      return String(comment.by) === String(user.id);
+    }
+
+    return false;
+  };
+
+  // Load task comments
   const loadTaskComments = async (id) => {
     setInitialLoading(true);
-    
+
     try {
-      // Direct API call to task comments endpoint
       const response = await axios.get(`/api/tasks/${id}/comments`);
-      
+
       if (response.data && response.data.comments) {
         console.log("Comments loaded successfully:", response.data.comments);
         setLocalComments(response.data.comments);
@@ -60,8 +220,7 @@ const CommentPopup = ({ popupOpen, setPopupOpen, popup, taskId }) => {
       }
     } catch (error) {
       console.error("Error loading comments:", error);
-      
-      // Fallback: Try to get comments from existing task data
+
       if (_ONE && Array.isArray(_ONE.comments)) {
         console.log("Using comments from existing task data:", _ONE.comments);
         setLocalComments(_ONE.comments);
@@ -73,188 +232,180 @@ const CommentPopup = ({ popupOpen, setPopupOpen, popup, taskId }) => {
     }
   };
 
-  const OnChangeHandler = (e) => {
-    setForm({
-      ...form,
-      [e.target.name]: e.target.value,
-    });
-  };
-
   const onSubmitHandler = (e) => {
     e.preventDefault();
-    
+
     if (!effectiveTaskId) {
       console.error("Cannot add comment: No task ID available");
       return;
     }
-    
-    // Get comment text
-    const commentText = ref.current.value;
-    if (!commentText || commentText.trim() === '') {
+
+    if (!commentInput || commentInput.trim() === "") {
       return;
     }
-    
+
     console.log("Submitting comment for task:", effectiveTaskId);
     setLoading(true);
-    
-    // Create a temporary ID for optimistic UI update
+
     const tempId = `temp-${Date.now()}`;
     setOptimisticCommentId(tempId);
-    
-    // Add comment optimistically to local state
+
     const optimisticComment = {
       _id: tempId,
-      content: commentText,
-      by: user || {
-        fullName: "You",
-        email: "",
-        picture: null
-      },
+      content: commentInput,
+      by:
+        user || {
+          fullName: "You",
+          email: "",
+          picture: null,
+        },
       createdAt: new Date(),
-      image: selectedfile ? URL.createObjectURL(selectedfile) : null
+      image: selectedfile ? URL.createObjectURL(selectedfile) : null,
     };
-    
-    setLocalComments(prev => [...prev, optimisticComment]);
-    
-    // Clear form fields
-    ref.current.value = "";
-    
-    // Prepare form data for the API
+
+    setLocalComments((prev) => [...prev, optimisticComment]);
+    setCommentInput("");
+
     const commentData = {
-      comment: commentText,
-      file: selectedfile
+      comment: commentInput,
+      file: selectedfile,
     };
-    
-    // Send to server
+
     dispatch(AddCommentAction(commentData, effectiveTaskId))
-      .then((response) => {
+      .then(() => {
         console.log("Comment added successfully");
         setselectedfile(null);
         setLoading(false);
         setOptimisticCommentId(null);
-        
-        // Reload comments after adding
         loadTaskComments(effectiveTaskId);
       })
       .catch((error) => {
         console.error("Error adding comment:", error);
         setLoading(false);
-        
-        // Keep the optimistic comment but mark it as failed
-        setLocalComments(prev => 
-          prev.map(comment => 
-            comment._id === tempId
-              ? { ...comment, failed: true }
-              : comment
+        setLocalComments((prev) =>
+          prev.map((comment) =>
+            comment._id === tempId ? { ...comment, failed: true } : comment
           )
         );
       });
   };
 
   const formatDate = (dateString) => {
-    if (!dateString) return "Just now";
+    if (!dateString) {
+      return "Not set";
+    }
     try {
       const date = new Date(dateString);
-      if (isNaN(date.getTime())) return "Just now";
-      
-      return date.toLocaleDateString('en-US', { 
-        year: 'numeric', 
-        month: 'short', 
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
+      if (isNaN(date.getTime())) {
+        return "Not set";
+      }
+
+      return date.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
       });
     } catch (e) {
-      return "Just now";
+      return "Not set";
     }
   };
 
-  // Update the fixImageUrl function in your CommentPopup component
+  const fixImageUrl = (url) => {
+    if (!url) {
+      console.log("No URL provided for fixImageUrl");
+      return "/assets/images/user/user-default.png";
+    }
 
-// Replace the current fixImageUrl function with this improved version
-const fixImageUrl = (url) => {
-  // If no image URL provided, return default avatar
-  if (!url) return "/assets/images/user/user-default.png";
-  
-  // If it's a full URL (starts with http/https), use it directly
-  if (url.startsWith('http://') || url.startsWith('https://')) {
-    return url;
-  }
-  
-  // For image URLs from comments
-  if (url.startsWith('/uploads/comments/')) {
-    // Make sure to point to your actual backend URL where static files are served
-    return `http://localhost:5500${url}`; // Adjust this URL to match your backend
-  }
-  
-  // For user profile images or other paths
-  return `http://localhost:5500${url.startsWith('/') ? '' : '/'}${url}`;
-};
-  // Get project name from different formats
-  const getProjectName = () => {
-    if (!_ONE) return "Task";
-    
-    if (typeof _ONE.project === 'object' && _ONE.project?.name) {
-      return _ONE.project.name;
+    if (url.startsWith("http://") || url.startsWith("https://")) {
+      console.log("URL already absolute:", url);
+      return url;
     }
-    
-    if (typeof _ONE.project === 'string') {
-      return _ONE.project;
+
+    if (url.startsWith("/uploads/")) {
+      const fullUrl = `http://localhost:5500${url}`;
+      console.log("Constructed upload URL:", fullUrl);
+      return fullUrl;
     }
-    
-    return "Task";
+
+    const fullUrl = `http://localhost:5500${url.startsWith("/") ? "" : "/"}${url}`;
+    console.log("Constructed fallback URL:", fullUrl);
+    return fullUrl;
   };
 
-  // Check if current user can delete a comment
-  const canDeleteComment = (comment) => {
-    // Allow if it's the user's own comment
-    if (comment.by && user && comment.by._id === user.id) {
-      return true;
-    }
-    
-    // Allow if user is an admin
-    if (user && user.roles && user.roles.includes("ADMIN")) {
-      return true;
-    }
-    
-    // Default: not allowed
-    return false;
-  };
-
-  // Handle deleting a comment with authorization check
   const handleDeleteComment = (commentId, comment) => {
-    // If it's a temporary comment, just remove from local state
-    if (commentId.startsWith('temp-')) {
-      setLocalComments(prev => prev.filter(c => c._id !== commentId));
+    if (commentId.startsWith("temp-")) {
+      setLocalComments((prev) => prev.filter((c) => c._id !== commentId));
       return;
     }
-    
-    // Check authorization
-    if (!canDeleteComment(comment)) {
-      alert("You don't have permission to delete this comment");
+
+    const isMyComment =
+      user &&
+      comment.by &&
+      user.id &&
+      ((typeof comment.by === "object" && String(comment.by._id) === String(user.id)) ||
+        (typeof comment.by === "string" && String(comment.by) === String(user.id)));
+
+    const isAdmin = user && user.roles && user.roles.includes("ADMIN");
+
+    if (!isMyComment && !isAdmin) {
+      alert("You can only delete your own comments");
       return;
     }
-    
-    // Delete via API
+
     dispatch(DeleteCommentAction(effectiveTaskId, commentId))
       .then(() => {
-        // Remove from local state
-        setLocalComments(prev => prev.filter(c => c._id !== commentId));
+        setLocalComments((prev) => prev.filter((c) => c._id !== commentId));
       })
-      .catch(error => {
+      .catch((error) => {
         console.error("Error deleting comment:", error);
         alert("Failed to delete comment. Please try again.");
       });
   };
 
+  const hasTaskData = _ONE || taskBasicInfo;
+  const taskData = taskBasicInfo || _ONE;
+
+  const getAssignees = () => {
+    if (!taskData) {
+      return [];
+    }
+
+    if (taskData.assigns && Array.isArray(taskData.assigns)) {
+      return taskData.assigns;
+    }
+
+    if (taskData.assignees && Array.isArray(taskData.assignees)) {
+      return taskData.assignees;
+    }
+
+    return [];
+  };
+
+  const getProjectName = () => {
+    if (!taskData) {
+      return "Project";
+    }
+
+    if (typeof taskData.project === "object" && taskData.project?.name) {
+      return taskData.project.name;
+    }
+
+    if (typeof taskData.project === "string") {
+      return taskData.project;
+    }
+
+    return "Project";
+  };
+
   return (
     <div
       className={`fixed left-0 top-0 z-99999 flex h-screen w-full justify-center overflow-y-scroll bg-black/80 px-4 py-5 ${
-        popupOpen === true ? "block" : "hidden"
+        popupOpen ? "block" : "hidden"
       }`}
     >
       <div className="relative m-auto w-full max-w-4xl rounded-sm border border-stroke bg-gray p-4 shadow-default dark:border-strokedark dark:bg-meta-4 sm:p-8 xl:p-10">
-        {/* Close button */}
         <button
           onClick={() => setPopupOpen(false)}
           className="absolute right-1 top-1 sm:right-5 sm:top-5"
@@ -277,27 +428,201 @@ const fixImageUrl = (url) => {
         </button>
 
         <div className="flex flex-col gap-6">
-          {/* Task Details Section - Simplified */}
+          {/* Task Details Section */}
           <div className="rounded-lg border border-stroke bg-white p-6 dark:border-strokedark dark:bg-boxdark">
-            <h2 className="mb-4 text-2xl font-bold text-black dark:text-white">
-              {_ONE?.title || "Task Comments"}
-              {(loading || refresh) && <span className="ml-2 inline-block h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent"></span>}
-            </h2>
-            
-            <div className="flex items-center gap-2">
-              <span className="rounded-md bg-blue-100 px-3 py-1 text-sm font-medium text-blue-800">
-                {getProjectName()}
-              </span>
-            </div>
+            {taskDetailsLoading ? (
+              <div className="flex justify-center py-10">
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
+              </div>
+            ) : !taskData ? (
+              <div className="text-center py-10">
+                <p className="text-gray-500">Task not found or still loading</p>
+              </div>
+            ) : (
+              <>
+                <h2 className="mb-4 text-2xl font-bold text-black dark:text-white">
+                  {taskData.title && taskData.title !== taskData._id
+                    ? taskData.title
+                    : "Untitled Task"}
+                  {(loading || refresh) && (
+                    <span className="ml-2 inline-block h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent"></span>
+                  )}
+                </h2>
+
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                  {/* Left Column */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      <span className="rounded-md bg-blue-100 px-3 py-1 text-sm font-medium text-blue-800">
+                        {getProjectName()}
+                      </span>
+                      {taskData.status && (
+                        <span
+                          className={`rounded-md px-3 py-1 text-sm font-medium ${
+                            taskData.status === "1"
+                              ? "bg-gray-100 text-gray-800"
+                              : taskData.status === "2"
+                              ? "bg-yellow-100 text-yellow-800"
+                              : taskData.status === "3"
+                              ? "bg-green-100 text-green-800"
+                              : "bg-blue-100 text-blue-800"
+                          }`}
+                        >
+                          {taskData.status === "1"
+                            ? "Todo"
+                            : taskData.status === "2"
+                            ? "In Progress"
+                            : taskData.status === "3"
+                            ? "Completed"
+                            : "Unknown"}
+                        </span>
+                      )}
+                    </div>
+
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                        Description
+                      </h3>
+                      <p className="text-gray-700 dark:text-gray-300">
+                        {taskData.description || "No description provided"}
+                      </p>
+                    </div>
+
+                    {/* Attachment */}
+                    {console.log("Attachment data:", taskData.attachment)}
+                    {taskData.attachment && taskData.attachment.path ? (
+                      <div>
+                        <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                          Attachment
+                        </h3>
+                        <div className="mt-2">
+                          <a
+                            href={fixImageUrl(taskData.attachment.path)}
+                            download={taskData.attachment.originalname || "attachment"}
+                            className="flex items-center gap-2 rounded-md bg-primary px-3 py-1 text-sm text-white hover:bg-opacity-90"
+                            onClick={() =>
+                              console.log(
+                                "Download URL:",
+                                fixImageUrl(taskData.attachment.path)
+                              )
+                            }
+                          >
+                            <svg
+                              className="h-4 w-4"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                              />
+                            </svg>
+                            {taskData.attachment.originalname || "Download"}
+                          </a>
+                        </div>
+                      </div>
+                    ) : (
+                      <div>
+                        <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                          Attachment
+                        </h3>
+                        <p className="text-sm text-gray-500">No attachment available</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Right Column */}
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                        Timeline
+                      </h3>
+                      <div className="mt-1 space-y-1 text-sm">
+                        <div className="flex items-center gap-2">
+                          <svg
+                            className="h-4 w-4 text-gray-400"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                            />
+                          </svg>
+                          <span>Start: {formatDate(taskData.start_date)}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <svg
+                            className="h-4 w-4 text-gray-400"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                            />
+                          </svg>
+                          <span>End: {formatDate(taskData.end_date)}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                        Assignees
+                      </h3>
+                      <div className="mt-1 flex flex-wrap gap-2">
+                        {getAssignees().length > 0 ? (
+                          getAssignees().map((assignee, index) => (
+                            <div
+                              key={assignee._id || index}
+                              className="flex items-center gap-2 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-full"
+                            >
+                              <img
+                                src={
+                                  assignee.picture?.includes("https")
+                                    ? assignee.picture
+                                    : `http://localhost:5500/${
+                                        assignee.picture || "assets/images/user/user-default.png"
+                                      }`
+                                }
+                                alt={assignee.fullName || "Assignee"}
+                                className="h-6 w-6 rounded-full"
+                                onError={(e) => {
+                                  e.target.onerror = null;
+                                  e.target.src = "/assets/images/user/user-default.png";
+                                }}
+                              />
+                              <span className="text-sm">{assignee.fullName || "Unknown"}</span>
+                            </div>
+                          ))
+                        ) : (
+                          <span className="text-gray-500 text-sm">No assignees</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
 
           {/* Comments Section */}
           <div className="rounded-lg border border-stroke bg-white p-6 dark:border-strokedark dark:bg-boxdark">
             <h3 className="mb-4 text-xl font-semibold text-black dark:text-white">
               Comments & Discussion
-              {initialLoading && 
+              {initialLoading && (
                 <span className="ml-2 inline-block h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent"></span>
-              }
+              )}
             </h3>
 
             {/* Comments List */}
@@ -308,44 +633,56 @@ const fixImageUrl = (url) => {
                   <p className="text-gray-500">Loading comments...</p>
                 </div>
               ) : localComments && localComments.length > 0 ? (
-                localComments.map((c) => (
-                  <div
-                    key={c._id}
-                    className={`rounded-lg border border-stroke p-4 dark:border-strokedark ${c._id === optimisticCommentId ? 'bg-blue-50 dark:bg-blue-900/10' : ''} ${c.failed ? 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800' : ''}`}
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-3">
-                        <img
-                          src={fixImageUrl(c.by?.picture)}
-                          alt="User"
-                          className="h-10 w-10 rounded-full"
-                          onError={(e) => {
-                            e.target.onerror = null;
-                            e.target.src = "/assets/images/user/user-default.png";
-                          }}
-                        />
-                        <div>
-                          <h4 className="font-medium text-black dark:text-white">
-                            {c.by?.fullName || "You"}
-                          </h4>
-                          <p className="text-xs text-gray-500">
-                            {formatDate(c.createdAt)}
-                            {c.failed && <span className="ml-2 text-red-500">Failed to send</span>}
-                            {c._id === optimisticCommentId && <span className="ml-2 text-blue-500">Sending...</span>}
-                          </p>
+                localComments.map((c) => {
+                  const isOwnComment = isUserOwnComment(c);
+                  const isAdmin = user && user.roles && user.roles.includes("ADMIN");
+                  const canDelete = isOwnComment || isAdmin;
+
+                  return (
+                    <div
+                      key={c._id}
+                      className={`rounded-lg border border-stroke p-4 dark:border-strokedark 
+                        ${c._id === optimisticCommentId ? "bg-blue-50 dark:bg-blue-900/10" : ""} 
+                        ${c.failed ? "bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800" : ""}`}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={fixImageUrl(c.by?.picture)}
+                            alt="User"
+                            className="h-10 w-10 rounded-full"
+                            onError={(e) => {
+                              e.target.onerror = null;
+                              e.target.src = "/assets/images/user/user-default.png";
+                            }}
+                          />
+                          <div>
+                            <h4 className="font-medium text-black dark:text-white">
+                              {c.by?.fullName || "You"}
+                            </h4>
+                            <p className="text-xs text-gray-500">
+                              {formatDate(c.createdAt)}
+                              {c.failed && <span className="ml-2 text-red-500">Failed to send</span>}
+                              {c._id === optimisticCommentId && (
+                                <span className="ml-2 text-blue-500">Sending...</span>
+                              )}
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                      {/* Only show delete button if user can delete this comment */}
-                      {(canDeleteComment(c) || c._id === optimisticCommentId) && (
+
                         <button
-                          onClick={() => handleDeleteComment(c._id, c)}
-                          className="text-red-500 hover:text-red-600"
+                          onClick={canDelete ? () => handleDeleteComment(c._id, c) : undefined}
+                          className={`${
+                            canDelete
+                              ? "text-red-500 hover:text-red-600"
+                              : "text-gray-300 cursor-not-allowed"
+                          }`}
+                          title={
+                            canDelete ? "Delete comment" : "You can only delete your own comments"
+                          }
+                          disabled={!canDelete}
                         >
-                          <svg
-                            className="h-5 w-5"
-                            viewBox="0 0 20 20"
-                            fill="currentColor"
-                          >
+                          <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                             <path
                               fillRule="evenodd"
                               d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
@@ -353,25 +690,29 @@ const fixImageUrl = (url) => {
                             />
                           </svg>
                         </button>
-                      )}
+                      </div>
+                      <div className="mt-3">
+                        <p className="text-gray-700 dark:text-gray-300">{c.content}</p>
+                        {c.image && (
+                          <div className="mt-2">
+                            <img
+                              src={
+                                typeof c.image === "string"
+                                  ? c.image
+                                  : URL.createObjectURL(c.image)
+                              }
+                              alt="Comment attachment"
+                              className="max-h-40 rounded-md"
+                              onError={(e) => {
+                                e.target.style.display = "none";
+                              }}
+                            />
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    <div className="mt-3">
-                      <p className="text-gray-700 dark:text-gray-300">{c.content}</p>
-                      {c.image && (
-                        <div className="mt-2">
-                          <img
-                            src={typeof c.image === 'string' ? c.image : URL.createObjectURL(c.image)}
-                            alt="Comment attachment"
-                            className="max-h-40 rounded-md"
-                            onError={(e) => {
-                              e.target.style.display = 'none';
-                            }}
-                          />
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))
+                  );
+                })
               ) : (
                 <div className="flex flex-col items-center justify-center py-8 text-center">
                   <svg
@@ -394,44 +735,25 @@ const fixImageUrl = (url) => {
 
             {/* Add Comment Form */}
             <div className="sticky bottom-0 border-t border-stroke bg-white px-6 py-5 dark:border-strokedark dark:bg-boxdark">
-              <form
-                className="flex flex-col space-x-4.5"
-                onSubmit={onSubmitHandler}
-              >
-                <div className="relative flex w-full items-center gap-2">
-                  <div className="relative flex w-full items-center">
+              <form className="flex flex-col gap-4" onSubmit={onSubmitHandler}>
+                <div className="flex w-full items-center gap-2">
+                  <div className="relative flex-1">
                     <input
                       name="comment"
-                      ref={ref}
-                      onChange={OnChangeHandler}
+                      value={commentInput}
+                      onChange={handleInputChange}
                       type="text"
-                      placeholder="Type something here"
+                      placeholder="Type something here / Tapez quelque chose ici"
                       className="h-13 w-full rounded-md border border-stroke bg-gray pl-5 pr-19 text-black placeholder-body outline-none focus:border-primary dark:border-strokedark dark:bg-boxdark-2 dark:text-white"
-                    />
-                    <input
-                      name="file"
-                      onChange={(e) => {
-                        if (e.target.files.length > 0) {
-                          setselectedfile(e.target.files[0]);
-                        } else {
-                          setselectedfile(null);
-                        }
-                      }}
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*"
-                      style={{
-                        display: "none",
-                      }}
                     />
                     <div
                       className="absolute right-5 top-1/2 inline-flex -translate-y-1/2 items-center justify-end space-x-4"
                       onClick={(e) => {
                         e.preventDefault();
-                        fileInputRef.current.click();
+                        fileInputRef.current?.click();
                       }}
                     >
-                      <button className="hover:text-primary">
+                      <button type="button" className="hover:text-primary">
                         <svg
                           width="18"
                           height="18"
@@ -449,7 +771,7 @@ const fixImageUrl = (url) => {
                   </div>
                   <button
                     type="submit"
-                    className="flex h-13 w-full max-w-13 items-center justify-center rounded-md bg-primary text-white hover:bg-opacity-90"
+                    className="h-13 max-w-13 flex items-center justify-center rounded-md bg-primary text-white hover:bg-opacity-90"
                     disabled={loading || refresh}
                   >
                     {loading || refresh ? (
@@ -480,20 +802,53 @@ const fixImageUrl = (url) => {
                     )}
                   </button>
                 </div>
+
+                {/* Suggestion Chips */}
+                {suggestions.length > 0 && (
+                  <div className="flex max-h-20 w-full flex-wrap gap-2 overflow-y-auto">
+                    {suggestions.map((suggestion, index) => (
+                      <button
+                        key={index}
+                        type="button"
+                        onClick={() => applySuggestion(suggestion)}
+                        className="rounded-full bg-blue-100 px-3 py-1 text-sm text-blue-800 hover:bg-blue-200 transition-colors"
+                      >
+                        {suggestion}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                <input
+                  name="file"
+                  onChange={(e) => {
+                    if (e.target.files?.length) {
+                      setselectedfile(e.target.files[0]);
+                    } else {
+                      setselectedfile(null);
+                    }
+                  }}
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  style={{ display: "none" }}
+                />
+
                 {content.comment && (
-                  <div className="flex justify-start text-sm text-red mt-2">
+                  <div className="flex justify-start text-sm text-red-500">
                     {content.comment}
                   </div>
                 )}
-                {selectedfile ? (
-                  <div className="mt-2 flex items-center">
+
+                {selectedfile && (
+                  <div className="flex items-center">
                     <img
                       style={{ width: 100, height: 100, objectFit: "contain" }}
                       src={URL.createObjectURL(selectedfile)}
                       alt="Selected attachment"
                       className="rounded"
                     />
-                    <button 
+                    <button
                       type="button"
                       className="ml-2 text-red-500 hover:text-red-700"
                       onClick={() => setselectedfile(null)}
@@ -503,7 +858,7 @@ const fixImageUrl = (url) => {
                       </svg>
                     </button>
                   </div>
-                ) : null}
+                )}
               </form>
             </div>
           </div>

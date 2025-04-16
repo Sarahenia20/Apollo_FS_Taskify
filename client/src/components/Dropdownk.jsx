@@ -217,7 +217,7 @@ const Dropdownk = (props) => {
               </clipPath>
             </defs>
           </svg>
-          See & Comment
+          View & Comment
         </button>
       </div>
       <TaskPopup
@@ -232,6 +232,7 @@ const Dropdownk = (props) => {
         setPopupOpen={setPopupOpenComment}
         popup={popupComment}
         taskId={commentTaskId}
+        task={props.title ? props : null} 
       />
     </div>
   );
