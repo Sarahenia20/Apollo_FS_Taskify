@@ -4,7 +4,7 @@ require('dotenv').config();
 
 // Log pour débogage
 console.log("NodeMailer: Loading environment variables");
-console.log(`NodeMailer: GMAIL_USER from env: ${process.env.GMAIL_USER}`);
+console.log(`NodeMailer: AGMAIL_USER from env: ${process.env.AGMAIL_USER}`);
 
 // Fonction principale pour envoyer un email
 async function main(to, subject, content) {
@@ -12,10 +12,10 @@ async function main(to, subject, content) {
   
   try {
     // Utiliser les informations d'identification depuis les variables d'environnement
-    const gmailUser = process.env.GMAIL_USER;
-    const gmailKey = process.env.GMAIL_KEY;
+    const gmailUser = process.env.AGMAIL_USER;
+    const gmailKey = process.env.AGMAIL_KEY;
     
-    console.log(`NodeMailer: Using GMAIL_USER: ${gmailUser}`);
+    console.log(`NodeMailer: Using AGMAIL_USER: ${gmailUser}`);
     
     // Créer un objet transporteur réutilisable en utilisant le transport SMTP par défaut
     let transporter = nodemailer.createTransport({
