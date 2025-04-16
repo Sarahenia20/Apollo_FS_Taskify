@@ -1,7 +1,11 @@
+require('dotenv').config();
 const tasksModel = require("../models/tasks");
+const usersModel = require("../models/users");
 const socket = require("../socket");
 const tasksValidation = require("../validation/tasksValidation");
 const { addNotification } = require("./notifications");
+const { nodeMailer } = require("../config/nodeMailer");
+const twilioClient = require("../config/twilioClient");  // Twilio Client
 const fs = require('fs').promises;
 const path = require('path');
 
@@ -38,93 +42,92 @@ const transformTaskBody = (body) => {
 
 /* Add tasks with file upload */
 const Add = async (req, res) => {
-  // Extensive logging for debugging
-  console.log('=================== TASK CREATION DEBUG ===================');
-  console.log('Raw Request Body:', req.body);
-  console.log('Request File:', req.file);
-  console.log('Request Headers:', req.headers);
+  const { errors, isValid } = tasksValidation(req.body);
+
+  if (!isValid) {
+    return res.status(400).json(errors);
+  }
 
   try {
-    // Parse stringified fields if needed
-    const parsedBody = { ...req.body };
-    const fieldsToParseAsJSON = ['assigns', 'project', 'priority', 'status', 'type'];
+    // Formatage des données
+    req.body.project = req.body.project.value.toString();
+    req.body.assigns = req.body.assigns.map((a) => a.value);
+    req.body.priority = req.body.priority.value.toString();
+    req.body.status = req.body.status.value.toString();
+    req.body.type = req.body.type.value.toString();
 
-    fieldsToParseAsJSON.forEach(field => {
-      if (typeof parsedBody[field] === 'string') {
+    const data = await tasksModel.create(req.body);
+
+    // Récupérer les sockets et les utilisateurs assignés
+    const sockets_of_these_people = req.body.assigns.reduce(
+      (acc, userId) => [...acc, ...socket.methods.getUserSockets(userId)],
+      []
+    );
+
+    const assignedUsers = await usersModel.find(
+      { _id: { $in: req.body.assigns } },
+      "email phoneNumber"
+    );
+
+
+    console.log("📋 Utilisateurs assignés (infos complètes):", assignedUsers);
+
+    const dueDate = new Date(req.body.dueDate).toLocaleDateString();
+
+    // Notifications
+    let notification;
+    for (const assigned of req.body.assigns) {
+      notification = await addNotification({
+        receiver: assigned,
+        link: "#",
+        text: "You have been assigned a new task",
+      });
+    }
+
+    if (sockets_of_these_people.length > 0) {
+      socket.io.to(sockets_of_these_people).emit("notification", notification);
+    }
+
+    // Envoi des e-mails + SMS
+    for (const user of assignedUsers) {
+      const subject = `Nouvelle tâche: ${req.body.title}`;
+      const html = `
+        <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
+          <h2 style="color: #333;">Nouvelle tâche assignée</h2>
+          <p>Une nouvelle tâche vous a été assignée :</p>
+          <ul>
+            <li><strong>Titre:</strong> ${req.body.title}</li>
+            <li><strong>Description:</strong> ${req.body.description || "Aucune description"}</li>
+            <li><strong>Date limite:</strong> ${req.body.end_date}</li>
+            <li><strong>Priorité:</strong> ${req.body.priority}</li>
+          </ul>
+          <p style="color: #d9534f; font-weight: bold;">Merci de respecter la date limite !</p>
+        </div>
+      `;
+
+      // Envoi de l'e-mail
+      try {
+        await nodeMailer(user.email, subject, html);
+      } catch (error) {
+        console.error(`❌ Erreur email à ${user.email}:`, error);
+      }
+
+      // Envoi du SMS
+      if (user.phoneNumber && user.phoneNumber.startsWith("+")) {
         try {
-          parsedBody[field] = JSON.parse(parsedBody[field]);
-        } catch (parseError) {
-          console.warn(`Could not parse ${field}:`, parseError);
+          await twilioClient.messages.create({
+            body: `Test SMS`,
+            from: process.env.TWILIO_PHONE_NUMBER,
+            to: "+21699385385", // à la place de user.phoneNumber temporairement
+          });
+          
+
+          console.log(`✅ SMS envoyé à ${user.phoneNumber}`);
+        } catch (error) {
+          console.error(`❌ Erreur SMS à ${user.phoneNumber}:`, error);
         }
-      }
-    });
-
-    // Transform body to match model expectations
-    const transformedBody = {
-      project: parsedBody.project?.value || parsedBody.project,
-      assigns: Array.isArray(parsedBody.assigns) 
-        ? parsedBody.assigns.map(a => a.value || a)
-        : parsedBody.assigns,
-      title: parsedBody.title,
-      description: parsedBody.description,
-      start_date: parsedBody.start_date,
-      end_date: parsedBody.end_date,
-      priority: parsedBody.priority?.value || parsedBody.priority,
-      status: parsedBody.status?.value || parsedBody.status,
-      type: parsedBody.type?.value || parsedBody.type
-    };
-
-    // Add file attachment if exists
-    if (req.file) {
-      transformedBody.attachment = {
-        filename: req.file.filename,
-        originalname: req.file.originalname,
-        path: req.file.path,
-        mimetype: req.file.mimetype,
-        size: req.file.size
-      };
-    }
-
-    console.log('Transformed Body:', transformedBody);
-
-    // Validate transformed body
-    const { errors, isValid } = tasksValidation(transformedBody);
-    
-    if (!isValid) {
-      console.error('Validation Errors:', errors);
-      
-      // Delete uploaded file if validation fails
-      if (req.file) {
-        await deleteFile(req.file.path);
-      }
-      
-      return res.status(400).json(errors);
-    }
-
-    // Create task
-    const data = await tasksModel.create(transformedBody);
-
-    // Notification logic for assigned users
-    if (transformedBody.assigns && transformedBody.assigns.length) {
-      const sockets_of_these_people = transformedBody.assigns.reduce(
-        (t, n) => [...t, ...socket.methods.getUserSockets(n)],
-        []
-      );
-
-      // Create notifications for each assigned user
-      const notifications = await Promise.all(
-        transformedBody.assigns.map(async (assigned) => 
-          await addNotification({
-            receiver: assigned,
-            link: "#",
-            text: "You have been assigned a new task"
-          })
-        )
-      );
-
-      // Emit socket notifications
-      if (sockets_of_these_people.length > 0) {
-        socket.io.to(sockets_of_these_people).emit("notification", notifications);
+      } else {
+        console.warn(`⚠️ Aucun numéro Twilio valide pour ${user.email} (${user.phoneNumber})`);
       }
     }
 
@@ -132,22 +135,12 @@ const Add = async (req, res) => {
       success: true,
       data: data,
     });
+
   } catch (error) {
-    console.error('=================== TASK CREATION ERROR ===================');
-    console.error('Full Error:', error);
-    
-    // Delete uploaded file if error occurs
-    if (req.file) {
-      await deleteFile(req.file.path);
-    }
-    
-    res.status(500).json({ 
-      error: 'Failed to create task', 
-      details: error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-    });
+    res.status(500).json({ error: error.message });
   }
 };
+
 
 /* Get all tasks */
 const GetAll = async (req, res) => {
