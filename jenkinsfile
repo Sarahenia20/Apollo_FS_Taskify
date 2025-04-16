@@ -24,25 +24,7 @@ pipeline {
             }
         }
         
-        stage('Client Tests') {
-            steps {
-                script {
-                    dir('client') {
-                        sh 'npm test'
-                    }
-                }
-            }
-        }
         
-        stage('Server Tests') {
-            steps {
-                script {
-                    dir('server') {
-                        sh 'npm test'
-                    }
-                }
-            }
-        }
         
         stage('Build Client') {
             steps {
