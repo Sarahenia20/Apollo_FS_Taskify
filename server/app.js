@@ -20,7 +20,8 @@ const loginActivityRoutes = require('./routes/loginActivity');
 const testEmailRoute = require('./routes/test.route');
 const imagesRouter = require('./routes/images.router');
 const taskGeneratorRouter = require("./routes/tasksGenerator.router");
-
+const projectsRouter = require("./routes/projects.router");
+const teamsRouter = require("./routes/teams.router");
 const io = require("./socket");
 const passport = require("passport");
 require("dotenv").config();
@@ -99,6 +100,7 @@ app.use("/api", [
   tasksRouter,
   commentsRouter,
   notificationsRouter,
+  teamsRouter,
   taskGeneratorRouter
 ]);
 
@@ -118,3 +120,5 @@ app.use((err, req, res, next) => {
 });
 
 module.exports = app;
+
+

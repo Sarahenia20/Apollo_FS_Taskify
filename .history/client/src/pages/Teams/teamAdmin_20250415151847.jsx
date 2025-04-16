@@ -1,0 +1,247 @@
+import React, { useState, useEffect, useRef } from "react";
+import DefaultLayout from "../../layout/DefaultLayout";
+import Breadcrumb from "../../components/Breadcrumb";
+import { useDispatch, useSelector } from "react-redux";
+import { 
+  CreateTeamAction,
+  UpdateTeamAction,
+  DeleteTeamAction,
+  GetAllTeamsAction,
+  GetTeamAction
+} from "../../redux/actions/teams";
+import { setRefresh } from "../../redux/reducers/commons";
+import TeamPopup from "../../components/Teams/TeamPopup";
+import moment from "moment";
+const teamAdmin = () => {
+  const dispatch = useDispatch();
+  const teamsState = useSelector((state) => state.teams);
+  const { _ALL: teams = [] } = teamsState || {};
+  const currentTeam = useSelector(state => state.teams._ONE || {});
+
+  
+
+  useEffect(() => {
+    dispatch(GetAllTeamsAction());
+  }, [dispatch]);
+
+
+  // Popup state and refs
+  const [popupOpen, setPopupOpen] = useState(false);
+  const popup = useRef(null);
+  const [editingId, setEditingId] = useState(null);
+
+  // Close popup when clicking outside
+  useEffect(() => {
+    const clickHandler = ({ target }) => {
+      if (!popup.current) return;
+      if (!popupOpen) return;
+      
+      // Check if click is inside popup or any react-select components
+      const isReactSelect = target.closest('.react-select__menu') || 
+                           target.closest('.react-select__control') ||
+                           target.closest('.react-select__value-container') ||
+                           target.closest('.react-select__input-container') ||
+                           target.closest('.react-select__dropdown-indicator');
+      
+      if (popup.current.contains(target) || isReactSelect) {
+        return;
+      }
+      
+      setPopupOpen(false);
+    };
+    
+    document.addEventListener("mousedown", clickHandler);
+    return () => document.removeEventListener("mousedown", clickHandler);
+  }, [popupOpen]);
+
+  // Close popup on ESC key
+  useEffect(() => {
+    const keyHandler = ({ keyCode }) => {
+      if (!popupOpen || keyCode !== 27) return;
+      setPopupOpen(false);
+    };
+    document.addEventListener("keydown", keyHandler);
+    return () => document.removeEventListener("keydown", keyHandler);
+  });
+
+  useEffect(() => {
+    dispatch(GetAllTeamsAction());
+  }, [dispatch]);
+
+  const handleCreateTeam = (e) => {
+    e.stopPropagation(); // Prevent event from bubbling up
+    console.log("Create team button clicked");
+    setEditingId(null);
+    setPopupOpen(true);
+  };
+
+  useEffect(() => {
+    console.log("popupOpen state changed:", popupOpen);
+  }, [popupOpen]);
+
+  
+
+  const handleEditTeam = (teamId, e) => {
+    e?.stopPropagation(); // Prevent event from bubbling up
+    setEditingId(teamId);
+    dispatch(GetTeamAction(teamId));
+    setPopupOpen(true);
+  };
+
+  const handleDeleteTeam = async (teamId) => {
+        console.log("delete button");
+        await dispatch(DeleteTeamAction(teamId));
+        dispatch(GetAllTeamsAction())
+        // No need to manually refresh - handled in action
+  };
+
+  const isAdmin = roles.includes("ADMIN");
+
+  return (
+    <DefaultLayout>
+      <div className="mx-auto max-w-5xl">
+        <Breadcrumb pageName="Teams" />
+
+        {/* Team Header with Create Button */}
+        <div className="flex flex-col gap-y-4 rounded-sm border border-stroke bg-white p-3 shadow-default dark:border-strokedark dark:bg-boxdark sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h3 className="pl-2 text-title-lg font-semibold text-black dark:text-white">
+              Team Management
+            </h3>
+          </div>
+          <div className="flex justify-end">
+            <button
+              onClick={handleCreateTeam}
+              className="flex items-center gap-2 rounded bg-primary px-4.5 py-2 font-medium text-white hover:bg-opacity-80"
+            >
+              <svg
+                className="fill-current"
+                width="16"
+                height="16"
+                viewBox="0 0 16 16"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M15 7H9V1C9 0.4 8.6 0 8 0C7.4 0 7 0.4 7 1V7H1C0.4 7 0 7.4 0 8C0 8.6 0.4 9 1 9H7V15C7 15.6 7.4 16 8 16C8.6 16 9 15.6 9 15V9H15C15.6 9 16 8.6 16 8C16 7.4 15.6 7 15 7Z"
+                  fill=""
+                />
+              </svg>
+              Add Team
+            </button>
+          </div>
+        </div>
+
+        {/* Team List */}
+        <div className="mt-4 rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
+          <div className="border-b border-stroke px-4 py-4 dark:border-strokedark md:px-6 md:py-6 xl:px-7.5">
+            <div className="flex items-start justify-between">
+              <div>
+                <h2 className="text-title-sm2 font-bold text-black dark:text-white">
+                  All Teams
+                </h2>
+                <p className="text-sm text-gray-500 dark:text-gray-300">
+                  {teams?.length} teams found
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="px-4 py-4 md:px-6 md:py-6 xl:px-7.5">
+            <div className="flex flex-col gap-6">
+              {teams?.map((team) => (
+                <div key={team._id} className="flex items-center justify-between rounded border border-stroke p-4 dark:border-strokedark">
+                  <div className="flex flex-grow items-center gap-4.5">
+                    {team.pictureprofile && (
+                      <div className="h-12 w-12 rounded-full overflow-hidden">
+                        <img 
+                          src={`data:image/png;base64,${team.pictureprofile}`} 
+                          alt={team.Name} 
+                          className="h-full w-full object-cover"
+                        />
+                      </div>
+                    )}
+                    <div>
+                      <h4 className="mb-1 font-medium text-black dark:text-white">
+                        {team.Name}
+                      </h4>
+                      <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">
+                        {team.description}
+                      </p>
+                      <div className="flex items-center gap-3 text-sm">
+                        <span className="flex items-center gap-1">
+                          <svg
+                            className="fill-current"
+                            width="14"
+                            height="14"
+                            viewBox="0 0 16 16"
+                            fill="none"
+                            xmlns="http://www.w3.org/2000/svg"
+                          >
+                            <path
+                              d="M8 8C10.21 8 12 6.21 12 4C12 1.79 10.21 0 8 0C5.79 0 4 1.79 4 4C4 6.21 5.79 8 8 8ZM8 10C5.33 10 0 11.34 0 14V16H16V14C16 11.34 10.67 10 8 10Z"
+                              fill=""
+                            />
+                          </svg>
+                          {team.members?.length || 0} members
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <svg
+                            className="fill-current"
+                            width="14"
+                            height="14"
+                            viewBox="0 0 16 16"
+                            fill="none"
+                            xmlns="http://www.w3.org/2000/svg"
+                          >
+                            <path
+                              d="M14 2.65002H12.7V2.10002C12.7 1.80002 12.45 1.52502 12.125 1.52502C11.8 1.52502 11.55 1.77502 11.55 2.10002V2.65002H4.42505V2.10002C4.42505 1.80002 4.17505 1.52502 3.85005 1.52502C3.52505 1.52502 3.27505 1.77502 3.27505 2.10002V2.65002H2.00005C1.15005 2.65002 0.425049 3.35002 0.425049 4.22502V12.925C0.425049 13.775 1.12505 14.5 2.00005 14.5H14C14.85 14.5 15.575 13.8 15.575 12.925V4.20002C15.575 3.35002 14.85 2.65002 14 2.65002Z"
+                              fill=""
+                            />
+                          </svg>
+                          Created {moment(team.createdAt).format("MMM D, YYYY")}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                  <button
+                  type="button"
+                    onClick={(e) => handleEditTeam(team._id, e)}
+                    className="text-blue-500 hover:text-blue-700"
+                    disabled={!isAdmin}
+                  >
+                  Edit
+                  </button>
+                    <button
+                      onClick={() => handleDeleteTeam(team._id)}
+                      className="text-red-500 hover:text-red-700"
+                      disabled={!isAdmin}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <TeamPopup
+  popupOpen={popupOpen}
+  setPopupOpen={setPopupOpen}
+  popup={popup}
+  editingId={editingId}
+  currentTeam={editingId ? currentTeam : null} // Pass currentTeam only when editing
+  onSuccess={() => {
+    setPopupOpen(false);
+    setEditingId(null);
+    dispatch(GetAllTeamsAction()); // Refresh after successful create/update
+  }}
+/>
+      </div>
+    </DefaultLayout>
+  );
+};
+
+export default teamAdmin;
