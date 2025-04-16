@@ -1,9 +1,21 @@
+"use strict";
+
 const tasksModel = require("../models/tasks");
+const usersModel = require("../models/users"); // Added missing model import
+const mongoose = require('mongoose'); // Added mongoose import
 const socket = require("../socket");
 const tasksValidation = require("../validation/tasksValidation");
 const { addNotification } = require("./notifications");
 const fs = require('fs').promises;
 const path = require('path');
+const { nodeMailer } = require('../config/nodeMailer'); // Import nodeMailer from correct path
+require('dotenv').config();
+
+// Twilio setup
+const twilioClient = require('twilio')(
+  process.env.TWILIO_ACCOUNT_SID,
+  process.env.TWILIO_AUTH_TOKEN
+);
 
 // Helper function to handle file deletion
 const deleteFile = async (filePath) => {
@@ -104,27 +116,74 @@ const Add = async (req, res) => {
     // Create task
     const data = await tasksModel.create(transformedBody);
 
-    // Notification logic for assigned users
-    if (transformedBody.assigns && transformedBody.assigns.length) {
-      const sockets_of_these_people = transformedBody.assigns.reduce(
-        (t, n) => [...t, ...socket.methods.getUserSockets(n)],
-        []
-      );
+    // Extract sockets of assigned users
+    const sockets_of_these_people = parsedBody.assigns.reduce(
+      (acc, userId) => [...acc, ...socket.methods.getUserSockets(userId)],
+      []
+    );
 
-      // Create notifications for each assigned user
-      const notifications = await Promise.all(
-        transformedBody.assigns.map(async (assigned) => 
-          await addNotification({
-            receiver: assigned,
-            link: "#",
-            text: "You have been assigned a new task"
-          })
-        )
-      );
+    // Get full user details for assigned users
+    const assignedUsers = await usersModel.find(
+      { _id: { $in: parsedBody.assigns } },
+      "email phoneNumber"
+    );
 
-      // Emit socket notifications
-      if (sockets_of_these_people.length > 0) {
-        socket.io.to(sockets_of_these_people).emit("notification", notifications);
+    console.log("📋 Utilisateurs assignés (infos complètes):", assignedUsers);
+
+    // Notifications
+    let notification;
+    for (const assigned of parsedBody.assigns) {
+      notification = await addNotification({
+        receiver: assigned,
+        link: "#",
+        text: "You have been assigned a new task",
+      });
+    }
+
+    // Emit socket notifications
+    if (sockets_of_these_people.length > 0) {
+      socket.io.to(sockets_of_these_people).emit("notification", notification);
+    }
+
+    // Send emails + SMS
+    for (const user of assignedUsers) {
+      const subject = `Nouvelle tâche: ${parsedBody.title}`;
+      const html = `
+        <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
+          <h2 style="color: #333;">Nouvelle tâche assignée</h2>
+          <p>Une nouvelle tâche vous a été assignée :</p>
+          <ul>
+            <li><strong>Titre:</strong> ${parsedBody.title}</li>
+            <li><strong>Description:</strong> ${parsedBody.description || "Aucune description"}</li>
+            <li><strong>Date limite:</strong> ${parsedBody.end_date}</li>
+            <li><strong>Priorité:</strong> ${parsedBody.priority}</li>
+          </ul>
+          <p style="color: #d9534f; font-weight: bold;">Merci de respecter la date limite !</p>
+        </div>
+      `;
+
+      // Send email
+      try {
+        await nodeMailer(user.email, subject, html);
+      } catch (error) {
+        console.error(`❌ Erreur email à ${user.email}:`, error);
+      }
+
+      // Send SMS
+      if (user.phoneNumber && user.phoneNumber.startsWith("+")) {
+        try {
+          await twilioClient.messages.create({
+            body: `Test SMS`,
+            from: process.env.TWILIO_PHONE_NUMBER,
+            to: "+21699385385", // Temporarily instead of user.phoneNumber
+          });
+
+          console.log(`✅ SMS envoyé à ${user.phoneNumber}`);
+        } catch (error) {
+          console.error(`❌ Erreur SMS à ${user.phoneNumber}:`, error);
+        }
+      } else {
+        console.warn(`⚠️ Aucun numéro Twilio valide pour ${user.email} (${user.phoneNumber})`);
       }
     }
 
@@ -132,15 +191,16 @@ const Add = async (req, res) => {
       success: true,
       data: data,
     });
+
   } catch (error) {
     console.error('=================== TASK CREATION ERROR ===================');
     console.error('Full Error:', error);
-    
+
     // Delete uploaded file if error occurs
     if (req.file) {
       await deleteFile(req.file.path);
     }
-    
+
     res.status(500).json({ 
       error: 'Failed to create task', 
       details: error.message,
@@ -397,6 +457,7 @@ const DeleteOne = async (req, res) => {
     });
   }
 };
+
 // Download attachment
 const DownloadAttachment = async (req, res) => {
   try {
@@ -446,7 +507,7 @@ const DeleteAttachment = async (req, res) => {
   }
 };
 
-// Add this method to your existing tasks.js controller
+// Add task from suggestion
 const AddFromSuggestion = async (req, res) => {
   try {
     // Parse stringified fields if needed
@@ -501,7 +562,6 @@ const AddFromSuggestion = async (req, res) => {
     });
   }
 };
-// Add this to your controllers/tasks.js file
 
 /* Reschedule Task (Update date/time via drag and drop) */
 const RescheduleTask = async (req, res) => {
@@ -605,7 +665,8 @@ const RescheduleTask = async (req, res) => {
     });
   }
 };
-// Update the module exports to include the new method
+
+// Update the module exports
 module.exports = {
   Add,
   GetAll,
