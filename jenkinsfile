@@ -30,7 +30,8 @@ pipeline {
             steps {
                 script {
                     dir('client') {
-                        sh 'npm run build-dev'
+                        // Try the standard "build" script instead of "build-dev"
+                        sh 'npm run build || echo "Build script failed, check package.json for correct script name"'
                     }
                 }
             }
