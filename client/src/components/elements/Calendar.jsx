@@ -3,7 +3,7 @@ import { Calendar, momentLocalizer, Views } from "react-big-calendar";
 import withDragAndDrop from "react-big-calendar/lib/addons/dragAndDrop";
 import moment from "moment";
 import { useDispatch, useSelector } from "react-redux";
-import { FindTaskAction, RescheduleTaskAction } from "../../redux/actions/tasks";
+import { FindTaskAction, RescheduleTaskAction, GetTaskCommentsAction } from "../../redux/actions/tasks"; // Adjusted import path
 import { useEffect, useState, useCallback, useMemo } from "react";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import "react-big-calendar/lib/addons/dragAndDrop/styles.css";
@@ -12,6 +12,136 @@ import swal from "sweetalert";
 // Create the DnD Calendar component
 const DnDCalendar = withDragAndDrop(Calendar);
 const localizer = momentLocalizer(moment);
+
+// Define priority colors and labels
+const priorityColors = {
+  "1": { color: "#4caf50", label: "Low Priority" },
+  "2": { color: "orange", label: "Medium Priority" },
+  "3": { color: "#ff3d71", label: "High Priority" },
+  "4": { color: "#ff0000", label: "Critical Priority" }
+};
+
+// Event component for Agenda view
+const AgendaEvent = ({ event }) => {
+  const [expandedComments, setExpandedComments] = useState(false);
+  
+  // Helper function to render comments with toggle functionality
+  const renderComments = (comments) => {
+    if (!comments || !Array.isArray(comments) || comments.length === 0) return null;
+
+    // Sort comments by date (newest first)
+    const sortedComments = [...comments].sort((a, b) => 
+      new Date(b.createdAt) - new Date(a.createdAt)
+    );
+
+    // Display all comments if expanded, otherwise just the first 3
+    const commentsToShow = expandedComments ? sortedComments : sortedComments.slice(0, 3);
+    
+    const hasMoreComments = sortedComments.length > 3;
+
+    return (
+      <div className="mt-4">
+        <h5 className="text-sm font-medium text-gray-700 mb-2">
+          Comments:
+        </h5>
+        <div className="space-y-3">
+          {commentsToShow.map((comment, index) => (
+            <div key={comment._id || index} className="bg-gray-50 p-3 rounded-md">
+              <div className="flex justify-between items-start">
+                <div className="font-medium text-sm">
+                  {comment.by?.fullName || "User"}
+                </div>
+                <div className="text-xs text-gray-500">
+                  {moment(comment.createdAt).fromNow()}
+                </div>
+              </div>
+              <div className="mt-1 text-sm text-gray-700">
+                {comment.content}
+              </div>
+            </div>
+          ))}
+          
+          {hasMoreComments && (
+            <button 
+              onClick={() => setExpandedComments(!expandedComments)}
+              className="text-xs text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-medium bg-blue-50 px-3 py-1 rounded-full"
+            >
+              {expandedComments 
+                ? "Show fewer comments" 
+                : `+ ${sortedComments.length - 3} more comment${sortedComments.length - 3 !== 1 ? 's' : ''}`}
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  };
+  
+  // Get priority information for this event
+  const priorityInfo = priorityColors[event.priority] || priorityColors["2"];
+  
+  // Basic event information
+  const startTime = moment(event.start).format('h:mm A');
+  const endTime = moment(event.end).format('h:mm A');
+  const duration = moment.duration(moment(event.end).diff(moment(event.start))).asHours();
+
+  // Check for comments
+  const hasComments = event.resource?.comments && Array.isArray(event.resource.comments) && event.resource.comments.length > 0;
+  
+  return (
+    <div 
+      className="mb-6 bg-white rounded-lg shadow-sm border-l-4" 
+      style={{ borderLeftColor: priorityInfo.color }}
+    >
+      <div className="p-4">
+        <div className="flex justify-between">
+          <h4 className="font-semibold text-lg">{event.title}</h4>
+          <div className="text-xs font-medium px-2 py-1 rounded-full" style={{ 
+            backgroundColor: priorityInfo.color + '20',
+            color: priorityInfo.color
+          }}>
+            {priorityInfo.label}
+          </div>
+        </div>
+        
+        {event.allDay ? (
+          <p className="text-gray-600 mt-2 text-sm">All-day task</p>
+        ) : (
+          <p className="text-gray-600 mt-2 text-sm">
+            {startTime} to {endTime}
+            {duration >= 1 
+              ? ` (${Math.round(duration * 10) / 10} hour${duration !== 1 ? 's' : ''})`
+              : ` (${Math.round(duration * 60)} minutes)`
+            }
+          </p>
+        )}
+        
+        {event.resource && event.resource.description && (
+          <div className="mt-3 text-sm">
+            <p className="font-medium text-gray-700">Description:</p>
+            <p className="text-gray-700 mt-1">{event.resource.description}</p>
+          </div>
+        )}
+
+        {/* Show comments if present */}
+        {hasComments && renderComments(event.resource.comments)}
+        
+        <div className="flex flex-wrap gap-2 mt-4">
+          <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+            {event.resource?.status === "1" ? "To Do" :
+              event.resource?.status === "2" ? "In Progress" :
+              event.resource?.status === "3" ? "Testing" :
+              event.resource?.status === "4" ? "Completed" : "To Do"}
+          </span>
+          {hasComments && (
+            <span className="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full">
+              {event.resource.comments.length} comment{event.resource.comments.length !== 1 ? 's' : ''}
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 // Custom Agenda component for narrative view
 const SmartAgenda = ({ events, date }) => {
@@ -66,62 +196,9 @@ const SmartAgenda = ({ events, date }) => {
               }
             </p>
             
-            {dayEvents.map((event, index) => {
-              const startTime = moment(event.start).format('h:mm A');
-              const endTime = moment(event.end).format('h:mm A');
-              const duration = moment.duration(moment(event.end).diff(moment(event.start))).asHours();
-              
-              let priorityText = "";
-              switch(event.priority) {
-                case "1": priorityText = "low priority"; break;
-                case "2": priorityText = "medium priority"; break;
-                case "3": priorityText = "high priority"; break;
-                case "4": priorityText = "critical priority"; break;
-                default: priorityText = "medium priority";
-              }
-              
-              let statusText = "";
-              switch(event.status) {
-                case "1": statusText = "to do"; break;
-                case "2": statusText = "in progress"; break;
-                case "3": statusText = "in testing"; break;
-                case "4": statusText = "completed"; break;
-                default: statusText = "to do";
-              }
-              
-              return (
-                <div key={event.id} className="mb-4 p-4 bg-white rounded-lg shadow-sm border-l-4 border-blue-500">
-                  <h4 className="font-semibold text-lg mb-2">{event.title}</h4>
-                  
-                  {event.allDay ? (
-                    <p className="text-gray-600 mb-2">This is an all-day task.</p>
-                  ) : (
-                    <p className="text-gray-600 mb-2">
-                      Scheduled from <span className="font-medium">{startTime}</span> to <span className="font-medium">{endTime}</span>
-                      {duration >= 1 
-                        ? ` (${Math.round(duration * 10) / 10} hour${duration !== 1 ? 's' : ''})`
-                        : ` (${Math.round(duration * 60)} minutes)`
-                      }
-                    </p>
-                  )}
-                  
-                  {event.resource && event.resource.description && (
-                    <p className="text-gray-700 mb-2">
-                      <span className="font-medium">Description:</span> {event.resource.description}
-                    </p>
-                  )}
-                  
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
-                      {statusText}
-                    </span>
-                    <span className="px-2 py-1 bg-orange-100 text-orange-800 text-xs rounded-full">
-                      {priorityText}
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
+            {dayEvents.map((event) => (
+              <AgendaEvent key={event.id} event={event} />
+            ))}
           </>
         )}
       </div>
@@ -131,6 +208,23 @@ const SmartAgenda = ({ events, date }) => {
   return (
     <div className="p-4">
       {formattedDates}
+    </div>
+  );
+};
+
+// Calendar Legend Component to explain colors
+const CalendarLegend = () => {
+  return (
+    <div className="bg-white p-4 rounded-md shadow-sm mb-4">
+      <h4 className="text-sm font-semibold mb-2">Priority Color Legend</h4>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        {Object.entries(priorityColors).map(([key, { color, label }]) => (
+          <div key={key} className="flex items-center text-xs">
+            <span className="inline-block w-3 h-3 rounded-full mr-2" style={{ backgroundColor: color }}></span>
+            {label}
+          </div>
+        ))}
+      </div>
     </div>
   );
 };
@@ -280,7 +374,7 @@ const Cld = () => {
           allDay: isAllDay,
           resource: task, // Store the original task as resource for reference
           type: task.type,
-          priority: task.priority,
+          priority: task.priority || "2", // Default to medium priority if not specified
           status: task.status
         };
       } catch (error) {
@@ -291,11 +385,34 @@ const Cld = () => {
     setEvents(calendarEvents);
   }, [_ALL, currentUser]);
   
-  // Handle event click
+  // Handle event click to show details and potentially load comments
   const handleSelectEvent = (event) => {
+    // Try to load comments for the selected task if needed
+    if (event.id && (!event.resource.comments || event.resource.comments.length === 0)) {
+      dispatch(GetTaskCommentsAction(event.id))
+        .then(comments => {
+          console.log("Loaded comments for task:", comments);
+          
+          // If we got comments, update the event resource
+          if (comments && comments.length > 0) {
+            // This won't update the Redux store, just the local state
+            event.resource.comments = comments;
+          }
+        })
+        .catch(err => {
+          console.error("Failed to load comments:", err);
+        });
+    }
+
+    // Check for comments
+    let commentsInfo = "";
+    if (event.resource?.comments && Array.isArray(event.resource.comments) && event.resource.comments.length > 0) {
+      commentsInfo = `\n\nThis task has ${event.resource.comments.length} comment(s).`;
+    }
+
     swal({
       title: event.title,
-      text: event.resource?.description || "No description available",
+      text: (event.resource?.description || "No description available") + commentsInfo,
       icon: "info",
       buttons: {
         cancel: "Close",
@@ -313,16 +430,11 @@ const Cld = () => {
     });
   };
   
-  // Event style getter for color coding - revert to original colors
+  // Event style getter for color coding based on PRIORITY
   const eventStyleGetter = (event) => {
-    const colors = {
-      "1": "#4caf50", // Green for type 1
-      "2": "orange",  // Orange for type 2
-      "3": "#ff6289"  // Pink for type 3
-    };
-    
-    // Use default color if type not specified
-    const backgroundColor = colors[event.type] || "#3174ad";
+    // Get color based on priority
+    const priorityInfo = priorityColors[event.priority] || priorityColors["2"];
+    const backgroundColor = priorityInfo.color;
     
     return {
       style: { 
@@ -429,6 +541,9 @@ const Cld = () => {
         </div>
       </div>
       
+      {/* Add priority color legend */}
+      <CalendarLegend />
+      
       {viewType === 'agenda' ? (
         // Custom agenda view with narrative style
         <SmartAgenda events={events} date={new Date()} />
@@ -461,6 +576,7 @@ const Cld = () => {
           // Critical fix: Ensure the drag functionality works correctly
           draggableAccessor={() => true}
           resizableAccessor={() => true}
+          components={components}
         />
       )}
     </div>

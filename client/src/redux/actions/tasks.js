@@ -127,46 +127,57 @@ const toBase64 = (file) =>
     reader.onerror = reject;
   });
 
-// Update your AddCommentAction to be more robust
+// Update your AddCommentAction in your tasks.js Redux file
 export const AddCommentAction = (form, id) => async (dispatch) => {
   dispatch(setRefresh(true));
   
   try {
-    let uploaded = "";
-    if (form.file) {
-      // Resize and convert image to base64 to reduce payload size
-      const resizedImage = await resizeImage(form.file, 800, 800); // Max width/height 800px
-      uploaded = resizedImage.split(',')[1]; // Remove data URL prefix
+    let formData;
+    let config;
+    
+    // Check if we have a file to upload
+    if (form.file && form.file instanceof File) {
+      console.log("Processing file for upload:", form.file.name);
+      
+      // Create FormData for multipart file upload
+      formData = new FormData();
+      formData.append('comment', form.comment);
+      formData.append('file', form.file);
+      
+      // Set proper content type for multipart/form-data
+      config = {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      };
+      
+      // Make API call with FormData
+      const response = await axios.post(`/api/tasks/${id}/comments`, formData, config);
+      dispatch(setErrors({}));
+      dispatch(setRefresh(false));
+      return response;
+    } else {
+      // No file, just send JSON
+      const response = await axios.post(`/api/tasks/${id}/comments`, { 
+        comment: form.comment
+      });
+      dispatch(setErrors({}));
+      dispatch(setRefresh(false));
+      return response;
     }
-    
-    const response = await axios.post(`/api/tasks/${id}/comments`, { 
-      comment: form.comment, 
-      file: uploaded 
-    });
-    
-    // Set any errors back to empty
-    dispatch(setErrors({}));
-    dispatch(setRefresh(false));
-    
-    // Return the response for use in the component
-    return response;
   } catch (error) {
-    console.error("Error processing comment:", error);
+    console.error("Error adding comment:", error);
     
-    // Set any errors from the server
     if (error.response && error.response.data) {
       dispatch(setErrors(error.response.data));
     } else {
-      dispatch(setErrors({ comment: "Failed to process comment" }));
+      dispatch(setErrors({ comment: "Failed to add comment" }));
     }
     
     dispatch(setRefresh(false));
-    
-    // Re-throw for component-level error handling
     throw error;
   }
 };
-
 // Helper function to resize image before upload
 // Helper function to resize image before upload
 const resizeImage = (file, maxWidth, maxHeight) => {
@@ -234,10 +245,11 @@ export const FindOneTaskAction = (id) => async (dispatch) => {
   dispatch(setRefresh(true));
   
   try {
+    // Removed the include=project parameter that was causing 500 errors
     const response = await axios.get(`/api/tasks/${id}`);
     console.log('FindOneTaskAction response:', response.data);
     
-    // Dispatch the action with the full response data
+    // Dispatch the action with the response data
     dispatch(_FindOneTask(response.data));
     
     // Set refresh to false with a slight delay to ensure UI updates

@@ -39,6 +39,7 @@ const SelectGroup = ({
         },
       }));
 
+      console.log("SelectGroup - Setting initial mock project options:", mockOptions);
       setProjectOptions(mockOptions);
     }
   }, [dispatch, name]);
@@ -57,12 +58,29 @@ const SelectGroup = ({
           },
         }));
 
-        setProjectOptions(backendOptions);
+        console.log("SelectGroup - Setting backend project options:", backendOptions);
+        // Replace this line to ensure we have all projects from both sources
+        setProjectOptions([...backendOptions]);
       }
     }
   }, [projects, name]);
 
+  // Log defaultValue when it changes to debug project selection issues
+  useEffect(() => {
+    if (name === "project" && defaultValue) {
+      console.log(`SelectGroup - Project defaultValue changed:`, defaultValue);
+    }
+  }, [defaultValue, name]);
+
   const selectOptions = name === "project" ? projectOptions : options;
+
+  // Additional logging for project selection
+  const handleChange = (selectedOption) => {
+    if (name === "project") {
+      console.log("SelectGroup - Project selection changed:", selectedOption);
+    }
+    action(selectedOption);
+  };
 
   return (
     <div className="mb-4.5">
@@ -75,9 +93,9 @@ const SelectGroup = ({
           name={name}
           isClearable={true}
           isDisabled={disabled}
-          onChange={action}
+          onChange={handleChange}
           defaultValue={defaultValue}
-          isLoading={name === "project" ? projectsLoading : !defaultValue.length}
+          isLoading={name === "project" ? projectsLoading : !options?.length}
           isMulti={isMulti}
           className={
             className

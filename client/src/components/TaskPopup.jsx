@@ -43,20 +43,36 @@ const TaskPopup = ({ popupOpen, setPopupOpen, taskData = null, isEditMode = fals
     if (popupOpen) {
       console.log("Popup opened with taskData:", taskData);
       console.log("Is edit mode:", isEditMode);
+      console.log("Redux _ONE state:", _ONE);
       
       if (isEditMode && taskData && taskData._id) {
-        console.log("Loading task data for editing:", taskData);
+        console.log("Loading task data for editing from props:", taskData);
         
         // Format dates and times for form inputs
         let formattedTask = { ...taskData };
         
         // Process dates to ISO format for form inputs
         if (formattedTask.start_date) {
-          formattedTask.start_date = new Date(formattedTask.start_date).toISOString().slice(0, 16);
+          try {
+            formattedTask.start_date = new Date(formattedTask.start_date).toISOString().slice(0, 16);
+          } catch (e) {
+            console.error("Error formatting start date:", e);
+            formattedTask.start_date = "";
+          }
         }
         
         if (formattedTask.end_date) {
-          formattedTask.end_date = new Date(formattedTask.end_date).toISOString().slice(0, 16);
+          try {
+            formattedTask.end_date = new Date(formattedTask.end_date).toISOString().slice(0, 16);
+          } catch (e) {
+            console.error("Error formatting end date:", e);
+            formattedTask.end_date = "";
+          }
+        }
+        
+        // Special handling for project data
+        if (formattedTask.project) {
+          console.log("Initial project data from props:", formattedTask.project);
         }
         
         console.log("Formatted task data:", formattedTask);
@@ -71,11 +87,26 @@ const TaskPopup = ({ popupOpen, setPopupOpen, taskData = null, isEditMode = fals
         
         // Process dates to ISO format for form inputs
         if (formattedTask.start_date) {
-          formattedTask.start_date = new Date(formattedTask.start_date).toISOString().slice(0, 16);
+          try {
+            formattedTask.start_date = new Date(formattedTask.start_date).toISOString().slice(0, 16);
+          } catch (e) {
+            console.error("Error formatting start date from Redux:", e);
+            formattedTask.start_date = "";
+          }
         }
         
         if (formattedTask.end_date) {
-          formattedTask.end_date = new Date(formattedTask.end_date).toISOString().slice(0, 16);
+          try {
+            formattedTask.end_date = new Date(formattedTask.end_date).toISOString().slice(0, 16);
+          } catch (e) {
+            console.error("Error formatting end date from Redux:", e);
+            formattedTask.end_date = "";
+          }
+        }
+        
+        // Special handling for project data
+        if (formattedTask.project) {
+          console.log("Initial project data from Redux:", formattedTask.project);
         }
         
         setForm(formattedTask);
@@ -131,12 +162,59 @@ const TaskPopup = ({ popupOpen, setPopupOpen, taskData = null, isEditMode = fals
   }, [_ALL]);
 
   // Format projects for select dropdown
-  const [projects, setProjects] = useState(
-    MOCK_DATA.map((p) => ({
-      value: p.project_id,
+  const [projects, setProjects] = useState([]);
+
+  // Initialize project options from MOCK_DATA
+  useEffect(() => {
+    const mockOptions = MOCK_DATA.map((p) => ({
+      value: p.project_id.toString(),
       label: p.project_name,
-    }))
-  );
+      details: {
+        manager: p.project_manager,
+        status: p.status,
+        priority: p.priority,
+        clientName: p.client_name,
+      },
+    }));
+    
+    console.log("Setting initial projects from MOCK_DATA:", mockOptions);
+    setProjects([...mockOptions]);
+  }, []);
+
+  // Create a manual project option if the project ID isn't found in the options
+  useEffect(() => {
+    if (popupOpen && isEditMode && form?.project) {
+      // Get project ID
+      const projectId = typeof form.project === 'object' && form.project._id 
+        ? form.project._id 
+        : (typeof form.project === 'string' ? form.project : null);
+      
+      if (!projectId) return;
+      
+      console.log("Checking if project ID exists in options:", projectId);
+      
+      // Check if this ID exists in current options
+      const projectExists = projects.some(p => p.value === projectId);
+      
+      if (!projectExists) {
+        console.log("Project ID not found in options. Creating manual option.");
+        // Create a new option for this project
+        const projectName = typeof form.project === 'object' && form.project.project_name 
+          ? form.project.project_name 
+          : `Project ${projectId.substring(0, 8)}...`;
+        
+        const newProject = {
+          value: projectId,
+          label: projectName,
+          details: {}
+        };
+        
+        // Add this project to options
+        setProjects(prev => [...prev, newProject]);
+        console.log("Added manual project option:", newProject);
+      }
+    }
+  }, [popupOpen, isEditMode, form?.project, projects]);
 
   // Format types for select dropdown
   const [types, setTypes] = useState(
@@ -218,6 +296,7 @@ const TaskPopup = ({ popupOpen, setPopupOpen, taskData = null, isEditMode = fals
   };
 
   const OnChangeSelect = (e, name) => {
+    console.log(`Select changed for ${name}:`, e);
     setForm({
       ...form,
       [name]: e,
@@ -242,14 +321,75 @@ const TaskPopup = ({ popupOpen, setPopupOpen, taskData = null, isEditMode = fals
     setFiles(newFiles);
   };
 
+  // Helper to find the current project option
+  const getCurrentProjectOption = () => {
+    if (!form.project) return null;
+    
+    // If project is an object with value/label
+    if (typeof form.project === 'object' && form.project.value) {
+      return form.project;
+    }
+    
+    // If project is a string ID
+    if (typeof form.project === 'string') {
+      // Find in projects array
+      const matchingProject = projects.find(p => p.value === form.project);
+      if (matchingProject) {
+        return matchingProject;
+      }
+      
+      // If not found, create a simple option
+      return { value: form.project, label: `Project ${form.project.substring(0, 8)}...` };
+    }
+    
+    // If project is an object with _id
+    if (typeof form.project === 'object' && form.project._id) {
+      // Find in projects array
+      const matchingProject = projects.find(p => p.value === form.project._id);
+      if (matchingProject) {
+        return matchingProject;
+      }
+      
+      // If not found, create from object data
+      return {
+        value: form.project._id,
+        label: form.project.project_name || form.project.name || `Project ${form.project._id.substring(0, 8)}...`
+      };
+    }
+    
+    return null;
+  };
+
+  // Fixed and improved onSubmitHandler
   const onSubmitHandler = (e) => {
     e.preventDefault();
     
     // Prepare form data
     const formattedForm = { ...form };
   
-    // Handle complex select fields
-    ['project', 'priority', 'status', 'type'].forEach(field => {
+    // Handle project field
+    if (formattedForm.project) {
+      console.log("Formatting project for submission:", formattedForm.project);
+      
+      // If project is an object with value property (from Select component)
+      if (typeof formattedForm.project === 'object' && formattedForm.project.value) {
+        console.log("Project is a select object with value:", formattedForm.project.value);
+        formattedForm.project = formattedForm.project.value;
+      }
+      // If project is an object with _id property (from database)
+      else if (typeof formattedForm.project === 'object' && formattedForm.project._id) {
+        console.log("Project is a database object with _id:", formattedForm.project._id);
+        formattedForm.project = formattedForm.project._id;
+      }
+      // If project is already a string ID, keep it as is
+      else if (typeof formattedForm.project === 'string') {
+        console.log("Project is already a string ID:", formattedForm.project);
+        // No change needed
+      }
+    }
+  
+    // Handle other complex select fields
+    ['priority', 'status', 'type'].forEach(field => {
       if (formattedForm[field] && typeof formattedForm[field] === 'object') {
         formattedForm[field] = formattedForm[field].value;
       }
@@ -349,11 +489,7 @@ const TaskPopup = ({ popupOpen, setPopupOpen, taskData = null, isEditMode = fals
                 required={true}
                 errors={content.project}
                 isMulti={false}
-                defaultValue={
-                  form.project
-                    ? projects.filter((p) => p.value == form.project)
-                    : []
-                }
+                defaultValue={getCurrentProjectOption()}
                 className="w-full rounded-sm border border-stroke bg-white px-4.5 py-3 focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-boxdark dark:focus:border-primary"
               />
               
@@ -541,8 +677,16 @@ const TaskPopup = ({ popupOpen, setPopupOpen, taskData = null, isEditMode = fals
                   required={true}
                   defaultValue={
                     form.priority
-                      ? priority.filter((p) => p.value == form.priority)
-                      : []
+                      ? (() => {
+                          // If priority is already an object
+                          if (typeof form.priority === 'object' && form.priority.value) {
+                            return form.priority;
+                          }
+                          // If priority is a string
+                          const match = priority.find(p => p.value === form.priority);
+                          return match || null;
+                        })()
+                      : null
                   }
                   errors={content.priority}
                   className="w-full rounded-sm border border-stroke bg-white px-4.5 py-3 focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-boxdark dark:focus:border-primary"
@@ -557,8 +701,16 @@ const TaskPopup = ({ popupOpen, setPopupOpen, taskData = null, isEditMode = fals
                   required={true}
                   defaultValue={
                     form.status
-                      ? status.filter((p) => p.value == form.status)
-                      : []
+                      ? (() => {
+                          // If status is already an object
+                          if (typeof form.status === 'object' && form.status.value) {
+                            return form.status;
+                          }
+                          // If status is a string
+                          const match = status.find(p => p.value === form.status);
+                          return match || null;
+                        })()
+                      : null
                   }
                   errors={content.status}
                   className="w-full rounded-sm border border-stroke bg-white px-4.5 py-3 focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-boxdark dark:focus:border-primary"
@@ -669,7 +821,17 @@ const TaskPopup = ({ popupOpen, setPopupOpen, taskData = null, isEditMode = fals
                 action={(e) => OnChangeSelect(e, "type")}
                 required={true}
                 defaultValue={
-                  form.type ? types.filter((p) => p.value == form.type) : []
+                  form.type
+                    ? (() => {
+                        // If type is already an object
+                        if (typeof form.type === 'object' && form.type.value) {
+                          return form.type;
+                        }
+                        // If type is a string
+                        const match = types.find(p => p.value === form.type);
+                        return match || null;
+                      })()
+                    : null
                 }
                 errors={content.type}
                 className="w-full rounded-sm border border-stroke bg-white px-4.5 py-3 focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-boxdark dark:focus:border-primary"

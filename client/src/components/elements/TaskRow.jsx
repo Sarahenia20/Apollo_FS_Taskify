@@ -3,22 +3,12 @@ import { MOCK_PRIORITY } from "../../data/mock";
 import Dropdownk from "../Dropdownk";
 
 const TaskRow = (props) => {
-  // Handler for clicking on the task row
-  const handleTaskClick = (e) => {
-    // Prevent clicking if we're clicking the dropdown or its children
-    const dropdownClicked = e.target.closest('.dropdown-container');
-    if (dropdownClicked) return;
-
-    // Check if onTaskSelect is provided by parent component
-    if (props.onTaskSelect && typeof props.onTaskSelect === 'function') {
-      props.onTaskSelect(props);
-    }
-  };
+  // Removed any click handlers that would trigger editing
 
   return (
     <div 
-      className="flex items-center justify-between cursor-pointer hover:bg-gray-50 dark:hover:bg-meta-4 p-2 rounded-md" 
-      onClick={handleTaskClick}
+      className="flex items-center justify-between hover:bg-gray-50 dark:hover:bg-meta-4 p-2 rounded-md"
+      // No onClick handlers here
     >
       <div className="flex flex-grow items-center gap-4.5">
         <div className="hidden h-15 w-full max-w-15 items-center justify-center rounded-full border border-stroke bg-gray dark:border-strokedark dark:bg-meta-4 xsm:flex">
@@ -143,7 +133,7 @@ const TaskRow = (props) => {
         </div>
       </div>
 
-      <div className="flex items-center justify-between space-x-2 dropdown-container" onClick={(e) => e.stopPropagation()}>
+      <div className="flex items-center justify-between space-x-2 dropdown-container">
         <span
           className={`rounded bg-meta-3/[0.08] px-2.5 py-1.5 text-sm font-medium text-white ${
             props.priority &&
@@ -157,7 +147,7 @@ const TaskRow = (props) => {
         <Dropdownk 
           className="rotate-180" 
           {...props} 
-          onEdit={() => props.onTaskSelect && props.onTaskSelect(props)} 
+          // Removed onEdit prop
         />
       </div>
     </div>

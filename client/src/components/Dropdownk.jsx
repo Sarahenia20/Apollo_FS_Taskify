@@ -50,16 +50,26 @@ const Dropdownk = (props) => {
     return () => document.removeEventListener("keydown", keyHandler);
   });
 
-  // Handle task editing with proper project retrieval
+  // Modified to handle errors better and still open the popup
   const handleEditTask = (e) => {
     e.stopPropagation();
     
     // Make sure we have the task ID
     if (props._id) {
-      // Use FindOneTaskAction to get full task details including project
-      dispatch(FindOneTaskAction(props._id));
-      setPopupOpen(true);
+      console.log("Edit task clicked for task ID:", props._id);
+      
+      // Always close dropdown first
       setDropdownOpen(false);
+      
+      // Open the popup even if fetch fails - we'll just use the props data
+      setPopupOpen(true);
+      
+      // Attempt to fetch full task details
+      dispatch(FindOneTaskAction(props._id))
+        .catch((error) => {
+          console.error("Error fetching task data:", error);
+          // We'll still keep the popup open and use what we have
+        });
     } else if (props.onEdit) {
       // If onEdit handler is provided, use it instead
       props.onEdit(e);
@@ -73,9 +83,15 @@ const Dropdownk = (props) => {
     if (props._id) {
       console.log("Opening comment popup for task ID:", props._id);
       setCommentTaskId(props._id);
-      dispatch(FindOneTaskAction(props._id));
-      setPopupOpenComment(true);
       setDropdownOpen(false);
+      setPopupOpenComment(true);
+      
+      // Try to fetch task data but don't block popup on failure
+      dispatch(FindOneTaskAction(props._id))
+        .catch(error => {
+          console.error("Error fetching task data for comments:", error);
+          // Continue with comments popup anyway
+        });
     } else {
       console.error("Cannot open comments: No task ID available");
     }
