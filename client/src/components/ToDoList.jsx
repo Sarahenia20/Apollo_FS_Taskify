@@ -1,14 +1,11 @@
 import React, { useEffect, useState } from "react";
 import PaginationOne from "./PaginationOne";
 import TaskRow from "./elements/TaskRow";
-import TaskPopup from "./TaskPopup"; // Added import for TaskPopup
 import { useDispatch, useSelector } from "react-redux";
 import { FindTaskAction } from "../redux/actions/tasks";
 
 const ToDoList = ({ searchTerm = "", filters = {} }) => {
   const [filteredTasks, setFilteredTasks] = useState([]);
-  const [popupOpen, setPopupOpen] = useState(false);
-  const [selectedTask, setSelectedTask] = useState(null);
   const dispatch = useDispatch();
   const { _ALL } = useSelector((state) => state.tasks);
 
@@ -16,13 +13,6 @@ const ToDoList = ({ searchTerm = "", filters = {} }) => {
   useEffect(() => {
     dispatch(FindTaskAction());
   }, [dispatch]);
-
-  // Handle task selection for editing
-  const handleTaskSelect = (task) => {
-    console.log("Task selected for editing:", task);
-    setSelectedTask(task);
-    setPopupOpen(true);
-  };
 
   // Apply search and filters when tasks or search/filter criteria change
   useEffect(() => {
@@ -98,7 +88,7 @@ const ToDoList = ({ searchTerm = "", filters = {} }) => {
                 <TaskRow 
                   key={task._id} 
                   {...task} 
-                  onTaskSelect={handleTaskSelect}
+                  // Removed the onTaskSelect prop
                 />
               ))}
             </div>
@@ -112,16 +102,7 @@ const ToDoList = ({ searchTerm = "", filters = {} }) => {
             </div>
           )}
         </div>
-        {/*<PaginationOne />*/}
       </div>
-
-      {/* Include the TaskPopup component */}
-      <TaskPopup 
-        popupOpen={popupOpen} 
-        setPopupOpen={setPopupOpen} 
-        taskData={selectedTask} 
-        isEditMode={!!selectedTask}
-      />
     </div>
   );
 };

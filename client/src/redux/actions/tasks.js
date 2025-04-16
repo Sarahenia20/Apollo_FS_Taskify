@@ -245,10 +245,11 @@ export const FindOneTaskAction = (id) => async (dispatch) => {
   dispatch(setRefresh(true));
   
   try {
+    // Removed the include=project parameter that was causing 500 errors
     const response = await axios.get(`/api/tasks/${id}`);
     console.log('FindOneTaskAction response:', response.data);
     
-    // Dispatch the action with the full response data
+    // Dispatch the action with the response data
     dispatch(_FindOneTask(response.data));
     
     // Set refresh to false with a slight delay to ensure UI updates
