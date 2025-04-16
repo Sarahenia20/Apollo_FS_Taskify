@@ -1,25 +1,66 @@
-pipeline{
-agent any
-stages {
-  stage('Install dependencies') {
-    steps{
-    script {
-    sh('npm install')
-    }
-    }
-    }
-    stage('Unit Test') {
-    steps{ script {
-    sh('npm test')
+pipeline {
+    agent any
+    
+    stages {
+        stage('Install Client Dependencies') {
+            steps {
+                script {
+                    // Navigate to client directory first
+                    dir('client') {
+                        sh 'npm install'
+                    }
+                }
+            }
         }
-     }
-     }
-stage('Build application') {
-steps{
-script {
-sh('npm run build-dev')
-}
-}
-}
-}
+        
+        stage('Install Server Dependencies') {
+            steps {
+                script {
+                    // Navigate to server directory
+                    dir('server') {
+                        sh 'npm install'
+                    }
+                }
+            }
+        }
+        
+        stage('Client Tests') {
+            steps {
+                script {
+                    dir('client') {
+                        sh 'npm test'
+                    }
+                }
+            }
+        }
+        
+        stage('Server Tests') {
+            steps {
+                script {
+                    dir('server') {
+                        sh 'npm test'
+                    }
+                }
+            }
+        }
+        
+        stage('Build Client') {
+            steps {
+                script {
+                    dir('client') {
+                        sh 'npm run build-dev'
+                    }
+                }
+            }
+        }
+    }
+    
+    post {
+        success {
+            echo 'Build completed successfully!'
+        }
+        failure {
+            echo 'Build failed!'
+        }
+    }
 }
