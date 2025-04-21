@@ -7,7 +7,9 @@ import { setErrors } from "../redux/reducers/errors";
 import { setUser } from "../redux/reducers/auth";
 import { setAuthToken } from "../lib/setAuthToken";
 
-const CLIENT_ID = import.meta.env.VITE_GITHUB_CLIENT_ID;
+//const CLIENT_ID = import.meta.env.VITE_GITHUB_CLIENT_ID;
+
+const CLIENT_ID="Ov23liWCq96e8ICfbmjF" ;
 
 const AuthGithub = () => { 
 

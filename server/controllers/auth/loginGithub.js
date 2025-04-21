@@ -23,8 +23,11 @@ if (fs.existsSync('.env.development')) {
 //var bodyParser = require('body-parser');
 
 
-const CLIENT_ID = process.env.GITHUB_CLIENT_ID;
-const CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET;
+//const CLIENT_ID = process.env.GITHUB_CLIENT_ID;
+//const CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET;
+
+const CLIENT_ID="Ov23liWCq96e8ICfbmjF" ;
+const CLIENT_SECRET="364e1144f8fb1646ab51ac9a79fa6054fc25f45f" ;
 
 const getAcessToken = async (req, res) => {
     const { code } = req.query;

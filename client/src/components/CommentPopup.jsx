@@ -25,6 +25,13 @@ const triggerPhrases = {
       "Bonjour, un point rapide sur cette tâche.",
     ],
   },
+  desole: {
+    label: "Excuses (FR)",
+    options: [
+      "desole ! la tache peut etre rendu en retard ?",
+      "desole, avancement lent ?",
+    ],
+  },
   thanks: {
     label: "Appreciation (EN)",
     options: [
@@ -47,6 +54,13 @@ const triggerPhrases = {
       "When’s the expected completion?",
       "Any timeline updates?",
       "What’s the deadline looking like?",
+    ],
+  },
+  sorry: {
+    label: "Apology (EN)",
+    options: [
+      "sorry i am late on this task",
+      "sorry i can not provide update",
     ],
   },
   quand: {
