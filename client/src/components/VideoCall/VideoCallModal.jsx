@@ -23,6 +23,7 @@ const VideoCallModal = ({ roomName, onClose }) => {
         parentNode: jitsiContainerRef.current,
         width: "100%",
         height: 500,
+        
       };
       new window.JitsiMeetExternalAPI(domain, options);
     }

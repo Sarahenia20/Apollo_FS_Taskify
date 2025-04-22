@@ -23,6 +23,7 @@ const taskGeneratorRouter = require("./routes/tasksGenerator.router");
 const chatbotRouter = require("./routes/chatbot.router");
 
 const teamsRouter = require("./routes/teams.router");
+const gameRouter=require("./routes/gameRoom");
 const io = require("./socket");
 const passport = require("passport");
 require("dotenv").config();
@@ -103,14 +104,15 @@ app.use("/api", [
   notificationsRouter,
   teamsRouter,
   taskGeneratorRouter,
-  chatbotRouter
-]);
+  chatbotRouter,
+ ]);
 
 // Additional routes
 app.use("/api/auth/2fa", twoFactorAuthRouter);
 app.use('/api/login-activity', loginActivityRoutes);
 app.use('/api/test-email', testEmailRoute);
 app.use('/api/images', imagesRouter);
+app.use("/api/games",  gameRouter)
 
 // Error handling middleware
 app.use((err, req, res, next) => {

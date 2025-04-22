@@ -34,6 +34,7 @@ import { Logout } from "./redux/actions/auth";
 import { notificationSlice } from "./redux/reducers/notifications";
 import TeamsAdmin from "./pages/Teams/teamAdmin";
 import ChatBot from './components/ChatBot/ChatBot';
+import GameHub from "./components/Games";
 
 
 const socketClient = io("http://localhost:3002", {
@@ -118,6 +119,8 @@ const App = () => {
           <Route path="/chart/basic-chart" element={<BasicChart />} />
           <Route path="/chart/advanced-chart" element={<AdvancedChart />} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="/games" element={<GameHub />} />
+
         </Routes>
         <ChatBot />
       </>

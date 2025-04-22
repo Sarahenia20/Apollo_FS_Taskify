@@ -94,7 +94,12 @@ function recordLoginActivity(user, req, isSuccessful, is2FARequired = false) {
 }
 
 const Login = (req, res) => {
+  console.log("im @ login ")
+  
   const { errors, isValid } = loginValidation(req.body);
+  
+
+  console.log(errors,isValid)
   try {
     if (!isValid) {
       res.status(404).json(errors);
