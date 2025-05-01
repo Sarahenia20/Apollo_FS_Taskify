@@ -1,9 +1,51 @@
-import React from "react";
-import { MOCK_DATA } from "../data/mock";
+import React, { useState, useEffect } from "react";
+import axios from "axios";
+import { useNavigate } from "react-router-dom";
 
 const CardThree = () => {
+  const [projectCount, setProjectCount] = useState(0);
+  const [growthRate, setGrowthRate] = useState(0);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    // Fetch projects data from API
+    const fetchProjects = async () => {
+      try {
+        const response = await axios.get("/api/projects");
+        const projects = response.data.data;
+        setProjectCount(projects.length);
+        
+        // Calculate growth rate (example: could be based on new projects in the past month)
+        // This is a placeholder - you would implement actual growth calculation based on your data
+        const oneMonthAgo = new Date();
+        oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+        
+        const newProjects = projects.filter(project => 
+          new Date(project.start_date) >= oneMonthAgo
+        );
+        
+        const growthPercentage = projects.length > 0 
+          ? ((newProjects.length / projects.length) * 100).toFixed(2)
+          : 0;
+          
+        setGrowthRate(growthPercentage);
+      } catch (error) {
+        console.error("Error fetching projects:", error);
+      }
+    };
+
+    fetchProjects();
+  }, []);
+
+  const handleCardClick = () => {
+    navigate("/projects/project-list"); // Navigate to TASKIFY page
+  };
+
   return (
-    <div className="rounded-sm border border-stroke bg-white px-7.5 py-6 shadow-default dark:border-strokedark dark:bg-boxdark">
+    <div 
+      className="rounded-sm border border-stroke bg-white px-7.5 py-6 shadow-default dark:border-strokedark dark:bg-boxdark cursor-pointer hover:bg-gray-50 dark:hover:bg-boxdark-hover transition-all duration-300"
+      onClick={handleCardClick}
+    >
       <div className="flex h-11.5 w-11.5 items-center justify-center rounded-full bg-meta-2 dark:bg-meta-4">
         <svg
           className="fill-primary dark:fill-white"
@@ -27,26 +69,42 @@ const CardThree = () => {
       <div className="mt-4 flex items-end justify-between">
         <div>
           <h4 className="text-title-md font-bold text-black dark:text-white">
-            {MOCK_DATA.length}
+            {projectCount}
           </h4>
           <span className="text-sm font-medium">Total Projects</span>
         </div>
 
-        <span className="flex items-center gap-1 text-sm font-medium text-meta-3">
-          2.59%
-          <svg
-            className="fill-meta-3"
-            width="10"
-            height="11"
-            viewBox="0 0 10 11"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              d="M4.35716 2.47737L0.908974 5.82987L5.0443e-07 4.94612L5 0.0848689L10 4.94612L9.09103 5.82987L5.64284 2.47737L5.64284 10.0849L4.35716 10.0849L4.35716 2.47737Z"
-              fill=""
-            />
-          </svg>
+        <span className={`flex items-center gap-1 text-sm font-medium ${parseFloat(growthRate) > 0 ? 'text-meta-3' : parseFloat(growthRate) < 0 ? 'text-meta-1' : 'text-body'}`}>
+          {growthRate}%
+          {parseFloat(growthRate) > 0 ? (
+            <svg
+              className="fill-meta-3"
+              width="10"
+              height="11"
+              viewBox="0 0 10 11"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M4.35716 2.47737L0.908974 5.82987L5.0443e-07 4.94612L5 0.0848689L10 4.94612L9.09103 5.82987L5.64284 2.47737L5.64284 10.0849L4.35716 10.0849L4.35716 2.47737Z"
+                fill=""
+              />
+            </svg>
+          ) : parseFloat(growthRate) < 0 ? (
+            <svg
+              className="fill-meta-1"
+              width="10"
+              height="11"
+              viewBox="0 0 10 11"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M5.64284 7.69237L9.09102 4.33987L10 5.22362L5 10.0849L-8.98488e-07 5.22362L0.908973 4.33987L4.35716 7.69237L4.35716 0.0848701L5.64284 0.0848704L5.64284 7.69237Z"
+                fill=""
+              />
+            </svg>
+          ) : null}
         </span>
       </div>
     </div>

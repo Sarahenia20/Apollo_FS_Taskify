@@ -1,13 +1,10 @@
-import React, { Component, useState } from "react";
+import React, { useState, useEffect } from "react";
 import ReactApexChart from "react-apexcharts";
-import { MOCK_DATA } from "../data/mock";
+import axios from "axios";
 
 function ChartThree() {
-  const hold = MOCK_DATA.filter((m) => m.status === "on hold");
-  const progress = MOCK_DATA.filter((m) => m.status === "in progress");
-  const completed = MOCK_DATA.filter((m) => m.status === "completed");
   const [state, setState] = useState({
-    series: [hold.length, progress.length, completed.length],
+    series: [0, 0, 0], // Initialize with zeros
     options: {
       chart: {
         fontFamily: "Satoshi, sans-serif",
@@ -19,7 +16,6 @@ function ChartThree() {
         show: false,
         position: "bottom",
       },
-
       plotOptions: {
         pie: {
           donut: {
@@ -28,7 +24,6 @@ function ChartThree() {
           },
         },
       },
-
       dataLabels: {
         enabled: false,
       },
@@ -52,6 +47,57 @@ function ChartThree() {
       ],
     },
   });
+
+  const [projectCounts, setProjectCounts] = useState({
+    onHold: 0,
+    inProgress: 0,
+    completed: 0,
+    total: 0
+  });
+
+  useEffect(() => {
+    // Fetch projects data from the API
+    const fetchProjects = async () => {
+      try {
+        const response = await axios.get("/api/projects");
+        const projects = response.data.data;
+        
+        // Count projects by status
+        const hold = projects.filter((p) => p.status === "on hold").length;
+        const progress = projects.filter((p) => p.status === "in progress").length;
+        const completed = projects.filter((p) => p.status === "completed").length;
+        const total = projects.length;
+        
+        // Update project counts
+        setProjectCounts({
+          onHold: hold,
+          inProgress: progress,
+          completed: completed,
+          total: total
+        });
+        
+        // Update chart data
+        setState(prev => ({
+          ...prev,
+          series: [hold, progress, completed]
+        }));
+      } catch (error) {
+        console.error("Error fetching projects for chart:", error);
+      }
+    };
+
+    fetchProjects();
+  }, []);
+
+  // Calculate percentages
+  const calculatePercentage = (count) => {
+    if (projectCounts.total === 0) return 0;
+    return Math.round((count / projectCounts.total) * 100);
+  };
+
+  const onHoldPercentage = calculatePercentage(projectCounts.onHold);
+  const inProgressPercentage = calculatePercentage(projectCounts.inProgress);
+  const completedPercentage = calculatePercentage(projectCounts.completed);
 
   return (
     <div className="col-span-12 rounded-sm border border-stroke bg-white px-5 pb-5 pt-7.5 shadow-default dark:border-strokedark dark:bg-boxdark sm:px-7.5 xl:col-span-5">
@@ -111,7 +157,7 @@ function ChartThree() {
             <span className="mr-2 block h-3 w-full max-w-3 rounded-full bg-[#f44336]"></span>
             <p className="flex w-full flex-col justify-between text-sm font-medium text-black dark:text-white md:flex-row">
               <span> On hold </span>
-              <span> 65% </span>
+              <span> {onHoldPercentage}% </span>
             </p>
           </div>
         </div>
@@ -120,7 +166,7 @@ function ChartThree() {
             <span className="mr-2 block h-3 w-full max-w-3 rounded-full bg-[#F1C232]"></span>
             <p className="flex w-full flex-col justify-between text-sm font-medium text-black dark:text-white md:flex-row">
               <span> In progress </span>
-              <span> 65% </span>
+              <span> {inProgressPercentage}% </span>
             </p>
           </div>
         </div>
@@ -129,7 +175,7 @@ function ChartThree() {
             <span className="mr-2 block h-3 w-full max-w-3 rounded-full bg-[#5DDEB1]"></span>
             <p className="flex w-full flex-col justify-between text-sm font-medium text-black dark:text-white md:flex-row">
               <span> Completed </span>
-              <span> 65% </span>
+              <span> {completedPercentage}% </span>
             </p>
           </div>
         </div>
