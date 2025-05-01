@@ -1,1 +1,0 @@
-This is a Devops pipeline trial with Github Action) Ask about Gitlab

@@ -1,4 +1,3 @@
-// src/components/TaskPopup.jsx
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { FindUsers } from "../redux/actions/users";
@@ -7,6 +6,7 @@ import { _FindOneTask } from "../redux/reducers/tasks";
 import { setRefresh } from "../redux/reducers/commons";
 import SelectGroup from "./form/SelectGroup";
 import InputGroup from "./form/InputGroup";
+import SmartAssignModal from "./SmartAssignModal";
 
 // Mock data imports
 import { MOCK_DATA, MOCK_PRIORITY, MOCK_STATUS, MOCK_TYPE } from "../data/mock";
@@ -15,6 +15,7 @@ const TaskPopup = ({ popupOpen, setPopupOpen, taskData = null, isEditMode = fals
   const [users, setUsers] = useState([]);
   const [files, setFiles] = useState([]);
   const [isEditing, setIsEditing] = useState(false);
+  const [showSmartAssign, setShowSmartAssign] = useState(false);
   
   // Redux state
   const { roles } = useSelector(s => s.auth.user);
@@ -26,7 +27,6 @@ const TaskPopup = ({ popupOpen, setPopupOpen, taskData = null, isEditMode = fals
 
   // Form state
   const [form, setForm] = useState({
-    // Default values
     is_all_day: true,
     priority: "2",
     status: "1",
@@ -48,10 +48,8 @@ const TaskPopup = ({ popupOpen, setPopupOpen, taskData = null, isEditMode = fals
       if (isEditMode && taskData && taskData._id) {
         console.log("Loading task data for editing from props:", taskData);
         
-        // Format dates and times for form inputs
         let formattedTask = { ...taskData };
         
-        // Process dates to ISO format for form inputs
         if (formattedTask.start_date) {
           try {
             formattedTask.start_date = new Date(formattedTask.start_date).toISOString().slice(0, 16);
@@ -70,7 +68,6 @@ const TaskPopup = ({ popupOpen, setPopupOpen, taskData = null, isEditMode = fals
           }
         }
         
-        // Special handling for project data
         if (formattedTask.project) {
           console.log("Initial project data from props:", formattedTask.project);
         }
@@ -79,13 +76,10 @@ const TaskPopup = ({ popupOpen, setPopupOpen, taskData = null, isEditMode = fals
         setForm(formattedTask);
         setIsEditing(true);
       } else if (_ONE && _ONE._id) {
-        // Fallback to Redux state if taskData is not provided
         console.log("Loading task data from Redux state:", _ONE);
         
-        // Format dates for form
         let formattedTask = { ..._ONE };
         
-        // Process dates to ISO format for form inputs
         if (formattedTask.start_date) {
           try {
             formattedTask.start_date = new Date(formattedTask.start_date).toISOString().slice(0, 16);
@@ -104,7 +98,6 @@ const TaskPopup = ({ popupOpen, setPopupOpen, taskData = null, isEditMode = fals
           }
         }
         
-        // Special handling for project data
         if (formattedTask.project) {
           console.log("Initial project data from Redux:", formattedTask.project);
         }
@@ -112,7 +105,6 @@ const TaskPopup = ({ popupOpen, setPopupOpen, taskData = null, isEditMode = fals
         setForm(formattedTask);
         setIsEditing(true);
       } else {
-        // Clear form for adding a new task
         console.log("Setting up form for new task");
         setForm({
           is_all_day: true,
@@ -123,7 +115,6 @@ const TaskPopup = ({ popupOpen, setPopupOpen, taskData = null, isEditMode = fals
         setIsEditing(false);
       }
     } else {
-      // When popup closes, reset everything
       setFiles([]);
     }
   }, [popupOpen, taskData, _ONE, isEditMode]);
@@ -184,7 +175,6 @@ const TaskPopup = ({ popupOpen, setPopupOpen, taskData = null, isEditMode = fals
   // Create a manual project option if the project ID isn't found in the options
   useEffect(() => {
     if (popupOpen && isEditMode && form?.project) {
-      // Get project ID
       const projectId = typeof form.project === 'object' && form.project._id 
         ? form.project._id 
         : (typeof form.project === 'string' ? form.project : null);
@@ -193,12 +183,10 @@ const TaskPopup = ({ popupOpen, setPopupOpen, taskData = null, isEditMode = fals
       
       console.log("Checking if project ID exists in options:", projectId);
       
-      // Check if this ID exists in current options
       const projectExists = projects.some(p => p.value === projectId);
       
       if (!projectExists) {
         console.log("Project ID not found in options. Creating manual option.");
-        // Create a new option for this project
         const projectName = typeof form.project === 'object' && form.project.project_name 
           ? form.project.project_name 
           : `Project ${projectId.substring(0, 8)}...`;
@@ -209,7 +197,6 @@ const TaskPopup = ({ popupOpen, setPopupOpen, taskData = null, isEditMode = fals
           details: {}
         };
         
-        // Add this project to options
         setProjects(prev => [...prev, newProject]);
         console.log("Added manual project option:", newProject);
       }
@@ -242,10 +229,10 @@ const TaskPopup = ({ popupOpen, setPopupOpen, taskData = null, isEditMode = fals
 
   // Check if field should be disabled based on user role
   const isDisabled = (p, r) => {
-    if(!Array.isArray(r) || r.includes("ADMIN")) return false;
-    if(r.includes("MANAGER") && p === "assigns") return false;
-    else if(r.includes("DESIGNER") && p === "status") return false;
-    else if(r.includes("CM")) return false;
+    if (!Array.isArray(r) || r.includes("ADMIN")) return false;
+    if (r.includes("MANAGER") && p === "assigns") return false;
+    else if (r.includes("DESIGNER") && p === "status") return false;
+    else if (r.includes("CM")) return false;
     return true;
   };
 
@@ -265,29 +252,23 @@ const TaskPopup = ({ popupOpen, setPopupOpen, taskData = null, isEditMode = fals
   const OnChangeHandler = (e) => {
     const { name, value } = e.target;
     
-    // Special handling for dates to preserve time component
     if (name === 'start_date' || name === 'end_date') {
-      // Get current date value and extract time part if exists
       const currentValue = form[name] || '';
       let timePart;
       
       if (form.is_all_day) {
-        // For all-day events, use the start/end of day
         timePart = name === 'start_date' ? 'T00:00:00' : 'T23:59:59';
       } else {
-        // For time-specific events, use current time or defaults
         timePart = currentValue.includes('T') 
           ? 'T' + currentValue.split('T')[1]
           : (name === 'start_date' ? 'T09:00:00' : 'T17:00:00');
       }
       
-      // Combine new date with existing time
       setForm({
         ...form,
         [name]: value + timePart
       });
     } else {
-      // Normal handling for other fields
       setForm({
         ...form,
         [name]: value,
@@ -307,7 +288,6 @@ const TaskPopup = ({ popupOpen, setPopupOpen, taskData = null, isEditMode = fals
   const handleFileUpload = (e) => {
     const newFiles = Array.from(e.target.files);
     
-    // Check for duplicate files
     const uniqueFiles = newFiles.filter(
       newFile => !files.some(existingFile => existingFile.name === newFile.name)
     );
@@ -325,32 +305,25 @@ const TaskPopup = ({ popupOpen, setPopupOpen, taskData = null, isEditMode = fals
   const getCurrentProjectOption = () => {
     if (!form.project) return null;
     
-    // If project is an object with value/label
     if (typeof form.project === 'object' && form.project.value) {
       return form.project;
     }
     
-    // If project is a string ID
     if (typeof form.project === 'string') {
-      // Find in projects array
       const matchingProject = projects.find(p => p.value === form.project);
       if (matchingProject) {
         return matchingProject;
       }
       
-      // If not found, create a simple option
       return { value: form.project, label: `Project ${form.project.substring(0, 8)}...` };
     }
     
-    // If project is an object with _id
     if (typeof form.project === 'object' && form.project._id) {
-      // Find in projects array
       const matchingProject = projects.find(p => p.value === form.project._id);
       if (matchingProject) {
         return matchingProject;
       }
       
-      // If not found, create from object data
       return {
         value: form.project._id,
         label: form.project.project_name || form.project.name || `Project ${form.project._id.substring(0, 8)}...`
@@ -360,57 +333,53 @@ const TaskPopup = ({ popupOpen, setPopupOpen, taskData = null, isEditMode = fals
     return null;
   };
 
-  // Fixed and improved onSubmitHandler
+  // Handle Smart Assign selection
+  const handleSmartAssign = (selectedUsers) => {
+    setForm({
+      ...form,
+      assigns: selectedUsers
+    });
+    setShowSmartAssign(false);
+  };
+
   const onSubmitHandler = (e) => {
     e.preventDefault();
     
-    // Prepare form data
     const formattedForm = { ...form };
   
-    // Handle project field
     if (formattedForm.project) {
       console.log("Formatting project for submission:", formattedForm.project);
       
-      // If project is an object with value property (from Select component)
       if (typeof formattedForm.project === 'object' && formattedForm.project.value) {
         console.log("Project is a select object with value:", formattedForm.project.value);
         formattedForm.project = formattedForm.project.value;
       }
-      // If project is an object with _id property (from database)
       else if (typeof formattedForm.project === 'object' && formattedForm.project._id) {
         console.log("Project is a database object with _id:", formattedForm.project._id);
         formattedForm.project = formattedForm.project._id;
       }
-      // If project is already a string ID, keep it as is
       else if (typeof formattedForm.project === 'string') {
         console.log("Project is already a string ID:", formattedForm.project);
-        // No change needed
       }
     }
   
-    // Handle other complex select fields
     ['priority', 'status', 'type'].forEach(field => {
       if (formattedForm[field] && typeof formattedForm[field] === 'object') {
         formattedForm[field] = formattedForm[field].value;
       }
     });
   
-    // Handle assigns field
     if (formattedForm.assigns) {
       if (Array.isArray(formattedForm.assigns)) {
-        // If it's already an array, map it to get IDs
         formattedForm.assigns = formattedForm.assigns.map(a => {
           return typeof a === 'object' ? (a._id || a.value) : a;
         });
       } else if (typeof formattedForm.assigns === 'object' && !Array.isArray(formattedForm.assigns)) {
-        // If it's a single object, convert to array with ID
         formattedForm.assigns = [formattedForm.assigns.value || formattedForm.assigns._id];
       }
     }
   
-    // Process the dates based on all-day status
     if (formattedForm.is_all_day) {
-      // For all-day events, set time to start/end of day
       if (formattedForm.start_date) {
         const datePart = formattedForm.start_date.split('T')[0];
         formattedForm.start_date = `${datePart}T00:00:00`;
@@ -424,14 +393,11 @@ const TaskPopup = ({ popupOpen, setPopupOpen, taskData = null, isEditMode = fals
     
     console.log("Submitting form data:", formattedForm);
   
-    // Prepare file for upload
     const fileToUpload = files.length > 0 ? files[0] : null;
   
     if (!isEditing) {
-      // Create task
       dispatch(AddTaskAction(formattedForm, fileToUpload ? [fileToUpload] : [], setPopupOpen));
     } else {
-      // Update task - make sure we have a valid ID
       const taskId = formattedForm._id || (taskData && taskData._id) || (_ONE && _ONE._id);
       if (!taskId) {
         console.error("Missing task ID for update operation");
@@ -448,6 +414,15 @@ const TaskPopup = ({ popupOpen, setPopupOpen, taskData = null, isEditMode = fals
       }`}
     >
       <div className="relative m-auto w-full max-w-180 rounded-sm border border-stroke bg-gray p-4 shadow-default dark:border-strokedark dark:bg-meta-4 sm:p-8 xl:p-10">
+        {/* Smart Assign Modal */}
+        <SmartAssignModal
+          isOpen={showSmartAssign}
+          onClose={() => setShowSmartAssign(false)}
+          onSelect={handleSmartAssign}
+          taskDescription={form.description}
+          currentAssignees={form.assigns || []}
+        />
+
         <button
           onClick={() => {
             setPopupOpen(false);
@@ -480,6 +455,20 @@ const TaskPopup = ({ popupOpen, setPopupOpen, taskData = null, isEditMode = fals
         {!refresh ? (
           <div className="max-h-[80vh] overflow-y-auto">
             <form onSubmit={onSubmitHandler} className="space-y-6">
+              {/* Smart Assign Button */}
+              <div className="mb-6">
+                <button
+                  type="button"
+                  onClick={() => setShowSmartAssign(true)}
+                  className="flex items-center gap-2 rounded bg-primary px-4 py-2 text-white hover:bg-primary-dark"
+                >
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                  </svg>
+                  Smart Assign
+                </button>
+              </div>
+
               <SelectGroup
                 label={"Projects"}
                 options={projects}
@@ -493,26 +482,38 @@ const TaskPopup = ({ popupOpen, setPopupOpen, taskData = null, isEditMode = fals
                 className="w-full rounded-sm border border-stroke bg-white px-4.5 py-3 focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-boxdark dark:focus:border-primary"
               />
               
-              <SelectGroup
-                label={"Assign to"}
-                options={users}
-                name="assigns"
-                action={(e) => OnChangeSelect(e, "assigns")}
-                isMulti={true}
-                required={true}
-                disabled={isDisabled("assigns", roles)}
-                errors={content.assigns}
-                defaultValue={
-                  form?.assigns
-                    ? users.filter((obj1) =>
-                        Array.isArray(form?.assigns)
-                          ? form?.assigns.some((a) => (a._id || a) === obj1.value)
-                          : (form?.assigns._id || form?.assigns) === obj1.value
-                      )
-                    : []
-                }
-                className="w-full rounded-sm border border-stroke bg-white px-4.5 py-3 focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-boxdark dark:focus:border-primary"
-              />
+              <div className="relative">
+                <SelectGroup
+                  label={"Assign to"}
+                  options={users}
+                  name="assigns"
+                  action={(e) => OnChangeSelect(e, "assigns")}
+                  isMulti={true}
+                  required={true}
+                  disabled={isDisabled("assigns", roles)}
+                  errors={content.assigns}
+                  defaultValue={
+                    form?.assigns
+                      ? users.filter((obj1) =>
+                          Array.isArray(form?.assigns)
+                            ? form?.assigns.some((a) => (a._id || a) === obj1.value)
+                            : (form?.assigns._id || form?.assigns) === obj1.value
+                        )
+                      : []
+                  }
+                  className="w-full rounded-sm border border-stroke bg-white px-4.5 py-3 focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-boxdark dark:focus:border-primary"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowSmartAssign(true)}
+                  className="absolute right-3 top-10 p-1"
+                  title="Smart Assign"
+                >
+                  <svg className="w-5 h-5 text-primary" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                  </svg>
+                </button>
+              </div>
 
               <InputGroup
                 label="Title"
@@ -549,7 +550,6 @@ const TaskPopup = ({ popupOpen, setPopupOpen, taskData = null, isEditMode = fals
                 )}
               </div>
 
-              {/* All Day switch */}
               <div className="mb-5">
                 <label
                   htmlFor="is_all_day"
@@ -605,7 +605,6 @@ const TaskPopup = ({ popupOpen, setPopupOpen, taskData = null, isEditMode = fals
                             : "09:00"
                         }
                         onChange={(e) => {
-                          // Combine date and time
                           const datePart = form?.start_date
                             ? form.start_date.split('T')[0]
                             : new Date().toISOString().split('T')[0];
@@ -649,7 +648,6 @@ const TaskPopup = ({ popupOpen, setPopupOpen, taskData = null, isEditMode = fals
                             : "17:00"
                         }
                         onChange={(e) => {
-                          // Combine date and time
                           const datePart = form?.end_date
                             ? form.end_date.split('T')[0]
                             : new Date().toISOString().split('T')[0];
@@ -678,11 +676,9 @@ const TaskPopup = ({ popupOpen, setPopupOpen, taskData = null, isEditMode = fals
                   defaultValue={
                     form.priority
                       ? (() => {
-                          // If priority is already an object
                           if (typeof form.priority === 'object' && form.priority.value) {
                             return form.priority;
                           }
-                          // If priority is a string
                           const match = priority.find(p => p.value === form.priority);
                           return match || null;
                         })()
@@ -702,11 +698,9 @@ const TaskPopup = ({ popupOpen, setPopupOpen, taskData = null, isEditMode = fals
                   defaultValue={
                     form.status
                       ? (() => {
-                          // If status is already an object
                           if (typeof form.status === 'object' && form.status.value) {
                             return form.status;
                           }
-                          // If status is a string
                           const match = status.find(p => p.value === form.status);
                           return match || null;
                         })()
@@ -717,7 +711,6 @@ const TaskPopup = ({ popupOpen, setPopupOpen, taskData = null, isEditMode = fals
                 />
               </div>
 
-              {/* File Upload Section */}
               <div className="mb-5">
                 <label
                   htmlFor="taskAttachments"
@@ -766,7 +759,6 @@ const TaskPopup = ({ popupOpen, setPopupOpen, taskData = null, isEditMode = fals
                   </div>
                 </div>
 
-                {/* Display selected files */}
                 {files && files.length > 0 && (
                   <div className="mt-4.5 max-h-60 overflow-y-auto">
                     {files.map((file, index) => (
@@ -823,11 +815,9 @@ const TaskPopup = ({ popupOpen, setPopupOpen, taskData = null, isEditMode = fals
                 defaultValue={
                   form.type
                     ? (() => {
-                        // If type is already an object
                         if (typeof form.type === 'object' && form.type.value) {
                           return form.type;
                         }
-                        // If type is a string
                         const match = types.find(p => p.value === form.type);
                         return match || null;
                       })()
