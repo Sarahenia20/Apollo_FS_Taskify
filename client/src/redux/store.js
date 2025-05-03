@@ -9,7 +9,7 @@ import rolesReducer from "./reducers/roles";
 import projectsReducer from "./reducers/projects";
 import { teamsSlice } from "./reducers/teams";
 import videoCallsReducer from "./reducers/VideoCalls";  // Changed to default import
-
+import smartAssignReducer from "./reducers/smartAssign"; // Make sure this path is correct
 export const store = configureStore({
   reducer: {
     auth: authSlice.reducer,
@@ -21,6 +21,7 @@ export const store = configureStore({
     roles: rolesReducer,
     projects: projectsReducer,
     teams: teamsSlice.reducer,
+    smartAssign: smartAssignReducer ,
     videoCalls: videoCallsReducer,  // Use the default export directly
   },
 });
