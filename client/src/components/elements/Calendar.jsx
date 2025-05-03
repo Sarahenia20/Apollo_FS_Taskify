@@ -1,13 +1,22 @@
-// src/components/elements/Calendar.jsx
-import { Calendar, momentLocalizer, Views } from "react-big-calendar";
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import { Calendar, momentLocalizer } from "react-big-calendar";
 import withDragAndDrop from "react-big-calendar/lib/addons/dragAndDrop";
 import moment from "moment";
 import { useDispatch, useSelector } from "react-redux";
-import { FindTaskAction, RescheduleTaskAction, GetTaskCommentsAction } from "../../redux/actions/tasks"; // Adjusted import path
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { FindTaskAction, RescheduleTaskAction, GetTaskCommentsAction } from "../../redux/actions/tasks";
+import { 
+  getAllScheduledCalls, 
+  updateScheduledCall,
+  setActiveCall,
+  generateRoomName,
+  clearActiveCall,
+  getCallsByParticipantId,
+  deleteScheduledCall
+} from "../../redux/actions/VideoCalls";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import "react-big-calendar/lib/addons/dragAndDrop/styles.css";
 import swal from "sweetalert";
+import VideoCallModal from "../VideoCall/VideoCallModal";
 
 // Create the DnD Calendar component
 const DnDCalendar = withDragAndDrop(Calendar);
@@ -75,8 +84,96 @@ const AgendaEvent = ({ event }) => {
       </div>
     );
   };
+
+  // For video calls, show different UI
+  if (event.type === "videoCall") {
+    // Format participants for display
+    let participantsDisplay = null;
+    if (event.resource?.participants && Array.isArray(event.resource.participants)) {
+      const participants = event.resource.participants;
+      if (participants.length > 0) {
+        // Check if participants are populated objects or just IDs
+        if (typeof participants[0] === 'object' && participants[0] !== null && participants[0].fullName) {
+          // Display names if available
+          const participantsList = participants.map(p => p.fullName || p.email || "Unnamed user").join(", ");
+          participantsDisplay = (
+            <div className="mt-2 text-sm">
+              <p className="font-medium text-gray-700">Participants:</p>
+              <p className="text-gray-700 mt-1">{participantsList}</p>
+            </div>
+          );
+        }
+      }
+    }
+    
+    // Format team info
+    let teamDisplay = null;
+    if (event.resource?.team_id) {
+      const teamInfo = event.resource.team_id;
+      if (typeof teamInfo === 'object' && teamInfo !== null && teamInfo.Name) {
+        teamDisplay = (
+          <div className="mt-2 text-sm">
+            <p className="font-medium text-gray-700">Team:</p>
+            <p className="text-gray-700 mt-1">{teamInfo.Name}</p>
+          </div>
+        );
+      }
+    }
+    
+    return (
+      <div className="mb-6 bg-white rounded-lg shadow-sm border-l-4" style={{ borderLeftColor: "#6366f1" }}>
+        <div className="p-4">
+          <div className="flex justify-between">
+            <h4 className="font-semibold text-lg flex items-center">
+              <span className="mr-2">📹</span>
+              {event.title}
+            </h4>
+            <div className="text-xs font-medium px-2 py-1 rounded-full bg-indigo-100 text-indigo-800">
+              Video Call
+            </div>
+          </div>
+          
+          <p className="text-gray-600 mt-2 text-sm">
+            {moment(event.start).format('h:mm A')} to {moment(event.end).format('h:mm A')}
+            {event.resource && event.resource.duration && 
+              ` (${event.resource.duration} minute${event.resource.duration !== 1 ? 's' : ''})`
+            }
+          </p>
+          
+          {event.resource && event.resource.description && (
+            <div className="mt-3 text-sm">
+              <p className="font-medium text-gray-700">Description:</p>
+              <p className="text-gray-700 mt-1">{event.resource.description}</p>
+            </div>
+          )}
+          
+          {/* Show participants if available */}
+          {participantsDisplay}
+          
+          {/* Show team if available */}
+          {teamDisplay}
+
+          <div className="flex flex-wrap gap-2 mt-4">
+            <span className="px-2 py-1 bg-indigo-100 text-indigo-800 text-xs rounded-full">
+              {event.resource?.status || "Scheduled"}
+            </span>
+            {event.resource?.team_id && (
+              <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                Team Call
+              </span>
+            )}
+            {event.resource?.participants && event.resource.participants.length > 0 && (
+              <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                {event.resource.participants.length} participant{event.resource.participants.length !== 1 ? 's' : ''}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
   
-  // Get priority information for this event
+  // Get priority information for tasks
   const priorityInfo = priorityColors[event.priority] || priorityColors["2"];
   
   // Basic event information
@@ -172,6 +269,10 @@ const SmartAgenda = ({ events, date }) => {
     const isTomorrow = momentDate.isSame(moment().add(1, 'day'), 'day');
     const dayEvents = eventsByDate[dateStr];
     
+    // Count types
+    const taskCount = dayEvents.filter(e => e.type !== "videoCall").length;
+    const callCount = dayEvents.filter(e => e.type === "videoCall").length;
+    
     let dateHeader;
     if (isToday) {
       dateHeader = "Today";
@@ -186,14 +287,17 @@ const SmartAgenda = ({ events, date }) => {
         <h3 className="text-xl font-bold text-primary mb-3">{dateHeader}</h3>
         
         {dayEvents.length === 0 ? (
-          <p className="text-gray-500 italic">No tasks scheduled for this day.</p>
+          <p className="text-gray-500 italic">No events scheduled for this day.</p>
         ) : (
           <>
             <p className="text-gray-700 mb-4">
               {isToday 
-                ? `You have ${dayEvents.length} task${dayEvents.length > 1 ? 's' : ''} scheduled for today.`
-                : `You have ${dayEvents.length} task${dayEvents.length > 1 ? 's' : ''} scheduled for ${momentDate.format('MMM D')}.`
+                ? `You have ${dayEvents.length} event${dayEvents.length > 1 ? 's' : ''} scheduled for today` 
+                : `You have ${dayEvents.length} event${dayEvents.length > 1 ? 's' : ''} scheduled for ${momentDate.format('MMM D')}`
               }
+              {(taskCount > 0 && callCount > 0) && ` (${taskCount} task${taskCount !== 1 ? 's' : ''}, ${callCount} call${callCount !== 1 ? 's' : ''}).`}
+              {(taskCount > 0 && callCount === 0) && ` (${taskCount} task${taskCount !== 1 ? 's' : ''}).`}
+              {(taskCount === 0 && callCount > 0) && ` (${callCount} call${callCount !== 1 ? 's' : ''}).`}
             </p>
             
             {dayEvents.map((event) => (
@@ -216,256 +320,526 @@ const SmartAgenda = ({ events, date }) => {
 const CalendarLegend = () => {
   return (
     <div className="bg-white p-4 rounded-md shadow-sm mb-4">
-      <h4 className="text-sm font-semibold mb-2">Priority Color Legend</h4>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-        {Object.entries(priorityColors).map(([key, { color, label }]) => (
-          <div key={key} className="flex items-center text-xs">
-            <span className="inline-block w-3 h-3 rounded-full mr-2" style={{ backgroundColor: color }}></span>
-            {label}
+      <h4 className="text-sm font-semibold mb-2">Calendar Legend</h4>
+      <div className="grid grid-cols-2 gap-2">
+        {/* Task priorities */}
+        <div>
+          <h5 className="text-xs font-medium mb-1">Task Priorities</h5>
+          <div className="grid grid-cols-2 gap-1">
+            {Object.entries(priorityColors).map(([key, { color, label }]) => (
+              <div key={key} className="flex items-center text-xs">
+                <span className="inline-block w-3 h-3 rounded-full mr-2" style={{ backgroundColor: color }}></span>
+                {label}
+              </div>
+            ))}
           </div>
-        ))}
+        </div>
+        
+        {/* Video Calls */}
+        <div>
+          <h5 className="text-xs font-medium mb-1">Event Types</h5>
+          <div className="flex items-center text-xs mb-1">
+            <span className="inline-block w-3 h-3 rounded-full mr-2" style={{ backgroundColor: "#6366f1" }}></span>
+            <span className="mr-1">📹</span>
+            Video Call
+          </div>
+        </div>
       </div>
     </div>
   );
 };
 
-const Cld = () => {
+const EnhancedCalendar = ({ onScheduleCall }) => {
   const dispatch = useDispatch();
-  const { _ALL } = useSelector((state) => state.tasks);
-  const { refresh } = useSelector((state) => state.commons);
-  const authState = useSelector((state) => state.auth);
-  const [currentUser, setCurrentUser] = useState(null);
-  const [events, setEvents] = useState([]);
-  const [viewType, setViewType] = useState("month");
   
-  // Detect and set current user once when component mounts
-  useEffect(() => {
-    // Try to find user in different places in auth state
-    let userFound = null;
-    
-    if (authState) {
-      if (authState.user) {
-        userFound = authState.user;
-      } else if (authState.currentUser) {
-        userFound = authState.currentUser;
-      } else if (authState.data) {
-        userFound = authState.data;
-      } else {
-        // If we can't find user in expected places, check if the auth state itself has id/email
-        if (authState.id || authState._id) {
-          userFound = authState;
-        }
-      }
+  // Get raw state directly to avoid selector issues
+  const tasksState = useSelector((state) => state.tasks || {});
+  const videoCallsState = useSelector((state) => state.videoCalls || {});
+  
+  // Get auth state to access current user ID
+  const authState = useSelector((state) => state.auth || {});
+  
+  // Extract current user ID from auth state
+  // Try multiple common patterns to find the user ID
+  const currentUserId = useMemo(() => {
+    // Common auth state patterns
+    if (authState.user && authState.user._id) {
+      console.log("Found user ID in auth.user._id:", authState.user._id);
+      return authState.user._id;
     }
     
-    setCurrentUser(userFound);
+    if (authState.data && authState.data._id) {
+      console.log("Found user ID in auth.data._id:", authState.data._id);
+      return authState.data._id;
+    }
+    
+    if (authState._id) {
+      console.log("Found user ID in auth._id:", authState._id);
+      return authState._id;
+    }
+    
+    if (authState.user && authState.user.id) {
+      console.log("Found user ID in auth.user.id:", authState.user.id);
+      return authState.user.id;
+    }
+    
+    if (authState.id) {
+      console.log("Found user ID in auth.id:", authState.id);
+      return authState.id;
+    }
+    
+    // Log auth state for debugging
+    console.log("Auth state structure:", authState);
+    console.log("Couldn't find user ID in auth state");
+    return null;
   }, [authState]);
   
-  // Fetch tasks on component mount or when refresh is triggered
-  useEffect(() => {
-    dispatch(FindTaskAction());
-  }, [dispatch, refresh]);
+  // Get refresh state
+  const refresh = useSelector((state) => state.commons?.refresh);
   
-  // Process tasks into calendar events when tasks or current user change
+  // State to manage data fetching
+  const [initialDataFetched, setInitialDataFetched] = useState(false);
+  const [fetchingCalls, setFetchingCalls] = useState(false);
+  
+  // Local state for UI and data
+  const [viewType, setViewType] = useState("month");
+  const [showVideoCall, setShowVideoCall] = useState(false);
+  const [selectedCall, setSelectedCall] = useState(null);
+  const [currentRoomName, setCurrentRoomName] = useState("");
+  const [allEvents, setAllEvents] = useState([]);
+  
+  // Debug hook for Redux state
   useEffect(() => {
-    if (!_ALL || !Array.isArray(_ALL) || _ALL.length === 0) {
-      return;
+    console.log("=== VIDEO CALLS REDUX STATE DEBUG ===");
+    console.log("Full videoCallsState:", videoCallsState);
+    console.log("videoCallsState._ALL:", videoCallsState._ALL);
+    console.log("videoCallsState type:", typeof videoCallsState);
+    console.log("videoCallsState._ALL type:", typeof videoCallsState._ALL);
+    console.log("Is _ALL an array?", Array.isArray(videoCallsState._ALL));
+    
+    // Check if video calls are being stored with a different property name
+    if (videoCallsState) {
+      Object.keys(videoCallsState).forEach(key => {
+        console.log(`videoCallsState.${key}:`, videoCallsState[key]);
+      });
     }
     
-    // Get current user ID, with fallbacks for different possible structures
-    const currentUserId = currentUser ? (currentUser._id || currentUser.id || "").toString() : "";
+    console.log("=== END VIDEO CALLS DEBUG ===");
     
-    // Filter tasks based on assignment to current user (or show all if no user is set)
-    const filteredTasks = _ALL.filter(task => {
-      // Skip invalid tasks
-      if (!task) return false;
+    // Also log auth state for debugging
+    console.log("=== AUTH STATE DEBUG ===");
+    console.log("Auth state:", authState);
+    console.log("Current user ID:", currentUserId);
+    console.log("=== END AUTH STATE DEBUG ===");
+  }, [videoCallsState, authState, currentUserId]);
+  
+  // Initial data fetch - ONLY RUN ONCE
+  useEffect(() => {
+    if (!initialDataFetched) {
+      console.log("Initial data fetch for tasks and video calls");
       
-      // Check if task has required date fields
-      const hasRequiredDates = task.start_date && task.end_date;
-      if (!hasRequiredDates) {
-        return false;
+      // Fetch tasks first
+      dispatch(FindTaskAction());
+      
+      // Then fetch video calls with a slight delay to avoid race conditions
+      setTimeout(() => {
+        // Use participant-specific method if we have a user ID
+        if (currentUserId) {
+          console.log(`Fetching video calls for participant ID: ${currentUserId}`);
+          dispatch(getCallsByParticipantId(currentUserId));
+        } else {
+          console.log("No user ID available, fetching all video calls");
+          dispatch(getAllScheduledCalls());
+        }
+        setInitialDataFetched(true);
+      }, 100);
+    }
+  }, [dispatch, initialDataFetched, currentUserId]);
+  
+  // Handle refresh state changes
+  useEffect(() => {
+    if (refresh && initialDataFetched) {
+      console.log("Refreshing data due to refresh state change");
+      dispatch(FindTaskAction());
+      
+      // Only refresh video calls if we're not currently fetching
+      if (!fetchingCalls) {
+        setFetchingCalls(true);
+        
+        // Use participant-specific method if we have a user ID
+        if (currentUserId) {
+          console.log(`Refreshing calls for participant ID: ${currentUserId}`);
+          dispatch(getCallsByParticipantId(currentUserId))
+            .finally(() => {
+              // Reset fetching flag when done
+              setFetchingCalls(false);
+            });
+        } else {
+          console.log("No user ID available, fetching all video calls");
+          dispatch(getAllScheduledCalls())
+            .finally(() => {
+              // Reset fetching flag when done
+              setFetchingCalls(false);
+            });
+        }
+      }
+    }
+  }, [dispatch, refresh, initialDataFetched, fetchingCalls, currentUserId]);
+  
+  // Process raw video calls into calendar events
+  const processVideoCall = useCallback((call) => {
+    if (!call || !call.start_time || !call.end_time) {
+      console.warn("Invalid call data:", call);
+      return null;
+    }
+    
+    try {
+      // Convert date strings to Date objects
+      let startDate = new Date(call.start_time);
+      let endDate = new Date(call.end_time);
+      
+      // If dates are invalid, try parsing as timestamps
+      if (isNaN(startDate.getTime())) {
+        if (!isNaN(parseInt(call.start_time))) {
+          startDate = new Date(parseInt(call.start_time));
+        } else {
+          console.warn("Invalid start date:", call.start_time);
+          return null;
+        }
       }
       
-      // If no current user, show all tasks
-      if (!currentUserId) return true;
-      
-      // Check if task is assigned to current user
-      if (!task.assigns) return false;
-      
-      try {
-        // Parse assigns if it's a string
-        let assignList = task.assigns;
-        if (typeof assignList === 'string') {
-          try {
-            assignList = JSON.parse(assignList);
-          } catch (e) {
-            return false;
-          }
+      if (isNaN(endDate.getTime())) {
+        if (!isNaN(parseInt(call.end_time))) {
+          endDate = new Date(parseInt(call.end_time));
+        } else {
+          console.warn("Invalid end date:", call.end_time);
+          return null;
         }
-        
-        // Handle assigns based on its type
-        if (Array.isArray(assignList)) {
-          // Check if user ID exists in the array
-          return assignList.some(assignee => {
-            // Get assignee ID with fallbacks
-            let assigneeId;
-            
-            if (typeof assignee === 'string' || typeof assignee === 'number') {
-              assigneeId = assignee.toString();
-            } else if (assignee && typeof assignee === 'object') {
-              assigneeId = (assignee._id || assignee.id || "").toString();
-            } else {
-              return false;
-            }
-            
-            return assigneeId === currentUserId;
-          });
-        } else if (assignList && typeof assignList === 'object') {
-          // If assigns is a single object
-          const assigneeId = (assignList._id || assignList.id || "").toString();
-          return assigneeId === currentUserId;
-        } else if (assignList) {
-          // If assigns is a single ID (string/number)
-          const assigneeId = assignList.toString();
-          return assigneeId === currentUserId;
-        }
-        
-        return false;
-      } catch (error) {
-        return false;
       }
-    });
-
-    // Convert filtered tasks to calendar events with proper time handling
-    const calendarEvents = filteredTasks.map(task => {
-      try {
-        // Parse start/end dates
-        let startDate = new Date(task.start_date);
-        let endDate = new Date(task.end_date);
-        
-        // Check if dates are valid
-        if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-          // Fallback parsing for YYYY-MM-DD format (without time)
-          if (typeof task.start_date === 'string' && task.start_date.includes('-')) {
-            const [year, month, day] = task.start_date.split('-').map(Number);
-            startDate = new Date(year, month - 1, day, 9, 0); // Default to 9:00 AM
-          }
-          
-          if (typeof task.end_date === 'string' && task.end_date.includes('-')) {
-            const [year, month, day] = task.end_date.split('-').map(Number);
-            endDate = new Date(year, month - 1, day, 17, 0); // Default to 5:00 PM
-          }
-          
-          // If still invalid, skip this event
-          if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-            return null;
-          }
-        }
-        
-        // Determine if it's an all-day event (with fallback)
-        const isAllDay = task.is_all_day === undefined ? true : task.is_all_day;
-        
-        // Create event object
-        return {
-          id: task._id,
-          title: task.title || "Untitled Task",
-          start: startDate,
-          end: endDate,
-          allDay: isAllDay,
-          resource: task, // Store the original task as resource for reference
-          type: task.type,
-          priority: task.priority || "2", // Default to medium priority if not specified
-          status: task.status
-        };
-      } catch (error) {
+      
+      // Final check for valid dates
+      if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+        console.warn("Invalid date objects:", { start: startDate, end: endDate });
         return null;
       }
-    }).filter(event => event !== null);
-    
-    setEvents(calendarEvents);
-  }, [_ALL, currentUser]);
-  
-  // Handle event click to show details and potentially load comments
-  const handleSelectEvent = (event) => {
-    // Try to load comments for the selected task if needed
-    if (event.id && (!event.resource.comments || event.resource.comments.length === 0)) {
-      dispatch(GetTaskCommentsAction(event.id))
-        .then(comments => {
-          console.log("Loaded comments for task:", comments);
+      
+      // Format participants info
+      let participantsInfo = "";
+      if (call.participants && Array.isArray(call.participants)) {
+        // Check if participants are populated objects or just IDs
+        const participantCount = call.participants.length;
+        
+        if (participantCount > 0) {
+          const firstParticipant = call.participants[0];
           
-          // If we got comments, update the event resource
-          if (comments && comments.length > 0) {
-            // This won't update the Redux store, just the local state
-            event.resource.comments = comments;
+          // If participants are populated with user data
+          if (typeof firstParticipant === 'object' && firstParticipant !== null) {
+            const participantNames = call.participants
+              .map(p => p.fullName || p.email || "Unnamed participant")
+              .join(", ");
+            
+            participantsInfo = ` with ${participantNames}`;
+          } else {
+            // If just IDs, just show the count
+            participantsInfo = ` with ${participantCount} participant${participantCount !== 1 ? 's' : ''}`;
           }
-        })
-        .catch(err => {
-          console.error("Failed to load comments:", err);
-        });
+        }
+      }
+      
+      // Add team info if available
+      let teamInfo = "";
+      if (call.team_id) {
+        if (typeof call.team_id === 'object' && call.team_id !== null && call.team_id.Name) {
+          teamInfo = ` (${call.team_id.Name} team)`;
+        } else {
+          teamInfo = " (Team call)";
+        }
+      }
+      
+      // Create the calendar event object
+      return {
+        id: `call-${call._id || call.id}`,
+        title: `${call.call_name || "Video Call"}${teamInfo}`,
+        start: startDate,
+        end: endDate,
+        allDay: false,
+        resource: call,
+        type: "videoCall",
+        // Store additional info for rendering
+        participantsInfo: participantsInfo,
+        teamInfo: teamInfo
+      };
+    } catch (error) {
+      console.error("Error processing video call:", error, call);
+      return null;
     }
-
-    // Check for comments
-    let commentsInfo = "";
-    if (event.resource?.comments && Array.isArray(event.resource.comments) && event.resource.comments.length > 0) {
-      commentsInfo = `\n\nThis task has ${event.resource.comments.length} comment(s).`;
+  }, []);
+  
+  // Process raw tasks into calendar events
+  const processTask = useCallback((task) => {
+    if (!task || !task.start_date || !task.end_date) return null;
+    
+    try {
+      // Convert date strings to Date objects
+      const startDate = new Date(task.start_date);
+      const endDate = new Date(task.end_date);
+      
+      // Check for valid dates
+      if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+        return null;
+      }
+      
+      // Create the calendar event object
+      return {
+        id: task._id,
+        title: task.title || "Untitled Task",
+        start: startDate,
+        end: endDate,
+        allDay: Boolean(task.is_all_day),
+        resource: task,
+        type: "task",
+        priority: task.priority || "2"
+      };
+    } catch (error) {
+      console.error("Error processing task:", error);
+      return null;
     }
-
-    swal({
-      title: event.title,
-      text: (event.resource?.description || "No description available") + commentsInfo,
-      icon: "info",
-      buttons: {
-        cancel: "Close",
-        edit: {
-          text: "Edit Task",
-          value: "edit",
-        },
-      },
-    }).then((value) => {
-      if (value === "edit") {
-        // Navigate to task edit page or open edit popup
-        // You can implement this based on your app's navigation
-        console.log("Edit task:", event.id);
+  }, []);
+  
+  // Create events from Redux state data - FIXED VERSION
+  useEffect(() => {
+    // Skip if we haven't done initial fetch yet
+    if (!initialDataFetched) return;
+    
+    const tasks = tasksState._ALL || [];
+    const videoCalls = videoCallsState._ALL || [];
+    const upcomingCalls = videoCallsState._UPCOMING || [];
+    
+    console.log("Processing Redux Store Data:", {
+      tasksCount: tasks.length,
+      videoCallsCount: videoCalls.length,
+      upcomingCallsCount: upcomingCalls?.length || 0
+    });
+    
+    // Process tasks into events
+    const taskEvents = tasks
+      .map(task => processTask(task))
+      .filter(Boolean);
+    
+    // Process video calls into events
+    let videoCallEvents = [];
+    
+    // First try the main video calls
+    if (videoCalls && videoCalls.length > 0) {
+      videoCallEvents = videoCalls
+        .map(call => processVideoCall(call))
+        .filter(Boolean);
+    }
+    
+    // If no events from main calls, try upcoming calls
+    if (videoCallEvents.length === 0 && upcomingCalls && upcomingCalls.length > 0) {
+      videoCallEvents = upcomingCalls
+        .map(call => processVideoCall(call))
+        .filter(Boolean);
+    }
+    
+    console.log(`Processed ${taskEvents.length} task events and ${videoCallEvents.length} call events`);
+    
+    // Combine events (ensuring no duplicates)
+    const existingIds = new Set();
+    const combinedEvents = [];
+    
+    // Add tasks first
+    taskEvents.forEach(event => {
+      if (!existingIds.has(event.id)) {
+        existingIds.add(event.id);
+        combinedEvents.push(event);
       }
     });
-  };
-  
-  // Event style getter for color coding based on PRIORITY
-  const eventStyleGetter = (event) => {
-    // Get color based on priority
-    const priorityInfo = priorityColors[event.priority] || priorityColors["2"];
-    const backgroundColor = priorityInfo.color;
     
-    return {
-      style: { 
-        backgroundColor,
-        borderRadius: '4px',
-        opacity: 0.8,
-        color: 'white',
-        border: '0px',
-        display: 'block'
+    // Then add video calls
+    videoCallEvents.forEach(event => {
+      if (!existingIds.has(event.id)) {
+        existingIds.add(event.id);
+        combinedEvents.push(event);
       }
-    };
-  };
+    });
+    
+    // Update all events only if they have actually changed
+    setAllEvents(prevEvents => {
+      // Check if events have actually changed
+      if (JSON.stringify(prevEvents) === JSON.stringify(combinedEvents)) {
+        return prevEvents; // No change, return previous state
+      }
+      return combinedEvents;
+    });
+  }, [
+    tasksState._ALL, 
+    videoCallsState._ALL, 
+    videoCallsState._UPCOMING,
+    initialDataFetched,
+    processTask, 
+    processVideoCall
+  ]);
   
-  // Handle view change
-  const handleViewChange = (view) => {
-    setViewType(view);
-  };
+  // Event style getter - memoized
+  const eventStyleGetter = useCallback((event) => {
+    if (event.type === "videoCall") {
+      return {
+        style: { 
+          backgroundColor: "#6366f1", // Video call color
+          borderRadius: '4px',
+          opacity: 0.8,
+          color: 'white',
+          border: '0px',
+          display: 'block',
+          cursor: 'pointer'
+        },
+        // Add a video camera icon in the title
+        title: `📹 ${event.title}`
+      };
+    } else {
+      // Task styling
+      const priorityInfo = priorityColors[event.priority] || priorityColors["2"];
+      return {
+        style: { 
+          backgroundColor: priorityInfo.color,
+          borderRadius: '4px',
+          opacity: 0.8,
+          color: 'white',
+          border: '0px',
+          display: 'block',
+          cursor: 'pointer'
+        }
+      };
+    }
+  }, []);
   
-  // Handle event resizing (changing duration)
+  // Handle select event
+  const handleSelectEvent = useCallback((event) => {
+    if (event.type === "videoCall") {
+      // Handle video call event
+      const call = event.resource;
+      
+      swal({
+        title: event.title,
+        text: call.description || "No description available",
+        icon: "info",
+        buttons: {
+          cancel: "Close",
+          edit: {
+            text: "Edit Call",
+            value: "edit",
+          },
+          delete: {
+            text: "Delete Call",
+            value: "delete",
+          },
+          join: {
+            text: "Join Call",
+            value: "join",
+          },
+        },
+      }).then((value) => {
+        if (value === "edit") {
+          // Make sure onScheduleCall is a function and pass the correct data
+          if (typeof onScheduleCall === 'function') {
+            onScheduleCall(call);
+          } else {
+            console.error("onScheduleCall is not a function");
+            swal("Error", "Edit functionality is not available", "error");
+          }
+        } else if (value === "delete") {
+          // Handle delete call
+          swal({
+            title: "Are you sure?",
+            text: "Once deleted, you will not be able to recover this scheduled call!",
+            icon: "warning",
+            buttons: ["Cancel", "Delete"],
+            dangerMode: true,
+          }).then((willDelete) => {
+            if (willDelete) {
+              dispatch(deleteScheduledCall(call._id)).then(() => {
+                // Refresh calls after deletion
+                if (currentUserId) {
+                  dispatch(getCallsByParticipantId(currentUserId));
+                } else {
+                  dispatch(getAllScheduledCalls());
+                }
+              });
+            }
+          });
+        } else if (value === "join") {
+          // Set up video call
+          dispatch(setActiveCall(call));
+          const roomName = generateRoomName(call._id, call.call_name);
+          setCurrentRoomName(roomName);
+          setSelectedCall(call);
+          setShowVideoCall(true);
+        }
+      });
+    } else {
+      // Handle task event
+      if (event.id && (!event.resource.comments || event.resource.comments.length === 0)) {
+        dispatch(GetTaskCommentsAction(event.id))
+          .then(comments => {
+            if (comments && comments.length > 0) {
+              event.resource.comments = comments;
+            }
+          })
+          .catch(err => {
+            console.error("Failed to load comments:", err);
+          });
+      }
+      
+      // Check for comments
+      let commentsInfo = "";
+      if (event.resource?.comments && Array.isArray(event.resource.comments) && event.resource.comments.length > 0) {
+        commentsInfo = `\n\nThis task has ${event.resource.comments.length} comment(s).`;
+      }
+      
+      swal({
+        title: event.title,
+        text: (event.resource?.description || "No description available") + commentsInfo,
+        icon: "info",
+        buttons: {
+          cancel: "Close",
+          edit: {
+            text: "Edit Task",
+            value: "edit",
+          },
+        },
+      }).then((value) => {
+        if (value === "edit") {
+          // Handle task edit - you may need to implement this
+          console.log("Edit task:", event);
+          // You can dispatch an action to open a task edit modal here
+        }
+      });
+    }
+  }, [dispatch, onScheduleCall, currentUserId]);
+  
+  // Handle event resizing
   const handleEventResize = useCallback(({ event, start, end }) => {
-    // Confirm before updating
+    const isVideoCall = event.type === "videoCall";
+    
     swal({
-      title: "Update Task Schedule?",
+      title: `Update ${isVideoCall ? 'Call' : 'Task'} Schedule?`,
       text: `Do you want to reschedule "${event.title}" to ${moment(start).format('lll')} - ${moment(end).format('lll')}?`,
       icon: "warning",
       buttons: true,
       dangerMode: false,
     })
     .then((willUpdate) => {
-      if (willUpdate) {
-        // Dispatch action to update task dates
+      if (!willUpdate) return;
+      
+      if (isVideoCall) {
+        const callId = event.id.replace('call-', '');
+        dispatch(updateScheduledCall(callId, {
+          start_time: start.toISOString(),
+          end_time: end.toISOString()
+        }));
+      } else {
         dispatch(RescheduleTaskAction(event.id, {
           start_date: start.toISOString(),
           end_date: end.toISOString(),
@@ -475,42 +849,38 @@ const Cld = () => {
     });
   }, [dispatch]);
   
-  // Handle event dragging (changing dates/times)
+  // Handle event dragging
   const handleEventDrop = useCallback(({ event, start, end, allDay }) => {
-    // Confirm before updating
+    const isVideoCall = event.type === "videoCall";
+    
     swal({
-      title: "Update Task Schedule?",
+      title: `Update ${isVideoCall ? 'Call' : 'Task'} Schedule?`,
       text: `Do you want to reschedule "${event.title}" to ${moment(start).format('lll')} - ${moment(end).format('lll')}?`,
       icon: "warning",
       buttons: true,
       dangerMode: false,
     })
     .then((willUpdate) => {
-      if (willUpdate) {
-        // Dispatch action to update task dates with proper error handling
-        try {
-          dispatch(RescheduleTaskAction(event.id, {
-            start_date: start.toISOString(),
-            end_date: end.toISOString(),
-            is_all_day: allDay
-          }));
-        } catch (error) {
-          console.error("Error rescheduling task:", error);
-          swal("Error", "Failed to reschedule task. Please try again.", "error");
-        }
+      if (!willUpdate) return;
+      
+      if (isVideoCall) {
+        const callId = event.id.replace('call-', '');
+        dispatch(updateScheduledCall(callId, {
+          start_time: start.toISOString(),
+          end_time: end.toISOString()
+        }));
+      } else {
+        dispatch(RescheduleTaskAction(event.id, {
+          start_date: start.toISOString(),
+          end_date: end.toISOString(),
+          is_all_day: allDay
+        }));
       }
     });
   }, [dispatch]);
   
-  // Custom components
-  const components = {
-    agenda: {
-      event: SmartAgenda,
-    }
-  };
-  
   // Format date display in the calendar header
-  const formats = {
+  const formats = useMemo(() => ({
     dateFormat: 'D',
     dayFormat: 'ddd D/M',
     monthHeaderFormat: 'MMMM YYYY',
@@ -518,46 +888,117 @@ const Cld = () => {
     dayRangeHeaderFormat: ({ start, end }) => 
       `${moment(start).format('MMM D')} - ${moment(end).format('MMM D, YYYY')}`,
     timeGutterFormat: 'h:mm A'
-  };
+  }), []);
+  
+  // Memoize the calendar event counts
+  const eventCounts = useMemo(() => {
+    return {
+      total: allEvents.length,
+      tasks: allEvents.filter(e => e.type !== "videoCall").length,
+      calls: allEvents.filter(e => e.type === "videoCall").length
+    };
+  }, [allEvents]);
+  
+  // Refresh calls manually - Updated to use participant-specific method
+  const handleManualRefresh = useCallback(() => {
+    if (!fetchingCalls) {
+      console.log("Manual refresh of video calls");
+      setFetchingCalls(true);
+      
+      // Use participant-specific method if we have a user ID
+      if (currentUserId) {
+        console.log(`Refreshing calls for participant ID: ${currentUserId}`);
+        dispatch(getCallsByParticipantId(currentUserId))
+          .finally(() => {
+            setFetchingCalls(false);
+          });
+      } else {
+        console.log("No user ID available, refreshing all calls");
+        dispatch(getAllScheduledCalls())
+          .finally(() => {
+            setFetchingCalls(false);
+          });
+      }
+    }
+  }, [dispatch, fetchingCalls, currentUserId]);
   
   return (
     <div className="my-4">
       <div className="mb-4">
-        <h3 className="text-lg font-medium">
-          {currentUser ? 
-            `Tasks for ${currentUser.fullName || currentUser.name || currentUser.username || currentUser.email || 'Current User'}` 
-            : 'All Tasks'}
-        </h3>
+        <h3 className="text-lg font-medium">Calendar Schedule</h3>
         
         <div className="flex justify-between items-center mt-2">
           <p className="text-sm text-gray-500">
-            {events.length} task{events.length !== 1 ? 's' : ''} scheduled
+            {eventCounts.total} event{eventCounts.total !== 1 ? 's' : ''} scheduled
+            {eventCounts.total > 0 && (
+              <span className="text-xs ml-1 text-gray-400">
+                ({eventCounts.tasks} tasks, {eventCounts.calls} calls)
+              </span>
+            )}
+            {currentUserId && (
+              <span className="text-xs ml-1 text-blue-500">
+                • Showing your calls
+              </span>
+            )}
           </p>
           
-          <div className="text-sm text-gray-600 italic">
-            <span>Tip: </span>
-            <span>Drag tasks to reschedule them, or resize to change duration.</span>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={handleManualRefresh}
+              disabled={fetchingCalls}
+              className={`px-3 py-1 rounded-md text-sm ${
+                fetchingCalls 
+                  ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
+                  : 'bg-blue-500 text-white hover:bg-blue-600'
+              }`}
+            >
+              {fetchingCalls ? 'Refreshing...' : 'Refresh Calls'}
+            </button>
+            
+            <div className="text-sm text-gray-600 italic">
+              <span>Tip: </span>
+              <span>Drag events to reschedule them, or resize to change duration.</span>
+            </div>
           </div>
         </div>
       </div>
       
-      {/* Add priority color legend */}
+      {/* Calendar Legend */}
       <CalendarLegend />
+      
+      {/* Calendar View Selector */}
+      <div className="mb-4">
+        <div className="flex space-x-2">
+          {["month", "week", "day", "agenda"].map((view) => (
+            <button
+              key={view}
+              className={`px-3 py-1 rounded-md ${
+                viewType === view
+                  ? "bg-primary text-white"
+                  : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+              }`}
+              onClick={() => setViewType(view)}
+            >
+              {view.charAt(0).toUpperCase() + view.slice(1)}
+            </button>
+          ))}
+        </div>
+      </div>
       
       {viewType === 'agenda' ? (
         // Custom agenda view with narrative style
-        <SmartAgenda events={events} date={new Date()} />
+        <SmartAgenda events={allEvents} date={new Date()} />
       ) : (
         // Regular calendar for other views
         <DnDCalendar
           localizer={localizer}
-          events={events}
+          events={allEvents}
           startAccessor="start"
           endAccessor="end"
           style={{ height: 600 }}
           views={["month", "week", "day", "agenda"]}
           view={viewType}
-          onView={handleViewChange}
+          onView={setViewType}
           defaultView="month"
           eventPropGetter={eventStyleGetter}
           onSelectEvent={handleSelectEvent}
@@ -573,14 +1014,24 @@ const Cld = () => {
           // Time range for day/week views - show 7am to 9pm
           min={new Date(new Date().setHours(7, 0, 0))}
           max={new Date(new Date().setHours(21, 0, 0))}
-          // Critical fix: Ensure the drag functionality works correctly
           draggableAccessor={() => true}
           resizableAccessor={() => true}
-          components={components}
+        />
+      )}
+      
+      {showVideoCall && selectedCall && currentRoomName && (
+        <VideoCallModal
+          roomName={currentRoomName}
+          onClose={() => {
+            setShowVideoCall(false);
+            setSelectedCall(null);
+            setCurrentRoomName("");
+            dispatch(clearActiveCall());
+          }}
         />
       )}
     </div>
   );
 };
 
-export default Cld;
+export default React.memo(EnhancedCalendar);

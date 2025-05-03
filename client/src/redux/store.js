@@ -1,4 +1,3 @@
-// store.js
 import { configureStore } from "@reduxjs/toolkit";
 import { authSlice } from "./reducers/auth";
 import { commonSlice } from "./reducers/commons";
@@ -9,7 +8,7 @@ import { usersSlice } from "./reducers/users";
 import rolesReducer from "./reducers/roles";
 import projectsReducer from "./reducers/projects";
 import { teamsSlice } from "./reducers/teams";
-import smartAssignReducer from "./reducers/smartAssign"; // Make sure this path is correct
+import videoCallsReducer from "./reducers/VideoCalls";  // Changed to default import
 
 export const store = configureStore({
   reducer: {
@@ -22,6 +21,6 @@ export const store = configureStore({
     roles: rolesReducer,
     projects: projectsReducer,
     teams: teamsSlice.reducer,
-    smartAssign: smartAssignReducer 
+    videoCalls: videoCallsReducer,  // Use the default export directly
   },
 });

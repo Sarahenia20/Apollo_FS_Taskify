@@ -4,7 +4,8 @@ var cookieParser = require("cookie-parser");
 var logger = require("morgan");
 const { default: mongoose } = require("mongoose");
 const helmet = require("helmet");
-const cors = require('cors'); // Add cors for cross-origin support 
+const cors = require('cors'); // Add cors for cross-origin support
+
 
 /* routers */
 const authRouter = require("./routes/auth.router");
@@ -20,22 +21,21 @@ const loginActivityRoutes = require('./routes/loginActivity');
 const testEmailRoute = require('./routes/test.route');
 const imagesRouter = require('./routes/images.router');
 const taskGeneratorRouter = require("./routes/tasksGenerator.router");
-const chatbotRouter = require("./routes/chatbot.router"); 
-const teamsRouter = require("./routes/teams.router");
-const gameRouter = require("./routes/gameRoom");
-const smartAssignRouter = require("./routes/smartAssign.router"); // Add Smart Assign router
+const chatbotRouter = require("./routes/chatbot.router");
+const videoCallRoutes = require("./routes/VideoCall.router");
 
+const teamsRouter = require("./routes/teams.router");
 const io = require("./socket");
 const passport = require("passport");
-require("dotenv").config(); 
+require("dotenv").config();
 
-var app = express(); 
+var app = express();
 
 // Enable CORS if needed
 app.use(cors({
   origin: ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:5173'],
   credentials: true
-})); 
+}));
 
 // Configure helmet for content security policy 
 app.use(
@@ -47,16 +47,16 @@ app.use(
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
     },
   })
-); 
+);
 
 // Add basic request logging middleware
-app.use(logger("dev")); 
+app.use(logger("dev"));
 
 // IMPORTANT: Body parsing middleware needs to come BEFORE routes
 // Increased limits for JSON and URL-encoded data
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-app.use(cookieParser()); 
+app.use(cookieParser());
 
 // Debugging middleware - place after body parsers but before routes
 const debugMiddleware = (req, res, next) => {
@@ -67,10 +67,10 @@ const debugMiddleware = (req, res, next) => {
   console.log('Body:', req.body);
   next();
 };
-app.use(debugMiddleware); 
+app.use(debugMiddleware);
 
 // Passport JWT configuration
-require("./middlewares/passport-jwt")(passport); 
+require("./middlewares/passport-jwt")(passport);
 
 // MongoDB Connection with improved error handling
 mongoose
@@ -87,14 +87,13 @@ mongoose
   .catch((err) => {
     console.error("MongoDB Connection Error:", err);
     console.log(err);
-  }); 
+  });
 
 // Static file serving
 app.use(express.static(path.join(__dirname, "public")));
-app.use('/uploads', express.static('uploads')); 
+app.use('/uploads', express.static('uploads'));
 
 // Route registration
-// With this approach
 app.use("/api", [
   projectsRouter,
   authRouter,
@@ -106,18 +105,15 @@ app.use("/api", [
   notificationsRouter,
   teamsRouter,
   taskGeneratorRouter,
-  chatbotRouter,
+  chatbotRouter
 ]);
-// Register smartAssignRouter separately
-app.use("/api/smart-assign", smartAssignRouter); 
 
 // Additional routes
 app.use("/api/auth/2fa", twoFactorAuthRouter);
 app.use('/api/login-activity', loginActivityRoutes);
 app.use('/api/test-email', testEmailRoute);
 app.use('/api/images', imagesRouter);
-app.use("/api/games", gameRouter); 
-
+app.use("/api/video-calls", videoCallRoutes);
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error('Unhandled Error:', err);
@@ -125,6 +121,8 @@ app.use((err, req, res, next) => {
     message: err.message || 'An unexpected error occurred',
     stack: process.env.NODE_ENV === 'development' ? err.stack : {}
   });
-}); 
+});
 
 module.exports = app;
+
+
