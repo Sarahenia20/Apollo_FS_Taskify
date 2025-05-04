@@ -11,6 +11,13 @@ const path = require('path');
 const { nodeMailer } = require('../config/nodeMailer1');
 require('dotenv').config();
 
+// Initialize Twilio client
+const twilio = require('twilio');
+const twilioClient = twilio(
+  process.env.TWILIO_ACCOUNT_SID,
+  process.env.TWILIO_AUTH_TOKEN
+);
+
 // Helper function to handle file deletion
 const deleteFile = async (filePath) => {
   try {
@@ -42,7 +49,7 @@ const transformTaskBody = (body) => {
   return transformedBody;
 };
 
-/* Add tasks with file upload */
+/* Add tasks with file upload and SMS notification */
 const Add = async (req, res) => {
   // Extensive logging for debugging
   console.log('=================== TASK CREATION DEBUG ===================');
@@ -109,6 +116,19 @@ const Add = async (req, res) => {
 
     // Create task
     const data = await tasksModel.create(transformedBody);
+
+    // Send SMS notification using Twilio
+    try {
+      await twilioClient.messages.create({
+        body: `New task created: ${transformedBody.title}`,
+        from: process.env.TWILIO_PHONE_NUMBER,
+        to: '+21699385385'
+      });
+      console.log(`✅ SMS sent to +21699385385 for task: ${transformedBody.title}`);
+    } catch (smsError) {
+      console.error(`❌ Error sending SMS:`, smsError);
+      // Note: We don't fail the request if SMS fails, just log the error
+    }
 
     // Notification logic for assigned users
     if (transformedBody.assigns && transformedBody.assigns.length) {
@@ -552,7 +572,7 @@ const RescheduleTask = async (req, res) => {
       console.log("Missing required fields:", { start_date, end_date });
       return res.status(400).json({ 
         success: false,
-        error: 'Start date and end date are required',
+        error: '`Start date and end date are required`',
       });
     }
 
