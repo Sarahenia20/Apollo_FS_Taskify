@@ -4,6 +4,8 @@ const initialState = {
   _ALL: [],
   _ONE: {},
   _CURRENT: {},
+  _skills: [], // ← manquant
+
 };
 
 export const usersSlice = createSlice({
@@ -25,6 +27,9 @@ export const usersSlice = createSlice({
     _FilterUser: (state, action) => {
       state._ALL = state._ALL.filter((item) => item._id != action.payload);
     },
+    _FetchSkillsOfUsers:(state,action)=>{
+      state._skills=action.payload
+    }
   },
 });
 
@@ -35,6 +40,7 @@ export const {
   _FindOneUser,
   _FilterUser,
   _setCurrentUser,
+  _FetchSkillsOfUsers
 } = usersSlice.actions;
 
 export default usersSlice.reducer;

@@ -18,6 +18,9 @@ Router.get(
   passport.authenticate("jwt", { session: false }),
   Controllers.GetAll // Ensure this matches exactly
 );
+Router.get("/users/calculateSkills",
+  passport.authenticate("jwt",{session:false}),
+Controllers.calculateUsersBySkills)
 
 Router.get(
   "/users/:id", 

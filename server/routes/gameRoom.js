@@ -4,7 +4,7 @@ const express = require("express");
 
 const Router = express.Router();
 
-Router.post("/newRoom", createRoom);
-Router.get("/", getAllRooms);
-Router.post("/score",saveScore)
+Router.post("/games/newRoom", createRoom);
+Router.get("/games/", getAllRooms);
+Router.post("/games/score",saveScore)
 module.exports = Router;

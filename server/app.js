@@ -25,6 +25,7 @@ const chatbotRouter = require("./routes/chatbot.router");
 const videoCallRoutes = require("./routes/VideoCall.router");
 
 const teamsRouter = require("./routes/teams.router");
+const gamesRouter=require("./routes/gameRoom");
 const io = require("./socket");
 const passport = require("passport");
 require("dotenv").config();
@@ -105,7 +106,8 @@ app.use("/api", [
   notificationsRouter,
   teamsRouter,
   taskGeneratorRouter,
-  chatbotRouter
+  chatbotRouter,
+  gamesRouter
 ]);
 
 // Additional routes
