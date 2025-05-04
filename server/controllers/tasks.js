@@ -1,9 +1,15 @@
+"use strict";
+
 const tasksModel = require("../models/tasks");
+const usersModel = require("../models/users");
+const mongoose = require('mongoose');
 const socket = require("../socket");
 const tasksValidation = require("../validation/tasksValidation");
 const { addNotification } = require("./notifications");
 const fs = require('fs').promises;
 const path = require('path');
+const { nodeMailer } = require('../config/nodeMailer1');
+require('dotenv').config();
 
 // Helper function to handle file deletion
 const deleteFile = async (filePath) => {
@@ -126,6 +132,35 @@ const Add = async (req, res) => {
       if (sockets_of_these_people.length > 0) {
         socket.io.to(sockets_of_these_people).emit("notification", notifications);
       }
+
+      // Fetch assigned users' details for email notifications
+      const assignedUsers = await usersModel.find({ _id: { $in: transformedBody.assigns } }).select('email');
+
+      // Send emails to assigned users
+      for (const user of assignedUsers) {
+        const subject = `Nouvelle tâche: ${transformedBody.title}`;
+        const html = `
+          <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
+            <h2 style="color: #333;">Nouvelle tâche assignée</h2>
+            <p>Une nouvelle tâche vous a été assignée :</p>
+            <ul>
+              <li><strong>Titre:</strong> ${transformedBody.title}</li>
+              <li><strong>Description:</strong> ${transformedBody.description || "Aucune description"}</li>
+              <li><strong>Date limite:</strong> ${transformedBody.end_date}</li>
+              <li><strong>Priorité:</strong> ${transformedBody.priority}</li>
+            </ul>
+            <p style="color: #d9534f; font-weight: bold;">Merci de respecter la date limite !</p>
+          </div>
+        `;
+
+        // Send email
+        try {
+          await nodeMailer(user.email, subject, html);
+          console.log(`✅ Email sent to ${user.email}`);
+        } catch (error) {
+          console.error(`❌ Erreur email à ${user.email}:`, error);
+        }
+      }
     }
 
     res.status(201).json({
@@ -186,7 +221,7 @@ const GetOne = async (req, res) => {
       });
     }
     
-    // Find the task by ID with comprehensive population - Add detailed try/catch for debugging
+    // Find the task by ID with comprehensive population
     let task;
     try {
       task = await tasksModel.findById(req.params.id);
@@ -218,7 +253,6 @@ const GetOne = async (req, res) => {
       console.log('Assigns populated successfully');
     } catch (assignsError) {
       console.error('Error populating assigns:', assignsError);
-      // Continue instead of failing - partial data is better than none
     }
 
     // Populate comments.by separately with error handling
@@ -230,7 +264,6 @@ const GetOne = async (req, res) => {
       console.log('Comments populated successfully:', task.comments?.length || 0);
     } catch (commentsError) {
       console.error('Error populating comments:', commentsError);
-      // Continue instead of failing - partial data is better than none
     }
 
     // Log successful retrieval
@@ -397,6 +430,7 @@ const DeleteOne = async (req, res) => {
     });
   }
 };
+
 // Download attachment
 const DownloadAttachment = async (req, res) => {
   try {
@@ -501,7 +535,6 @@ const AddFromSuggestion = async (req, res) => {
     });
   }
 };
-// Add this to your controllers/tasks.js file
 
 /* Reschedule Task (Update date/time via drag and drop) */
 const RescheduleTask = async (req, res) => {
@@ -605,6 +638,7 @@ const RescheduleTask = async (req, res) => {
     });
   }
 };
+
 // Update the module exports to include the new method
 module.exports = {
   Add,
