@@ -23,6 +23,7 @@ const imagesRouter = require('./routes/images.router');
 const taskGeneratorRouter = require("./routes/tasksGenerator.router");
 const chatbotRouter = require("./routes/chatbot.router");
 const videoCallRoutes = require("./routes/VideoCall.router");
+const chatRouter=require("./routes/chats.router") ; 
 
 const teamsRouter = require("./routes/teams.router");
 const gamesRouter=require("./routes/gameRoom");
@@ -107,7 +108,8 @@ app.use("/api", [
   teamsRouter,
   taskGeneratorRouter,
   chatbotRouter,
-  gamesRouter
+  gamesRouter,
+  chatRouter
 ]);
 
 // Additional routes
