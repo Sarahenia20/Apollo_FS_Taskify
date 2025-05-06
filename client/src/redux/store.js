@@ -9,6 +9,8 @@ import rolesReducer from "./reducers/roles";
 import projectsReducer from "./reducers/projects";
 import { teamsSlice } from "./reducers/teams";
 import { chatSlice } from './reducers/chatReducer';
+import { adminChatSlice } from './reducers/adminChatReducer';
+
 import videoCallsReducer from "./reducers/VideoCalls";  // Changed to default import
 import smartAssignReducer from "./reducers/smartAssign"; // Make sure this path is correct
 export const store = configureStore({
@@ -24,6 +26,7 @@ export const store = configureStore({
     teams: teamsSlice.reducer,
     smartAssign: smartAssignReducer ,
     videoCalls: videoCallsReducer,  // Use the default export directly
-    chat: chatSlice.reducer
+    chat: chatSlice.reducer,
+    admin: adminChatSlice.reducer
   },
 });

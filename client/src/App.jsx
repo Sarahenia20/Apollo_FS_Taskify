@@ -37,6 +37,11 @@ import ChatBot from './components/ChatBot/ChatBot';
 import GameHub from "./components/Games";
 import Chat from "./pages/Chat/Chatindex";
 
+import AdminDashboard from "./pages/ChatAdmin/AdminDashboard";
+import AdminChatManagement from "./pages/ChatAdmin/AdminChatManagement";
+import RoomDetails from "./pages/ChatAdmin/RoomDetails";
+
+
 import chatSocketService, { socketClient } from "./services/chatSocketService";
 
 
@@ -129,6 +134,12 @@ const App = () => {
           <Route path="/profile" element={<Profile />} />
           <Route path="/games" element={<GameHub />} />
           <Route path="/chat/*" element={<Chat />} />
+      
+          
+          <Route path="/chatadmin" element={<AdminDashboard />} />
+          <Route path="/chatadmin/manage" element={<AdminChatManagement />} />
+          <Route path="/chatadmin/rooms/:roomId" element={<RoomDetails />} />
+
 
 
         </Routes>
