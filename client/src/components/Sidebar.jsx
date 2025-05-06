@@ -378,7 +378,29 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
                     Analytics
                   </NavLink>
                 </li>
-  
+                <li>
+                  <NavLink
+                    to="/chatadmin"
+                    className={`group relative flex items-center gap-2.5 rounded-sm px-4 py-2 font-medium text-bodydark1 duration-300 ease-in-out hover:bg-graydark dark:hover:bg-meta-4 ${
+                      pathname.includes("chat") && "bg-graydark dark:bg-meta-4"
+                    }`}
+                  >
+                    <svg
+                      className="fill-current"
+                      width="18"
+                      height="18"
+                      viewBox="0 0 18 18"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        fill="currentColor"
+                        d="M.5 3.5V3a.5.5 0 00-.5.5h.5zm6 0H7a.5.5 0 00-.5-.5v.5zm0 11v.5a.5.5 0 00.5-.5h-.5zm-6 0H0a.5.5 0 00.5.5v-.5zm8-11V3a.5.5 0 00-.5.5h.5zm6 0h.5a.5.5 0 00-.5-.5v.5zm0 6v.5a.5.5 0 00.5-.5h-.5zm-6 0H8a.5.5 0 00.5.5v-.5zM0 1h7V0H0v1zm8 0h7V0H8v1zM.5 4h6V3h-6v1zM6 3.5v11h1v-11H6zM6.5 14h-6v1h6v-1zm-5.5.5v-11H0v11h1zM8.5 4h6V3h-6v1zm5.5-.5v6h1v-6h-1zm.5 5.5h-6v1h6V9zM9 9.5v-6H8v6h1z"
+                      />
+                    </svg>
+                    Chat
+                  </NavLink>
+                </li>
                 <li>
                   <NavLink
                     to="/tables"
@@ -806,7 +828,30 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
                   Analytics
                 </NavLink>
               </li>
-
+              <li>
+                  <NavLink
+                    to="/chatadmin"
+                    className={`group relative flex items-center gap-2.5 rounded-sm px-4 py-2 font-medium text-bodydark1 duration-300 ease-in-out hover:bg-graydark dark:hover:bg-meta-4 ${
+                      pathname.includes("chat") && " dark:bg-meta-4"
+                    }`}
+                  >
+                    <svg
+                      className="fill-current"
+                      width="18"
+                      height="18"
+                      viewBox="0 0 18 18"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        fill="currentColor"
+                        d="M.5 3.5V3a.5.5 0 00-.5.5h.5zm6 0H7a.5.5 0 00-.5-.5v.5zm0 11v.5a.5.5 0 00.5-.5h-.5zm-6 0H0a.5.5 0 00.5.5v-.5zm8-11V3a.5.5 0 00-.5.5h.5zm6 0h.5a.5.5 0 00-.5-.5v.5zm0 6v.5a.5.5 0 00.5-.5h-.5zm-6 0H8a.5.5 0 00.5.5v-.5zM0 1h7V0H0v1zm8 0h7V0H8v1zM.5 4h6V3h-6v1zM6 3.5v11h1v-11H6zM6.5 14h-6v1h6v-1zm-5.5.5v-11H0v11h1zM8.5 4h6V3h-6v1zm5.5-.5v6h1v-6h-1zm.5 5.5h-6v1h6V9zM9 9.5v-6H8v6h1z"
+                      />
+                    </svg>
+                    Chat
+                  </NavLink>
+                </li>
+                
               <li>
                 <NavLink
                   to="/tables"

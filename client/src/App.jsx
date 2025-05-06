@@ -1,6 +1,6 @@
 import jwtDecode from "jwt-decode";
 import React, { useEffect, useState } from "react";
-import { Route, Routes } from "react-router-dom";
+import { Route, Routes, Navigate } from "react-router-dom";
 import Resetpw from "./pages/Authentication/Resetpw";
 import SignIn from "./pages/Authentication/SignIn";
 import SignUp from "./pages/Authentication/SignUp";
@@ -37,11 +37,12 @@ import ChatBot from './components/ChatBot/ChatBot';
 import GameHub from "./components/Games";
 import Chat from "./pages/Chat/Chatindex";
 
+import AdminDashboard from "./pages/ChatAdmin/AdminDashboard";
+import AdminChatManagement from "./pages/ChatAdmin/AdminChatManagement";
+import RoomDetails from "./pages/ChatAdmin/RoomDetails";
 import chatSocketService, { socketClient } from "./services/chatSocketService";
 
-
-
-
+// Check for token and set auth state
 if (localStorage.token) {
   const decoded = jwtDecode(localStorage.token);
   store.dispatch(setUser(decoded));
@@ -93,6 +94,15 @@ const App = () => {
     } else {
       // Disconnect if not authenticated
       if (socketClient.connected) socketClient.disconnect();
+      
+      // Check if we're not already on an auth page and redirect if needed
+      const currentPath = window.location.pathname;
+      const authPaths = ['/auth/signin', '/auth/signup', '/auth/resetpw', '/reset', '/unauthorized'];
+      
+      if (!authPaths.includes(currentPath.toLowerCase())) {
+        // Redirect to signin page when not authenticated
+        window.location.href = "/auth/SignIn";
+      }
     }
     
     // Clean up event listeners
@@ -102,35 +112,145 @@ const App = () => {
     };
   }, [isConnected, user]);
 
+  // Protected route wrapper
+  const RequireAuth = ({ children }) => {
+    return isConnected ? children : <Navigate to="/auth/signin" />;
+  };
+
   return (
     !loading && (
       <>
         <Routes>
-          <Route path="/" element={<Profile />} />
-          <Route exact path="/admin" element={<Analytics />} />
-          <Route path="/calendar" element={<Calendar />} />
-          <Route path="/kanban" element={<Kanban />} />
-          <Route path="/tables" element={<Tables />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="/pages/pricing-tables" element={<PricingTables />} />
-          <Route path="/*" element={<ErrorPage />} />
-          <Route path="/projects/task-list" element={<TaskList />} />
-          <Route path="/Teams" element={<TeamsAdmin />} />
-          <Route path="/unauthorized" element={<Unauthorized />} />
-          <Route path="/projects/project-list" element={<ProjectList />} />
-          <Route path="/users" element={<Users />} />
-          <Route path="/roles" element={<Roles />} />
+          {/* Public routes (accessible without authentication) */}
           <Route path="/auth/signin" element={<SignIn />} />
           <Route path="/auth/signup" element={<SignUp />} />
           <Route path="/auth/resetpw" element={<Resetpw />} />
           <Route path="/reset" element={<Reset />} />
-          <Route path="/chart/basic-chart" element={<BasicChart />} />
-          <Route path="/chart/advanced-chart" element={<AdvancedChart />} />
-          <Route path="/profile" element={<Profile />} />
-          <Route path="/games" element={<GameHub />} />
-          <Route path="/chat/*" element={<Chat />} />
-
-
+          <Route path="/unauthorized" element={<Unauthorized />} />
+          
+          {/* Protected routes (require authentication) */}
+          <Route path="/" element={
+            <RequireAuth>
+              <Profile />
+            </RequireAuth>
+          } />
+          
+          <Route path="/admin" element={
+            <RequireAuth>
+              <Analytics />
+            </RequireAuth>
+          } />
+          
+          <Route path="/calendar" element={
+            <RequireAuth>
+              <Calendar />
+            </RequireAuth>
+          } />
+          
+          <Route path="/kanban" element={
+            <RequireAuth>
+              <Kanban />
+            </RequireAuth>
+          } />
+          
+          <Route path="/tables" element={
+            <RequireAuth>
+              <Tables />
+            </RequireAuth>
+          } />
+          
+          <Route path="/settings" element={
+            <RequireAuth>
+              <Settings />
+            </RequireAuth>
+          } />
+          
+          <Route path="/pages/pricing-tables" element={
+            <RequireAuth>
+              <PricingTables />
+            </RequireAuth>
+          } />
+          
+          <Route path="/projects/task-list" element={
+            <RequireAuth>
+              <TaskList />
+            </RequireAuth>
+          } />
+          
+          <Route path="/Teams" element={
+            <RequireAuth>
+              <TeamsAdmin />
+            </RequireAuth>
+          } />
+          
+          <Route path="/projects/project-list" element={
+            <RequireAuth>
+              <ProjectList />
+            </RequireAuth>
+          } />
+          
+          <Route path="/users" element={
+            <RequireAuth>
+              <Users />
+            </RequireAuth>
+          } />
+          
+          <Route path="/roles" element={
+            <RequireAuth>
+              <Roles />
+            </RequireAuth>
+          } />
+          
+          <Route path="/chart/basic-chart" element={
+            <RequireAuth>
+              <BasicChart />
+            </RequireAuth>
+          } />
+          
+          <Route path="/chart/advanced-chart" element={
+            <RequireAuth>
+              <AdvancedChart />
+            </RequireAuth>
+          } />
+          
+          <Route path="/profile" element={
+            <RequireAuth>
+              <Profile />
+            </RequireAuth>
+          } />
+          
+          <Route path="/games" element={
+            <RequireAuth>
+              <GameHub />
+            </RequireAuth>
+          } />
+          
+          <Route path="/chat/*" element={
+            <RequireAuth>
+              <Chat />
+            </RequireAuth>
+          } />
+          
+          <Route path="/chatadmin" element={
+            <RequireAuth>
+              <AdminDashboard />
+            </RequireAuth>
+          } />
+          
+          <Route path="/chatadmin/manage" element={
+            <RequireAuth>
+              <AdminChatManagement />
+            </RequireAuth>
+          } />
+          
+          <Route path="/chatadmin/rooms/:roomId" element={
+            <RequireAuth>
+              <RoomDetails />
+            </RequireAuth>
+          } />
+          
+          {/* 404 route */}
+          <Route path="/*" element={<ErrorPage />} />
         </Routes>
         <ChatBot />
       </>

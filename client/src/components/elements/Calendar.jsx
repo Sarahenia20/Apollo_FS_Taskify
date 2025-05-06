@@ -17,6 +17,7 @@ import "react-big-calendar/lib/css/react-big-calendar.css";
 import "react-big-calendar/lib/addons/dragAndDrop/styles.css";
 import swal from "sweetalert";
 import VideoCallModal from "../VideoCall/VideoCallModal";
+import NotifCalls from "../VideoCall/NotifCalls"; // Import the new NotifCalls component
 
 // Create the DnD Calendar component
 const DnDCalendar = withDragAndDrop(Calendar);
@@ -921,6 +922,15 @@ const EnhancedCalendar = ({ onScheduleCall }) => {
       }
     }
   }, [dispatch, fetchingCalls, currentUserId]);
+
+  // Handle joining a call from the notification component
+  const handleJoinCall = useCallback((call) => {
+    dispatch(setActiveCall(call));
+    const roomName = generateRoomName(call._id, call.call_name);
+    setCurrentRoomName(roomName);
+    setSelectedCall(call);
+    setShowVideoCall(true);
+  }, [dispatch]);
   
   return (
     <div className="my-4">
@@ -962,6 +972,9 @@ const EnhancedCalendar = ({ onScheduleCall }) => {
           </div>
         </div>
       </div>
+      
+      {/* Add NotifCalls component here */}
+      <NotifCalls onJoinCall={handleJoinCall} />
       
       {/* Calendar Legend */}
       <CalendarLegend />

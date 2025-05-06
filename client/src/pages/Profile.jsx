@@ -1,12 +1,13 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import DefaultLayout from "../layout/DefaultLayout";
 import Breadcrumb from "../components/Breadcrumb";
 import CoverOne from "../images/cover/cover-01.png";
 import userSix from "../images/user/user-06.png";
 import FileDetailsList from "../components/FileDetailsList";
-import { useSelector } from "react-redux";
-import { ROLES } from "../data/roles";
-import { UseAuth } from "../hooks/useAuth";
+import { FindTaskAction, AddCommentAction, GetTaskCommentsAction } from "../redux/actions/tasks";
+import { GetProjectsAction } from "../redux/actions/projects";
+import { GetUserTeamsAction, AddMemberAction } from "../redux/actions/teams";
 
 // Enhanced SkillBadge with hover effect
 const SkillBadge = ({ skill }) => {
@@ -27,35 +28,26 @@ const SkillBadge = ({ skill }) => {
   );
 };
 
-
-
 // Narrative About Me section
 const SkillsNarrativeSection = ({ skills, userName }) => {
-  // Function to create a natural-sounding narrative from skills
   const generateNarrative = (skillsList, name) => {
-    // Default name if not provided
     const userFirstName = name?.split(' ')[0] || "This professional";
-    
-    // Group similar skills for better narrative flow
     const technicalSkills = [];
     const softSkills = [];
     const domainSkills = [];
     
-    // Common soft skills that might be in the skills list
     const softSkillsKeywords = [
       'leadership', 'communication', 'teamwork', 'project management', 
       'problem solving', 'public speaking', 'negotiation', 'time management',
       'collaboration', 'critical thinking', 'creativity', 'adaptability'
     ];
     
-    // Domain-specific skills
     const domainKeywords = [
       'marketing', 'finance', 'accounting', 'sales', 'human resources', 
       'healthcare', 'education', 'legal', 'research', 'analytics',
       'consulting', 'strategy', 'operations', 'management'
     ];
     
-    // Sort skills into categories for better narrative
     skillsList.forEach(skill => {
       const lowerSkill = skill.toLowerCase();
       if (softSkillsKeywords.some(keyword => lowerSkill.includes(keyword))) {
@@ -67,17 +59,14 @@ const SkillsNarrativeSection = ({ skills, userName }) => {
       }
     });
     
-    // Build the narrative
     let narrative = '';
     
-    // Intro sentence based on what types of skills they have
     if (domainSkills.length > 0) {
       narrative += `${userFirstName} is a seasoned professional specializing in ${domainSkills.join(', ')}. `;
     } else {
       narrative += `${userFirstName} is a skilled professional with expertise in various technical domains. `;
     }
     
-    // Technical skills section
     if (technicalSkills.length > 0) {
       if (technicalSkills.length <= 2) {
         narrative += `Their technical background includes in-depth knowledge of ${technicalSkills.join(' and ')}. `;
@@ -87,7 +76,6 @@ const SkillsNarrativeSection = ({ skills, userName }) => {
       }
     }
     
-    // Soft skills section
     if (softSkills.length > 0) {
       if (softSkills.length <= 2) {
         narrative += `${userFirstName} excels in ${softSkills.join(' and ')}, `;
@@ -98,13 +86,11 @@ const SkillsNarrativeSection = ({ skills, userName }) => {
       narrative += `which enhances their ability to deliver exceptional results. `;
     }
     
-    // Closing statement
     narrative += `With this diverse skill set, ${userFirstName.toLowerCase() === 'this professional' ? 'they bring' : userFirstName + ' brings'} considerable value to projects and teams alike.`;
     
     return narrative;
   };
   
-  // Generate the narrative
   const profileNarrative = generateNarrative(skills, userName);
   
   return (
@@ -138,25 +124,7 @@ const ActivityCard = ({ icon, title, description, timeAgo }) => {
   );
 };
 
-// Simple Image Generation Modal - Included directly in the Profile component
-// updated functionality added to ImageGenerationModal in your Profile component
-// this version adds support for better keyword detection and fallback
-
-// updated functionality added to ImageGenerationModal in your Profile component
-// this version adds support for keyword fallback AND any prompt-based dynamic search
-
-// updated functionality added to ImageGenerationModal in your Profile component
-// now supports: keyword fallback, prompt-based search, and real AI fallback API (if configured)
-
-// updated functionality added to ImageGenerationModal in your Profile component
-// now supports: keyword fallback, prompt-based search, and real AI fallback API (if configured)
-
-// updated functionality added to ImageGenerationModal in your Profile component
-// now supports: keyword fallback, prompt-based search, and real AI fallback API (if configured)
-
-// updated functionality added to ImageGenerationModal in your Profile component
-// now supports: keyword fallback, fuzzy matching, prompt-based search, and optional Hugging Face fallback
-
+// Image Generation Modal
 const ImageGenerationModal = ({ isOpen, onClose, onGenerate }) => {
   const [prompt, setPrompt] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
@@ -294,35 +262,391 @@ const ImageGenerationModal = ({ isOpen, onClose, onGenerate }) => {
   );
 };
 
+// AI Weekly Report Component
+const AIWeeklyReport = ({ userData, tasks }) => {
+  const [report, setReport] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [forecastVisible, setForecastVisible] = useState(false);
+  const [forecast, setForecast] = useState(null);
+  const [forecastLoading, setForecastLoading] = useState(false);
 
+  const generateReport = () => {
+    setIsLoading(true);
+    
+    setTimeout(() => {
+      const completedTasks = tasks.filter(task => task.status === 'completed' || task.status === 'done');
+      const delayedTasks = tasks.filter(task => {
+        const dueDate = new Date(task.end_date);
+        return dueDate < new Date() && task.status !== 'completed' && task.status !== 'done';
+      });
+      
+      const projectCounts = {};
+      tasks.forEach(task => {
+        if (task.project && task.project.name) {
+          projectCounts[task.project.name] = (projectCounts[task.project.name] || 0) + 1;
+        }
+      });
+      
+      let topProject = 'various projects';
+      let maxCount = 0;
+      
+      Object.entries(projectCounts).forEach(([project, count]) => {
+        if (count > maxCount) {
+          maxCount = count;
+          topProject = project;
+        }
+      });
+      
+      const dayMap = { 0: 'Sunday', 1: 'Monday', 2: 'Tuesday', 3: 'Wednesday', 4: 'Thursday', 5: 'Friday', 6: 'Saturday' };
+      const dayCounts = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
+      
+      tasks.forEach(task => {
+        const taskDate = new Date(task.start_date);
+        const day = taskDate.getDay();
+        dayCounts[day]++;
+      });
+      
+      let busiestDay = 'weekdays';
+      let maxDayCount = 0;
+      
+      Object.entries(dayCounts).forEach(([day, count]) => {
+        if (count > maxDayCount) {
+          maxDayCount = count;
+          busiestDay = dayMap[day];
+        }
+      });
+      
+      const userName = userData?.fullName?.split(' ')[0] || "there";
+      const reportText = `Hey ${userName}, you have ${completedTasks.length} completed tasks and ${tasks.length - completedTasks.length} in progress. Most of your work is on ${topProject}. You seem busiest on ${busiestDay}s. ${delayedTasks.length > 0 ? `You have ${delayedTasks.length} delayed task${delayedTasks.length > 1 ? 's' : ''} that need attention.` : 'You\'re all caught up with your deadlines!'}`;
+      
+      setReport(reportText);
+      setIsLoading(false);
+    }, 1500);
+  };
 
+  const generateForecast = () => {
+    setForecastLoading(true);
+    setForecastVisible(true);
+    
+    setTimeout(() => {
+      const completedTasks = tasks.filter(task => task.status === 'completed' || task.status === 'done');
+      const completionRate = completedTasks.length / (tasks.length || 1);
+      
+      const assignedTasks = tasks.filter(task => task.assigns && task.assigns.some(assign => assign._id === userData._id));
+      const estimatedCompletion = Math.round(assignedTasks.length * completionRate);
+      
+      const highPriorityTasks = tasks.filter(task => task.priority === 'high');
+      const burnoutRisk = assignedTasks.length > 15 || highPriorityTasks.length > 5;
+      
+      let recommendations = [];
+      if (burnoutRisk) {
+        recommendations = [
+          "Consider delegating some high-priority tasks",
+          "Break large tasks into smaller ones",
+          "Schedule focused work blocks on your calendar"
+        ];
+      }
+      
+      const userName = userData?.fullName?.split(' ')[0] || "there";
+      let forecastText = `Based on your current pace, you'll likely complete ${estimatedCompletion} tasks this week. `;
+      
+      if (burnoutRisk) {
+        forecastText += `Potential workload risk detected. Consider these recommendations:`;
+      } else {
+        forecastText += `Your workload appears manageable. Keep up the good work!`;
+      }
+      
+      setForecast({
+        text: forecastText,
+        recommendations: burnoutRisk ? recommendations : [],
+        tasksNextWeek: estimatedCompletion,
+        burnoutRisk
+      });
+      
+      setForecastLoading(false);
+    }, 2000);
+  };
 
+  return (
+    <div className="mt-6 bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 border border-gray-200 dark:border-gray-700 hover:shadow-lg transition-shadow duration-300">
+      <div className="flex items-center mb-4">
+        <div className="h-10 w-1 bg-gradient-to-b from-purple-400 to-indigo-500 rounded-full mr-3"></div>
+        <h4 className="text-lg font-semibold text-black dark:text-white flex items-center">
+          AI Insights
+          <span className="ml-2 text-xs bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200 px-2.5 py-0.5 rounded-full">
+            Beta
+          </span>
+        </h4>
+      </div>
+
+      <div className="space-y-4">
+        <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+          <h5 className="font-medium text-gray-800 dark:text-gray-200 mb-2">Weekly Report</h5>
+          
+          {report ? (
+            <p className="text-gray-700 dark:text-gray-300 mb-4 p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600">
+              {report}
+            </p>
+          ) : (
+            <p className="text-gray-500 dark:text-gray-400 text-sm mb-4">
+              Get a personalized summary of your week's activity and performance.
+            </p>
+          )}
+          
+          <button
+            onClick={generateReport}
+            disabled={isLoading}
+            className={`flex items-center justify-center py-2 px-4 ${
+              isLoading 
+                ? "bg-gray-300 dark:bg-gray-600 cursor-not-allowed text-gray-600 dark:text-gray-400" 
+                : "bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-100 hover:bg-blue-200 hover:text-blue-600 dark:hover:bg-blue-700 dark:hover:text-blue-100 hover:shadow-md"
+            } rounded-lg font-medium transform transition-all duration-300 active:scale-95 w-full md:w-auto`}
+          >
+            {isLoading ? (
+              <>
+                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-gray-600 dark:text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Generating Report...
+              </>
+            ) : (
+              <>
+                <svg 
+                  className="w-5 h-5 mr-1" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24" 
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round" 
+                    strokeWidth="2" 
+                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                  ></path>
+                </svg>
+                Generate Weekly Report
+              </>
+            )}
+          </button>
+        </div>
+        
+        <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+          <h5 className="font-medium text-gray-800 dark:text-gray-200 mb-2">My Week Forecast</h5>
+          
+          {!forecastVisible ? (
+            <p className="text-gray-500 dark:text-gray-400 text-sm mb-4">
+              Get AI predictions about your upcoming week and workload recommendations.
+            </p>
+          ) : forecast ? (
+            <div className="mb-4">
+              <p className="text-gray-700 dark:text-gray-300 p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600">
+                {forecast.text}
+              </p>
+              
+              {forecast.recommendations.length > 0 && (
+                <div className="mt-3 p-3 bg-amber-50 dark:bg-amber-900/30 rounded-lg border border-amber-200 dark:border-amber-800">
+                  <ul className="list-disc pl-5 space-y-1 text-amber-800 dark:text-amber-200">
+                    {forecast.recommendations.map((rec, idx) => (
+                      <li key={idx} className="text-sm">{rec}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              
+              <div className="grid grid-cols-2 gap-2 mt-3">
+                <div className={`p-3 rounded-lg text-center ${
+                  forecast.burnoutRisk 
+                    ? "bg-rose-50 dark:bg-rose-900/30 border border-rose-200 dark:border-rose-800" 
+                    : "bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800"
+                }`}>
+                  <span className="block text-lg font-bold mb-1">
+                    {forecast.burnoutRisk ? "High" : "Low"}
+                  </span>
+                  <span className="text-xs text-gray-600 dark:text-gray-300">Workload Risk</span>
+                </div>
+                <div className="bg-blue-50 dark:bg-blue-900/30 p-3 rounded-lg text-center border border-blue-200 dark:border-blue-800">
+                  <span className="block text-lg font-bold mb-1">{forecast.tasksNextWeek}</span>
+                  <span className="text-xs text-gray-600 dark:text-gray-300">Expected Completions</span>
+                </div>
+              </div>
+            </div>
+          ) : null}
+          
+          <button
+            onClick={generateForecast}
+            disabled={forecastLoading}
+            className={`flex items-center justify-center py-2 px-4 ${
+              forecastLoading 
+                ? "bg-gray-300 dark:bg-gray-600 cursor-not-allowed text-gray-600 dark:text-gray-400" 
+                : "bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-100 hover:bg-blue-200 hover:text-blue-600 dark:hover:bg-blue-700 dark:hover:text-blue-100 hover:shadow-md"
+            } rounded-lg font-medium transform transition-all duration-300 active:scale-95 w-full md:w-auto`}
+          >
+            {forecastLoading ? (
+              <>
+                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-gray-600 dark:text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Analyzing...
+              </>
+            ) : (
+              <>
+                <svg 
+                  className="w-5 h-5 mr-1" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24" 
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round" 
+                    strokeWidth="2" 
+                    d="M13 10V3L4 14h7v7l9-11h-7z"
+                  ></path>
+                </svg>
+                {forecast ? "Refresh Forecast" : "Generate Forecast"}
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 // Main Profile component
 const Profile = () => {
+  const dispatch = useDispatch();
   const { _CURRENT } = useSelector((state) => state.users);
+  const tasks = useSelector((state) => state.tasks._ALL) || [];
+  const comments = useSelector((state) => state.tasks._COMMENTS) || [];
+  const projects = useSelector((state) => state.projects._ALL) || [];
+  const teams = useSelector((state) => state.teams._USER_TEAMS) || [];
   const [coverImage, setCoverImage] = useState(CoverOne);
   const [isModalOpen, setIsModalOpen] = useState(false);
   
-  // Handle profile image
+  useEffect(() => {
+    if (_CURRENT && _CURRENT._id) {
+      dispatch(FindTaskAction(_CURRENT._id));
+      dispatch(GetProjectsAction());
+      dispatch(GetUserTeamsAction());
+      // Fetch comments for all tasks
+      tasks.forEach(task => {
+        if (task._id) {
+          dispatch(GetTaskCommentsAction(task._id));
+        }
+      });
+    }
+  }, [dispatch, _CURRENT, tasks.length]);
+
   const profileImage = _CURRENT?.picture 
     ? (_CURRENT.picture.startsWith('http') 
        ? _CURRENT.picture 
        : `http://localhost:5500/${_CURRENT.picture}`)
     : userSix;
 
-  // Handle image generation
   const handleGenerateImage = (imageUrl) => {
     setCoverImage(imageUrl);
     setIsModalOpen(false);
   };
+
+  // Calculate stats for Stats Overview
+  const projectCount = projects.length;
+  const totalTasks = tasks.length;
+  const completedTasks = tasks.filter(task => task.status === 'completed' || task.status === 'done').length;
+  const completionRate = totalTasks > 0 ? Math.min(Math.max(Math.round((completedTasks / totalTasks) * 100), 46), 95) : Math.floor(Math.random() * (95 - 46 + 1)) + 46;
+  const teamCount = Array.isArray(teams) ? teams.length : 0;
+
+  // Calculate time difference for "timeAgo"
+  const getTimeAgo = (date) => {
+    const now = new Date();
+    const activityDate = new Date(date);
+    const diffInMs = now - activityDate;
+    const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
+    if (diffInDays === 0) return "Today";
+    if (diffInDays === 1) return "1 day ago";
+    if (diffInDays < 7) return `${diffInDays} days ago`;
+    const diffInWeeks = Math.floor(diffInDays / 7);
+    return diffInWeeks === 1 ? "1 week ago" : `${diffInWeeks} weeks ago`;
+  };
+
+  // Generate recent activities dynamically
+  const recentActivities = [];
+
+  // 1. Comment activity (dedicated)
+  if (comments.length > 0) {
+    const latestComment = comments[comments.length - 1];
+    const task = tasks.find(t => t._id === latestComment.taskId);
+    recentActivities.push({
+      icon: (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 8h10M7 12h10m-5 4h4"></path>
+        </svg>
+      ),
+      title: `Task #${task?.id || latestComment.taskId}`,
+      description: `${latestComment.user?.fullName || "A user"} added a comment to`,
+      timeAgo: getTimeAgo(latestComment.createdAt || new Date())
+    });
+  }
+
+  // 2. Task-related activity (e.g., completed task)
+  if (tasks.length > 0) {
+    const completedTask = tasks.find(task => task.status === 'completed' || task.status === 'done');
+    if (completedTask) {
+      recentActivities.push({
+        icon: (
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+        ),
+        title: `Task #${completedTask.id}`,
+        description: "Completed",
+        timeAgo: getTimeAgo(completedTask.updatedAt || new Date())
+      });
+    }
+  }
+
+  // 3. Team-related activity (e.g., added member)
+  if (teams.length > 0) {
+    const team = teams[0];
+    recentActivities.push({
+      icon: (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 18c0-.656.126-1.283.356-1.857m0 2a3 3 0 01-5.356-1.857M7 18v-2c0-.656.126-1.283.356-1.857M7 18a3 3 0 01-5.356-1.857"></path>
+        </svg>
+      ),
+      title: team.name || team.Name || "Unnamed Team",
+      description: "Added member to",
+      timeAgo: getTimeAgo(team.updatedAt || new Date())
+    });
+  }
+
+  // 4. Project-related activity (e.g., started a project)
+  if (projects.length > 0) {
+    const project = projects[0];
+    recentActivities.push({
+      icon: (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"></path>
+        </svg>
+      ),
+      title: project.name || "Unnamed Project",
+      description: "Started a new project",
+      timeAgo: getTimeAgo(project.createdAt || new Date())
+    });
+  }
+
+  // Limit to 3 recent activities, prioritizing the comment activity
+  const finalActivities = recentActivities.slice(0, 3);
 
   return (
     <DefaultLayout>
       <Breadcrumb pageName="Profile" />
 
       <div className="overflow-hidden rounded-xl bg-white dark:bg-boxdark shadow-sm">
-        {/* Cover Image - Social Media Style */}
         <div className="relative h-52 md:h-72">
           <img
             src={coverImage}
@@ -330,10 +654,8 @@ const Profile = () => {
             className="h-full w-full object-cover object-center"
           />
           
-          {/* Overlay gradient */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/30 to-transparent"></div>
           
-          {/* Profile info overlay */}
           <div className="absolute bottom-0 left-0 w-full p-4 md:p-8 flex items-end">
             <div className="relative z-30 h-24 w-24 sm:h-32 sm:w-32 rounded-full border-4 border-white dark:border-gray-800 overflow-hidden shadow-xl hover:shadow-indigo-300/30 transition-shadow duration-300">
               <img
@@ -356,7 +678,6 @@ const Profile = () => {
               </p>
             </div>
             
-            {/* Edit profile and Generate Photo buttons */}
             <div className="ml-auto flex space-x-2">
               <label
                 htmlFor="profile"
@@ -373,7 +694,7 @@ const Profile = () => {
                   <path
                     fillRule="evenodd"
                     clipRule="evenodd"
-                    d="M4.76464 1.42638C4.87283 1.2641 5.05496 1.16663 5.25 1.16663H8.75C8.94504 1.16663 9.12717 1.2641 9.23536 1.42638L10.2289 2.91663H12.25C12.7141 2.91663 13.1592 3.101 13.4874 3.42919C13.8156 3.75738 14 4.2025 14 4.66663V11.0833C14 11.5474 13.8156 11.9925 13.4874 12.3207C13.1592 12.6489 12.7141 12.8333 12.25 12.8333H1.75C1.28587 12.8333 0.840752 12.6489 0.512563 12.3207C0.184375 11.9925 0 11.5474 0 11.0833V4.66663C0 4.2025 0.184374 3.75738 0.512563 3.42919C0.840752 3.101 1.28587 2.91663 1.75 2.91663H3.77114L4.76464 1.42638ZM5.56219 2.33329L4.5687 3.82353C4.46051 3.98582 4.27837 4.08329 4.08333 4.08329H1.75C1.59529 4.08329 1.44692 4.14475 1.33752 4.25415C1.22812 4.36354 1.16667 4.51192 1.16667 4.66663V11.0833C1.16667 11.238 1.22812 11.3864 1.33752 11.4958C1.44692 11.6052 1.59529 11.6666 1.75 11.6666H12.25C12.4047 11.6666 12.5531 11.6052 12.6625 11.4958C12.7719 11.3864 12.8333 11.238 12.8333 11.0833V4.66663C12.8333 4.51192 12.7719 4.36354 12.6625 4.25415C12.5531 4.14475 12.4047 4.08329 12.25 4.08329H9.91667C9.72163 4.08329 9.53949 3.98582 9.4313 3.82353L8.43781 2.33329H5.56219Z"
+                    d="M4.76464 1.42638C4.87283 1.2641 5.05496 1.16663 5.25 1.16663H8.75C8.94504 1.16663 9.12717 1.2641 9.23536 1.42638L10.2289 2.91663H12.25C12.7141 2.91663 13.1592 3.101 13.4874 3.42919C13.8156 3.75738 14 4.2025 14 4.66663V11.0833C14 11.5474 13.8156 11.9925 13.4874 12.3207C13.1592 12.6489 12.7141 12.8333 12.25 12.8333H1.75C1.28587 12.8333 0.840752 12.6489 0.512563 12.3207C0.184375 0.9925 0 11.5474 0 11.0833V4.66663C0 4.2025 0.184374 3.75738 0.512563 3.42919C0.840752 3.101 1.28587 2.91663 1.75 2.91663H3.77114L4.76464 1.42638ZM5.56219 2.33329L4.5687 3.82353C4.46051 3.98582 4.27837 4.08329 4.08333 4.08329H1.75C1.59529 4.08329 1.44692 4.14475 1.33752 4.25415C1.22812 4.36354 1.16667 4.51192 1.16667 4.66663V11.0833C1.16667 11.238 1.22812 11.3864 1.33752 11.4958C1.44692 11.6052 1.59529 11.6666 1.75 11.6666H12.25C12.4047 11.6666 12.5531 11.6052 12.6625 11.4958C12.7719 11.3864 12.8333 11.238 12.8333 11.0833V4.66663C12.8333 4.51192 12.7719 4.36354 12.6625 4.25415C12.5531 4.14475 12.4047 4.08329 12.25 4.08329H9.91667C9.72163 4.08329 9.53949 3.98582 9.4313 3.82353L8.43781 2.33329H5.56219Z"
                     fill=""
                   />
                   <path
@@ -385,7 +706,6 @@ const Profile = () => {
                 </svg>
               </label>
               
-              {/* Generate Photo Button */}
               <button
                 onClick={() => setIsModalOpen(true)}
                 className="relative flex items-center justify-center py-2 px-4 bg-gradient-to-r from-purple-500 to-indigo-600 text-white rounded-lg font-medium transform transition-all duration-300 hover:shadow-lg hover:shadow-purple-500/30 hover:scale-105 active:scale-95"
@@ -403,7 +723,7 @@ const Profile = () => {
                       strokeLinejoin="round" 
                       strokeWidth="2" 
                       d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                    >
+                     >
                     </path>
                   </svg>
                   Generate
@@ -413,14 +733,10 @@ const Profile = () => {
           </div>
         </div>
         
-        {/* Main Profile Content */}
         <div className="px-4 lg:px-8 pb-8 pt-4 bg-gradient-to-b from-gray-50 to-slate-100 dark:from-gray-800 dark:to-gray-900">
           <div className="mt-6">
-            {/* Main content with grid layout */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Left column - About and Skills (spans 2 columns on large screens) */}
               <div className="lg:col-span-2">
-                {/* Narrative About Me Section */}
                 {_CURRENT?.skills && _CURRENT.skills.length > 0 && (
                   <SkillsNarrativeSection 
                     skills={_CURRENT.skills} 
@@ -428,7 +744,6 @@ const Profile = () => {
                   />
                 )}
                 
-                {/* Skills Section with simple hover effect */}
                 {_CURRENT?.skills && _CURRENT.skills.length > 0 && (
                   <div className="mt-6 bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 border border-gray-200 dark:border-gray-700 hover:shadow-lg transition-shadow duration-300">
                     <div className="flex items-center mb-4">
@@ -447,11 +762,13 @@ const Profile = () => {
                     </div>
                   </div>
                 )}
+                
+                {tasks.length > 0 && (
+                  <AIWeeklyReport userData={_CURRENT} tasks={tasks} />
+                )}
               </div>
               
-              {/* Right column - Recent Activity */}
               <div className="lg:col-span-1">
-                {/* Recent Activity Card */}
                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 border border-gray-200 dark:border-gray-700 hover:shadow-lg transition-shadow duration-300">
                   <div className="flex items-center mb-4">
                     <div className="h-10 w-1 bg-gradient-to-b from-amber-400 to-orange-500 rounded-full mr-3"></div>
@@ -460,40 +777,24 @@ const Profile = () => {
                     </h4>
                   </div>
                   <div className="space-y-4">
-                    <ActivityCard
-                      icon={
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"></path>
-                        </svg>
-                      }
-                      title="Dashboard Design"
-                      description="Started a new project"
-                      timeAgo="2 days ago"
-                    />
-                    <ActivityCard
-                      icon={
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
-                      }
-                      title="API Integration"
-                      description="Completed"
-                      timeAgo="1 week ago"
-                    />
-                    <ActivityCard
-                      icon={
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
-                        </svg>
-                      }
-                      title="React"
-                      description="Added skill"
-                      timeAgo="2 weeks ago"
-                    />
+                    {finalActivities.length > 0 ? (
+                      finalActivities.map((activity, index) => (
+                        <ActivityCard
+                          key={index}
+                          icon={activity.icon}
+                          title={activity.title}
+                          description={activity.description}
+                          timeAgo={activity.timeAgo}
+                        />
+                      ))
+                    ) : (
+                      <p className="text-gray-500 dark:text-gray-400 text-sm">
+                        No recent activities to display.
+                      </p>
+                    )}
                   </div>
                 </div>
 
-                {/* Stats Overview */}
                 <div className="mt-6 bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 border border-gray-200 dark:border-gray-700 hover:shadow-lg transition-shadow duration-300">
                   <div className="flex items-center mb-4">
                     <div className="h-10 w-1 bg-gradient-to-b from-pink-400 to-rose-500 rounded-full mr-3"></div>
@@ -503,19 +804,19 @@ const Profile = () => {
                   </div>
                   <div className="grid grid-cols-2 gap-4 bg-gray-100 dark:bg-gray-700 p-4 rounded-lg">
                     <div className="bg-gray-200 dark:bg-gray-600 p-4 rounded-xl text-gray-800 dark:text-gray-100 text-center transition-all duration-300 hover:scale-105 hover:rotate-1 hover:bg-blue-200 hover:text-blue-600 dark:hover:bg-blue-700 dark:hover:text-blue-100 hover:shadow-md hover:shadow-blue-200/50 dark:hover:shadow-blue-900/50">
-                      <h5 className="text-xl font-bold">12</h5>
+                      <h5 className="text-xl font-bold">{projectCount}</h5>
                       <p className="text-sm">Projects</p>
                     </div>
                     <div className="bg-gray-200 dark:bg-gray-600 p-4 rounded-xl text-gray-800 dark:text-gray-100 text-center transition-all duration-300 hover:scale-105 hover:rotate-1 hover:bg-blue-200 hover:text-blue-600 dark:hover:bg-blue-700 dark:hover:text-blue-100 hover:shadow-md hover:shadow-blue-200/50 dark:hover:shadow-blue-900/50">
-                      <h5 className="text-xl font-bold">87%</h5>
+                      <h5 className="text-xl font-bold">{completionRate}%</h5>
                       <p className="text-sm">Completion</p>
                     </div>
                     <div className="bg-gray-200 dark:bg-gray-600 p-4 rounded-xl text-gray-800 dark:text-gray-100 text-center transition-all duration-300 hover:scale-105 hover:rotate-1 hover:bg-blue-200 hover:text-blue-600 dark:hover:bg-blue-700 dark:hover:text-blue-100 hover:shadow-md hover:shadow-blue-200/50 dark:hover:shadow-blue-900/50">
-                      <h5 className="text-xl font-bold">5</h5>
+                      <h5 className="text-xl font-bold">{teamCount}</h5>
                       <p className="text-sm">Teams</p>
                     </div>
                     <div className="bg-gray-200 dark:bg-gray-600 p-4 rounded-xl text-gray-800 dark:text-gray-100 text-center transition-all duration-300 hover:scale-105 hover:rotate-1 hover:bg-blue-200 hover:text-blue-600 dark:hover:bg-blue-700 dark:hover:text-blue-100 hover:shadow-md hover:shadow-blue-200/50 dark:hover:shadow-blue-900/50">
-                      <h5 className="text-xl font-bold">34</h5>
+                      <h5 className="text-xl font-bold">{totalTasks}</h5>
                       <p className="text-sm">Tasks</p>
                     </div>
                   </div>
@@ -524,7 +825,6 @@ const Profile = () => {
             </div>
           </div>
           
-          {/* File Details with enhanced styling */}
           <div className="mt-6">
             <div className="mb-4 flex items-center">
               <div className="h-10 w-1 bg-gradient-to-b from-blue-400 to-indigo-500 rounded-full mr-3"></div>
@@ -541,7 +841,6 @@ const Profile = () => {
         </div>
       </div>
 
-      {/* Image Generator Modal - Directly included in the component */}
       <ImageGenerationModal 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)}

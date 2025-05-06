@@ -38,6 +38,18 @@ const chatRoomSchema = new mongoose.Schema({
   updatedAt: {
     type: Date,
     default: Date.now
+  },
+  isActive: {
+    type: Boolean,
+    default: true
+  },
+  isArchived: {
+    type: Boolean,
+    default: false
+  },
+  archivedAt: {
+    type: Date,
+    default: null
   }
 });
 
