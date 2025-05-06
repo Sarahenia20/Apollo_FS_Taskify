@@ -23,7 +23,11 @@ import {
   _UpdateTypingStatus,
   _ClearTypingStatus,
   _ReplaceMessage,
-  _RemoveMessage
+  _RemoveMessage,
+  _SetChatMembers,
+  _RemoveChatMember,
+  _AddChatMember,
+  _ClearChatMessages
 } from "../reducers/chatReducer";
 
 // Debug helper
@@ -53,8 +57,12 @@ export const GetChatRooms = () => async (dispatch) => {
     const res = await axios.get('/api/rooms');
     logAction('GetChatRooms Success', res.data);
 
-    dispatch(_GetChatRooms(res.data.chatRooms || []));
-    return res.data;
+    if (res.data.success) {
+      dispatch(_GetChatRooms(res.data.chatRooms || []));
+      return res.data;
+    } else {
+      throw new Error(res.data.message || 'Failed to fetch chat rooms');
+    }
   } catch (err) {
     logAction('GetChatRooms Error', err);
     
@@ -83,15 +91,19 @@ export const GetChatRoom = (roomId) => async (dispatch) => {
     const res = await axios.get(`/api/rooms/${roomId}`);
     logAction('GetChatRoom Success', res.data);
     
-    dispatch(_GetChatRoom(res.data.chatRoom || res.data));
-    
-    // Join the socket room
-    chatSocketService.joinChatRoom(roomId);
-    
-    // Clear typing status when entering room
-    dispatch(_ClearTypingStatus(roomId));
-    
-    return res.data;
+    if (res.data.success) {
+      dispatch(_GetChatRoom(res.data.chatRoom || res.data));
+      
+      // Join the socket room
+      chatSocketService.joinChatRoom(roomId);
+      
+      // Clear typing status when entering room
+      dispatch(_ClearTypingStatus(roomId));
+      
+      return res.data;
+    } else {
+      throw new Error(res.data.message || 'Failed to fetch chat room');
+    }
   } catch (err) {
     logAction('GetChatRoom Error', err);
     
@@ -105,9 +117,6 @@ export const GetChatRoom = (roomId) => async (dispatch) => {
 };
 
 // Load chat messages with pagination
-// Replace the GetMessages action in chatActions.js with this code:
-
-// Load chat messages with pagination
 export const GetMessages = (roomId, page = 1, limit = 20) => async (dispatch) => {
   logAction('GetMessages', { roomId, page, limit });
   dispatch(_SetChatLoading(true));
@@ -117,26 +126,30 @@ export const GetMessages = (roomId, page = 1, limit = 20) => async (dispatch) =>
     const res = await axios.get(`/api/messages/${roomId}?page=${page}&limit=${limit}`);
     logAction('GetMessages Success', res.data);
 
-    const messages = res.data.messages || [];
-    const hasMore = res.data.totalPages > page;
+    if (res.data.success) {
+      const messages = res.data.messages || [];
+      const hasMore = res.data.totalPages > page;
 
-    // Keep the backend's message ordering, we'll sort in the UI
-    dispatch(_GetMessages({
-      roomId,
-      messages,
-      pagination: {
-        currentPage: page,
-        totalPages: res.data.totalPages,
-        totalMessages: res.data.totalMessages
-      }
-    }));
+      // Keep the backend's message ordering, we'll sort in the UI
+      dispatch(_GetMessages({
+        roomId,
+        messages,
+        pagination: {
+          currentPage: page,
+          totalPages: res.data.totalPages,
+          totalMessages: res.data.totalMessages
+        }
+      }));
 
-    dispatch(_SetHasMoreMessages(hasMore));
-    
-    // Mark messages as read when we load them
-    dispatch(MarkMessagesRead(roomId));
-    
-    return res.data;
+      dispatch(_SetHasMoreMessages(hasMore));
+      
+      // Mark messages as read when we load them
+      dispatch(MarkMessagesRead(roomId));
+      
+      return res.data;
+    } else {
+      throw new Error(res.data.message || 'Failed to fetch messages');
+    }
   } catch (err) {
     logAction('GetMessages Error', err);
     
@@ -196,33 +209,37 @@ export const SendMessage = (chatRoomId, content, attachments = []) => async (dis
     
     logAction('SendMessage Success', res.data);
 
-    // Once we get a response, replace the temp message with the real one
-    const realMessage = res.data.message;
-    
-    // Replace the temporary message with the real one
-    dispatch(_ReplaceMessage({
-      tempId: tempMessage._id,
-      realMessage,
-      chatRoomId
-    }));
-    
-    // Update the chat room's last message
-    if (room) {
-      const updatedRoom = {
-        ...room,
-        lastMessage: realMessage,
-        updatedAt: new Date().toISOString()
-      };
-      dispatch(_UpdateChatRoom(updatedRoom));
+    if (res.data.success) {
+      // Once we get a response, replace the temp message with the real one
+      const realMessage = res.data.message;
+      
+      // Replace the temporary message with the real one
+      dispatch(_ReplaceMessage({
+        tempId: tempMessage._id,
+        realMessage,
+        chatRoomId
+      }));
+      
+      // Update the chat room's last message
+      if (room) {
+        const updatedRoom = {
+          ...room,
+          lastMessage: realMessage,
+          updatedAt: new Date().toISOString()
+        };
+        dispatch(_UpdateChatRoom(updatedRoom));
+      }
+      
+      // Emit via socket for real-time updates
+      chatSocketService.sendSocketMessage({
+        ...realMessage,
+        chatRoomId
+      });
+      
+      return res.data;
+    } else {
+      throw new Error(res.data.message || 'Failed to send message');
     }
-    
-    // Emit via socket for real-time updates
-    chatSocketService.sendSocketMessage({
-      ...realMessage,
-      chatRoomId
-    });
-    
-    return res.data;
   } catch (err) {
     logAction('SendMessage Error', err);
     
@@ -273,6 +290,7 @@ export const SilentMarkMessagesRead = (data) => (dispatch) => {
 };
 
 // Get all users for creating a new chat
+// Get all users for creating a new chat
 export const GetAllUsers = () => async (dispatch) => {
   logAction('GetAllUsers');
 
@@ -281,8 +299,19 @@ export const GetAllUsers = () => async (dispatch) => {
     const res = await axios.get('/api/users');
     logAction('GetAllUsers Success', res.data);
 
-    dispatch(_GetAllUsers(res.data.data || []));
-    return res.data;
+    // Check if the response has data property directly
+    if (res.data && (res.data.data || res.data.users)) {
+      // Handle different API response formats
+      const users = res.data.data  || [];
+      dispatch(_GetAllUsers(users));
+      return res.data;
+    } else if (Array.isArray(res.data)) {
+      // If the response is directly an array of users
+      dispatch(_GetAllUsers(res.data));
+      return { data: res.data };
+    } else {
+      throw new Error('Invalid response format');
+    }
   } catch (err) {
     logAction('GetAllUsers Error', err);
     
@@ -303,15 +332,19 @@ export const CreateNewChatRoom = (roomData) => async (dispatch) => {
     const res = await axios.post('/api/rooms', roomData);
     logAction('CreateChatRoom Success', res.data);
 
-    const newRoom = res.data.chatRoom;
-    dispatch(_CreateChatRoom(newRoom));
-    
-    // Notify other users about the new chat room
-    chatSocketService.notifyNewChatRoom(newRoom);
-    
-    swal("Success", "Chat room created successfully", "success");
-    
-    return newRoom;
+    if (res.data.success) {
+      const newRoom = res.data.chatRoom;
+      dispatch(_CreateChatRoom(newRoom));
+      
+      // Notify other users about the new chat room
+      chatSocketService.notifyNewChatRoom(newRoom);
+      
+      swal("Success", "Chat room created successfully", "success");
+      
+      return newRoom;
+    } else {
+      throw new Error(res.data.message || 'Failed to create chat room');
+    }
   } catch (err) {
     logAction('CreateChatRoom Error', err);
     
@@ -334,14 +367,18 @@ export const UpdateChatRoom = (roomId, roomData) => async (dispatch) => {
     const res = await axios.put(`/api/rooms/${roomId}`, roomData);
     logAction('UpdateChatRoom Success', res.data);
 
-    const updatedRoom = res.data.chatRoom;
-    dispatch(_UpdateChatRoom(updatedRoom));
-    
-    // Notify other users about the updated chat room
-    chatSocketService.notifyNewChatRoom(updatedRoom);
-    
-    swal("Success", "Chat room updated successfully", "success");
-    return res.data;
+    if (res.data.success) {
+      const updatedRoom = res.data.chatRoom;
+      dispatch(_UpdateChatRoom(updatedRoom));
+      
+      // Notify other users about the updated chat room
+      chatSocketService.notifyNewChatRoom(updatedRoom);
+      
+      swal("Success", "Chat room updated successfully", "success");
+      return res.data;
+    } else {
+      throw new Error(res.data.message || 'Failed to update chat room');
+    }
   } catch (err) {
     logAction('UpdateChatRoom Error', err);
     
@@ -363,24 +400,30 @@ export const DeleteChatRoom = (roomId) => async (dispatch) => {
 
     try {
       checkAuthHeaders();
-      await axios.delete(`/api/rooms/${roomId}`);
-      logAction('DeleteChatRoom Success');
+      const res = await axios.delete(`/api/rooms/${roomId}`);
+      logAction('DeleteChatRoom Success', res.data);
 
-      dispatch(_DeleteChatRoom(roomId));
-      
-      // Notify other users about the deleted chat room
-      chatSocketService.socketClient.emit('silent-refresh', {
-        type: 'delete-chat-room',
-        roomId
-      });
-      
-      swal("Success", "Chat room deleted successfully", "success");
+      if (res.data.success) {
+        dispatch(_DeleteChatRoom(roomId));
+        
+        // Notify other users about the deleted chat room
+        chatSocketService.socketClient.emit('silent-refresh', {
+          type: 'delete-chat-room',
+          roomId
+        });
+        
+        swal("Success", "Chat room deleted successfully", "success");
+        return res.data;
+      } else {
+        throw new Error(res.data.message || 'Failed to delete chat room');
+      }
     } catch (err) {
       logAction('DeleteChatRoom Error', err);
       
       const errorMsg = err.response?.data?.message || 'Failed to delete chat room';
       dispatch(_ChatError(errorMsg));
       swal("Error", errorMsg, "error");
+      return null;
     } finally {
       dispatch(_SetChatLoading(false));
     }
@@ -396,25 +439,31 @@ export const DeleteMessage = (messageId, roomId) => async (dispatch) => {
 
     try {
       checkAuthHeaders();
-      await axios.delete(`/api/messages/${messageId}`);
-      logAction('DeleteMessage Success');
+      const res = await axios.delete(`/api/messages/${messageId}`);
+      logAction('DeleteMessage Success', res.data);
 
-      dispatch(_DeleteMessage({ roomId, messageId }));
-      
-      // Notify others about the deleted message
-      chatSocketService.socketClient.emit('silent-refresh', {
-        type: 'delete-message',
-        roomId,
-        messageId
-      });
-      
-      swal("Success", "Message deleted successfully", "success");
+      if (res.data.success) {
+        dispatch(_DeleteMessage({ roomId, messageId }));
+        
+        // Notify others about the deleted message
+        chatSocketService.socketClient.emit('silent-refresh', {
+          type: 'delete-message',
+          roomId,
+          messageId
+        });
+        
+        swal("Success", "Message deleted successfully", "success");
+        return res.data;
+      } else {
+        throw new Error(res.data.message || 'Failed to delete message');
+      }
     } catch (err) {
       logAction('DeleteMessage Error', err);
       
       const errorMsg = err.response?.data?.message || 'Failed to delete message';
       dispatch(_ChatError(errorMsg));
       swal("Error", errorMsg, "error");
+      return null;
     } finally {
       dispatch(_SetChatLoading(false));
     }
@@ -443,4 +492,683 @@ export const AddMessage = (message) => (dispatch) => {
 export const UpdateTypingStatus = (data) => (dispatch) => {
   logAction('UpdateTypingStatus (Socket)', data);
   dispatch(_UpdateTypingStatus(data));
+};
+
+// Get chat members
+export const GetChatMembers = (roomId) => async (dispatch) => {
+  logAction('GetChatMembers', { roomId });
+
+  try {
+    checkAuthHeaders();
+    const res = await axios.get(`/api/rooms/${roomId}/members`);
+    logAction('GetChatMembers Success', res.data);
+
+    if (res.data.success) {
+      // Dispatch members to store
+      dispatch(_SetChatMembers(res.data.members || []));
+      return res.data.members;
+    } else {
+      throw new Error(res.data.message || 'Failed to fetch members');
+    }
+  } catch (err) {
+    logAction('GetChatMembers Error', err);
+    
+    const errorMsg = err.response?.data?.message || 'Failed to fetch chat members';
+    dispatch(_ChatError(errorMsg));
+    swal("Error", errorMsg, "error");
+    return null;
+  }
+};
+
+// Show chat members in a SweetAlert dialog
+// Show chat members in a SweetAlert dialog
+// Show chat members in a SweetAlert dialog
+export const ShowChatMembers = (roomId) => async (dispatch, getState) => {
+  logAction('ShowChatMembers', { roomId });
+  
+  const { auth, chat } = getState();
+  const currentUser = auth.user;
+  const currentRoom = chat.currentRoom;
+  
+  // Debug log to check data
+  console.log('Current user:', currentUser);
+  console.log('Current room:', currentRoom);
+  
+  // If we already have the room data with participants
+  if (currentRoom && currentRoom._id === roomId && currentRoom.participants) {
+    // FIX: Correctly extract creator ID from the object
+    // The creator is stored as an object with _id property
+    const creatorId = currentRoom.createdBy._id || currentRoom.createdBy;
+    const userId = currentUser.id;
+    
+    console.log('Creator ID (extracted):', creatorId);
+    console.log('Current user ID:', userId);
+    
+    // Now this comparison should work properly
+    const isCreator = creatorId === userId;
+    
+    console.log('Is creator?', isCreator);
+    
+    // Format participants data for display
+    const membersList = currentRoom.participants.map(member => {
+      const memberId = member._id;
+      // Use same logic for comparing owner
+      const isOwner = creatorId === memberId;
+      const isCurrentUser = userId === memberId;
+      
+      return `
+        <div class="flex items-center justify-between mb-2 p-2 ${isCurrentUser ? 'bg-gray-100' : ''}">
+          <div class="flex items-center">
+            <div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white mr-2">
+              ${member.fullName?.charAt(0) || member.email?.charAt(0) || 'U'}
+            </div>
+            <div>
+              <p>${member.fullName || member.email} ${isOwner ? '<span class="text-primary">(Creator)</span>' : ''} ${isCurrentUser ? '(You)' : ''}</p>
+            </div>
+          </div>
+          ${(isCreator && !isCurrentUser) ? 
+            `<button data-member-id="${memberId}" class="remove-member-btn text-danger px-2 py-1 rounded border border-danger">
+              Remove
+            </button>` : ''}
+        </div>
+      `;
+    }).join('');
+    
+    // Create a custom HTML element for SweetAlert
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = `
+      <div class="max-h-96 overflow-y-auto">
+        ${membersList}
+      </div>
+      ${isCreator && !currentRoom.isDirectMessage ? 
+        `<button id="add-member-btn" class="mt-4 px-4 py-2 bg-primary text-white rounded">
+          Add Member
+        </button>` : ''}
+    `;
+    
+    // Show SweetAlert with members list
+    swal({
+      title: "Chat Members",
+      content: wrapper,
+      buttons: {
+        close: {
+          text: "Close",
+          value: null,
+          visible: true,
+          className: "bg-gray-500",
+          closeModal: true,
+        }
+      }
+    });
+    
+    // Wait for the SweetAlert to be fully rendered
+    setTimeout(() => {
+      // Add event listeners to remove buttons
+      document.querySelectorAll('.remove-member-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+          const memberId = this.getAttribute('data-member-id');
+          console.log('Removing member:', memberId);
+          swal.close();
+          dispatch(RemoveChatMember(roomId, memberId));
+        });
+      });
+      
+      // Add event listener to add member button
+      const addBtn = document.getElementById('add-member-btn');
+      if (addBtn) {
+        addBtn.addEventListener('click', function() {
+          console.log('Adding member');
+          swal.close();
+          dispatch(ShowAddMemberDialog(roomId));
+        });
+      }
+    }, 100);
+    
+  } else {
+    // Fetch room data first if we don't have it
+    try {
+      const roomData = await dispatch(GetChatRoom(roomId));
+      if (roomData) {
+        dispatch(ShowChatMembers(roomId));
+      }
+    } catch (err) {
+      swal("Error", "Failed to fetch chat information", "error");
+    }
+  }
+};
+
+// Update RemoveChatMember function to handle the action properly
+export const RemoveChatMember = (roomId, memberId) => async (dispatch) => {
+  logAction('RemoveChatMember', { roomId, memberId });
+  
+  try {
+    // Confirm before removing
+    const confirmResult = await swal({
+      title: "Remove Member",
+      text: "Are you sure you want to remove this member from the chat?",
+      icon: "warning",
+      buttons: ["Cancel", "Remove"],
+      dangerMode: true,
+    });
+    
+    if (!confirmResult) return null;
+    
+    checkAuthHeaders();
+    const res = await axios.delete(`/api/rooms/${roomId}/members/${memberId}`);
+    logAction('RemoveChatMember Success', res.data);
+    
+    // Handle both backend response formats
+    const success = res.data.success !== undefined ? res.data.success : true;
+    
+    if (success) {
+      // Update room data in Redux
+      dispatch(_RemoveChatMember(memberId));
+      
+      // Explicitly fetch fresh room data
+      dispatch(GetChatRoom(roomId));
+      
+      // Notify via socket
+      chatSocketService.socketClient.emit('chat-member-update', {
+        type: 'remove-member',
+        roomId,
+        memberId
+      });
+      
+      swal("Success", "Member removed from chat", "success");
+      return res.data;
+    } else {
+      throw new Error(res.data.message || 'Failed to remove member');
+    }
+  } catch (err) {
+    logAction('RemoveChatMember Error', err);
+    
+    const errorMsg = err.response?.data?.message || 'Failed to remove member from chat';
+    dispatch(_ChatError(errorMsg));
+    swal("Error", errorMsg, "error");
+    return null;
+  }
+};
+// Show add member dialog
+// Show add member dialog with multi-select functionality
+export const ShowAddMemberDialog = (roomId) => async (dispatch, getState) => {
+  logAction('ShowAddMemberDialog', { roomId });
+  
+  // Fetch all users first
+  await dispatch(GetAllUsers());
+  
+  const { chat } = getState();
+  const currentRoom = chat.currentRoom;
+  const allUsers = chat.allUsers || [];
+  
+  // Debug the data
+  console.log('Current room for adding members:', currentRoom);
+  console.log('Available users:', allUsers);
+  
+  // Check if we have users
+  if (!allUsers.length) {
+    swal("Error", "Failed to fetch users", "error");
+    return;
+  }
+  
+  // Filter out users already in the chat
+  const existingMemberIds = currentRoom.participants.map(p => p._id);
+  const availableUsers = allUsers.filter(user => !existingMemberIds.includes(user._id));
+  
+  console.log('Filtered available users:', availableUsers);
+  
+  if (availableUsers.length === 0) {
+    swal("No Users Available", "All users are already in this chat", "info");
+    return;
+  }
+  
+  // Create user selection options
+  const userOptions = availableUsers.map(user => {
+    return `
+      <div class="user-option flex items-center p-2 mb-1 hover:bg-gray-100 cursor-pointer" data-user-id="${user._id}" data-user-name="${user.fullName || user.email}">
+        <div class="flex-shrink-0">
+          <input type="checkbox" class="user-checkbox mr-2 h-5 w-5 rounded border-gray-300">
+        </div>
+        <div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white mr-2">
+          ${user.fullName?.charAt(0) || user.email?.charAt(0) || 'U'}
+        </div>
+        <p class="user-name">${user.fullName || user.email}</p>
+      </div>
+    `;
+  }).join('');
+  
+  // Create custom element for SweetAlert
+  const wrapper = document.createElement('div');
+  wrapper.className = "member-selection-container";
+  wrapper.innerHTML = `
+    <div class="mb-3">
+      <input type="text" id="search-users-input" class="w-full p-2 mb-2 border rounded" placeholder="Search users...">
+    </div>
+    <div class="selected-users mb-3" style="display: none;">
+      <p class="font-medium mb-1">Selected users:</p>
+      <div id="selected-users-list" class="flex flex-wrap gap-1"></div>
+    </div>
+    <div class="max-h-60 overflow-y-auto border rounded p-1">
+      <div id="users-list">
+        ${userOptions}
+      </div>
+    </div>
+  `;
+  
+  // Show SweetAlert with user selection
+  swal({
+    title: "Add Chat Members",
+    content: wrapper,
+    buttons: {
+      cancel: {
+        text: "Cancel",
+        value: null,
+        visible: true,
+        className: "bg-gray-500",
+        closeModal: true,
+      },
+      confirm: {
+        text: "Add Selected",
+        value: true,
+        visible: true,
+        className: "bg-primary",
+      }
+    }
+  }).then(async (confirmed) => {
+    if (confirmed) {
+      // Get all selected user IDs
+      const selectedUsers = [];
+      document.querySelectorAll('.user-checkbox:checked').forEach(checkbox => {
+        const userItem = checkbox.closest('.user-option');
+        if (userItem) {
+          selectedUsers.push({
+            id: userItem.getAttribute('data-user-id'),
+            name: userItem.getAttribute('data-user-name')
+          });
+        }
+      });
+      
+      console.log('Selected users to add:', selectedUsers);
+      
+      if (selectedUsers.length === 0) {
+        swal("No Users Selected", "Please select at least one user to add", "info");
+        return;
+      }
+      
+      // Show loading indicator
+      swal({
+        text: "Adding members...",
+        buttons: false,
+        closeOnClickOutside: false,
+        closeOnEsc: false
+      });
+      
+      // Add each user one by one
+      for (const user of selectedUsers) {
+        try {
+          await dispatch(AddChatMember(roomId, user.id));
+        } catch (error) {
+          console.error(`Failed to add user ${user.name}:`, error);
+        }
+      }
+      
+      // Show success message
+      swal("Success", `Added ${selectedUsers.length} member(s) to the chat`, "success");
+    }
+  });
+  
+  // Wait for the SweetAlert to be fully rendered
+  setTimeout(() => {
+    // Setup search functionality
+    const searchInput = document.getElementById('search-users-input');
+    if (searchInput) {
+      searchInput.addEventListener('input', (e) => {
+        const searchText = e.target.value.toLowerCase();
+        document.querySelectorAll('.user-option').forEach(el => {
+          const userName = el.querySelector('.user-name').textContent.toLowerCase();
+          el.style.display = userName.includes(searchText) ? 'flex' : 'none';
+        });
+      });
+    }
+    
+    // Make the entire row clickable to toggle checkbox
+    document.querySelectorAll('.user-option').forEach(item => {
+      item.addEventListener('click', function(e) {
+        // Don't toggle if clicking directly on the checkbox (it will toggle naturally)
+        if (e.target.type !== 'checkbox') {
+          const checkbox = this.querySelector('.user-checkbox');
+          checkbox.checked = !checkbox.checked;
+        }
+        
+        // Update selected users display
+        updateSelectedUsersDisplay();
+      });
+    });
+    
+    // Function to update the selected users display
+    function updateSelectedUsersDisplay() {
+      const selectedUsersContainer = document.querySelector('.selected-users');
+      const selectedUsersList = document.getElementById('selected-users-list');
+      const selectedCheckboxes = document.querySelectorAll('.user-checkbox:checked');
+      
+      // Clear the list
+      selectedUsersList.innerHTML = '';
+      
+      if (selectedCheckboxes.length > 0) {
+        selectedUsersContainer.style.display = 'block';
+        
+        // Add each selected user as a pill/tag
+        selectedCheckboxes.forEach(checkbox => {
+          const userItem = checkbox.closest('.user-option');
+          const userName = userItem.getAttribute('data-user-name');
+          
+          const userTag = document.createElement('span');
+          userTag.className = 'bg-primary text-white px-2 py-1 rounded-full text-sm inline-flex items-center';
+          userTag.innerHTML = `
+            ${userName}
+            <button class="ml-1 focus:outline-none" data-user-id="${userItem.getAttribute('data-user-id')}">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          `;
+          
+          // Add click handler to remove user
+          userTag.querySelector('button').addEventListener('click', (e) => {
+            e.stopPropagation(); // Prevent the event from bubbling
+            
+            // Find and uncheck the corresponding checkbox
+            const userId = e.currentTarget.getAttribute('data-user-id');
+            const userOption = document.querySelector(`.user-option[data-user-id="${userId}"]`);
+            if (userOption) {
+              const checkbox = userOption.querySelector('.user-checkbox');
+              checkbox.checked = false;
+            }
+            
+            // Update the display
+            updateSelectedUsersDisplay();
+          });
+          
+          selectedUsersList.appendChild(userTag);
+        });
+      } else {
+        selectedUsersContainer.style.display = 'none';
+      }
+    }
+  }, 100);
+};
+
+// Add a single member to a chat room
+export const AddChatMember = (roomId, userId) => async (dispatch) => {
+  logAction('AddChatMember', { roomId, userId });
+  
+  try {
+    checkAuthHeaders();
+    const res = await axios.post(`/api/rooms/${roomId}/members`, { userId });
+    logAction('AddChatMember Success', res.data);
+    
+    // Handle both backend response formats
+    const success = res.data.success !== undefined ? res.data.success : true;
+    
+    if (success) {
+      // Explicitly fetch fresh room data
+      dispatch(GetChatRoom(roomId));
+      
+      // Notify via socket
+      chatSocketService.socketClient.emit('chat-member-update', {
+        type: 'add-member',
+        roomId,
+        userId
+      });
+      
+      return res.data.chatRoom || res.data;
+    } else {
+      throw new Error(res.data.message || 'Failed to add member');
+    }
+  } catch (err) {
+    logAction('AddChatMember Error', err);
+    
+    const errorMsg = err.response?.data?.message || 'Failed to add member to chat';
+    dispatch(_ChatError(errorMsg));
+    throw err; // Rethrow to handle in the caller
+  }
+};
+
+
+  
+  // Confirm before removing
+  
+
+// Show chat info in a SweetAlert dialog
+export const ShowChatInfo = (roomId) => async (dispatch, getState) => {
+  logAction('ShowChatInfo', { roomId });
+  
+  const { auth, chat } = getState();
+  const currentUser = auth.user;
+  const currentRoom = chat.currentRoom;
+  
+  // If we already have the room data
+  if (currentRoom && currentRoom._id === roomId) {
+    const isCreator = currentRoom.createdBy._id === currentUser.id;
+    const isDirectMessage = currentRoom.isDirectMessage;
+    
+    // Format creation date
+    const createdAt = new Date(currentRoom.createdAt).toLocaleDateString();
+    
+    // Get participant count
+    const participantCount = currentRoom.participants?.length || 0;
+    
+    // Show SweetAlert with chat info
+    swal({
+      title: isDirectMessage ? "Direct Message" : "Group Chat Info",
+      content: {
+        element: "div",
+        attributes: {
+          innerHTML: `
+            <div class="text-left">
+              <p><strong>Name:</strong> ${isDirectMessage ? "Direct Message" : currentRoom.name}</p>
+              <p><strong>Created:</strong> ${createdAt}</p>
+              <p><strong>Members:</strong> ${participantCount}</p>
+              ${isCreator && !isDirectMessage ? 
+                `<button id="edit-chat-btn" class="mt-4 mr-2 px-4 py-2 bg-primary text-white rounded">
+                  Edit Name
+                </button>
+                <button id="delete-chat-btn" class="mt-4 px-4 py-2 bg-danger text-white rounded">
+                  Delete Chat
+                </button>` : ''}
+              ${!isCreator && !isDirectMessage ? 
+                `<button id="leave-chat-btn" class="mt-4 px-4 py-2 bg-danger text-white rounded">
+                  Leave Chat
+                </button>` : ''}
+              ${isDirectMessage ? 
+                `<button id="clear-chat-btn" class="mt-4 px-4 py-2 bg-danger text-white rounded">
+                  Clear Chat
+                </button>` : ''}
+            </div>
+          `
+        }
+      },
+      buttons: {
+        close: {
+          text: "Close",
+          value: null,
+          visible: true,
+          className: "bg-gray-500",
+          closeModal: true,
+        }
+      }
+    });
+    
+    // Setup event listeners for chat actions
+    document.getElementById('edit-chat-btn')?.addEventListener('click', () => {
+      swal.close();
+      dispatch(ShowEditChatDialog(roomId));
+    });
+    
+    document.getElementById('delete-chat-btn')?.addEventListener('click', () => {
+      swal.close();
+      dispatch(DeleteChatRoom(roomId));
+    });
+    
+    document.getElementById('leave-chat-btn')?.addEventListener('click', () => {
+      swal.close();
+      dispatch(LeaveChatRoom(roomId));
+    });
+    
+    document.getElementById('clear-chat-btn')?.addEventListener('click', () => {
+      swal.close();
+      dispatch(ClearChat(roomId));
+    });
+  } else {
+    // Fetch room data first if we don't have it
+    try {
+      const roomData = await dispatch(GetChatRoom(roomId));
+      if (roomData) {
+        dispatch(ShowChatInfo(roomId));
+      }
+    } catch (err) {
+      swal("Error", "Failed to fetch chat information", "error");
+    }
+  }
+};
+
+// Show edit chat dialog
+export const ShowEditChatDialog = (roomId) => async (dispatch, getState) => {
+  logAction('ShowEditChatDialog', { roomId });
+  
+  const { chat } = getState();
+  const currentRoom = chat.currentRoom;
+  
+  if (!currentRoom || currentRoom._id !== roomId) {
+    await dispatch(GetChatRoom(roomId));
+  }
+  
+  // Show SweetAlert with edit form
+  const result = await swal({
+    title: "Edit Chat",
+    content: {
+      element: "input",
+      attributes: {
+        placeholder: "Enter new chat name",
+        type: "text",
+        value: currentRoom.name,
+        className: "w-full p-2 border rounded"
+      }
+    },
+    buttons: {
+      cancel: {
+        text: "Cancel",
+        value: null,
+        visible: true,
+        className: "bg-gray-500",
+        closeModal: true,
+      },
+      confirm: {
+        text: "Update",
+        value: true,
+        visible: true,
+        className: "bg-primary",
+      }
+    }
+  });
+  
+  if (result) {
+    const newName = document.querySelector('.swal-content input').value.trim();
+    
+    if (newName && newName !== currentRoom.name) {
+      dispatch(UpdateChatRoom(roomId, { name: newName }));
+    }
+  }
+};
+// Add this export to your chatActions.js file
+// Make sure it's added to the exports at the bottom of the file
+
+// Clear chat messages
+export const ClearChat = (roomId) => async (dispatch) => {
+  logAction('ClearChat', { roomId });
+  
+  // Confirm before clearing
+  const confirmResult = await swal({
+    title: "Clear Chat",
+    text: "Are you sure you want to clear all messages? This cannot be undone.",
+    icon: "warning",
+    buttons: ["Cancel", "Clear"],
+    dangerMode: true,
+  });
+  
+  if (!confirmResult) return null;
+  
+  try {
+    checkAuthHeaders();
+    const res = await axios.delete(`/api/messages/${roomId}/all`);
+    logAction('ClearChat Success', res.data);
+    
+    if (res.data.success) {
+      // Clear messages in Redux
+      dispatch(_ClearChatMessages(roomId));
+      
+      // Notify via socket
+      chatSocketService.socketClient.emit('silent-refresh', {
+        type: 'clear-chat',
+        roomId
+      });
+      
+      swal("Success", "Chat messages cleared", "success");
+      return res.data;
+    } else {
+      throw new Error(res.data.message || 'Failed to clear chat messages');
+    }
+  } catch (err) {
+    logAction('ClearChat Error', err);
+    
+    const errorMsg = err.response?.data?.message || 'Failed to clear chat messages';
+    dispatch(_ChatError(errorMsg));
+    swal("Error", errorMsg, "error");
+    return null;
+  }
+};
+
+// Leave a chat room
+export const LeaveChatRoom = (roomId) => async (dispatch, getState) => {
+  logAction('LeaveChatRoom', { roomId });
+  
+  const { auth } = getState();
+  const userId = auth.user.id;
+  
+  // Confirm before leaving
+  const confirmResult = await swal({
+    title: "Leave Chat",
+    text: "Are you sure you want to leave this chat?",
+    icon: "warning",
+    buttons: ["Cancel", "Leave"],
+    dangerMode: true,
+  });
+  
+  if (!confirmResult) return null;
+  
+  try {
+    checkAuthHeaders();
+    const res = await axios.delete(`/api/rooms/${roomId}/members/${userId}`);
+    logAction('LeaveChatRoom Success', res.data);
+    
+    if (res.data.success) {
+      // Remove room from list
+      dispatch(_DeleteChatRoom(roomId));
+      
+      // Navigate back to chat list
+      window.location.href = '/chat';
+      
+      swal("Success", "You have left the chat", "success");
+      return res.data;
+    } else {
+      throw new Error(res.data.message || 'Failed to leave chat');
+    }
+  } catch (err) {
+    logAction('LeaveChatRoom Error', err);
+    
+    const errorMsg = err.response?.data?.message || 'Failed to leave chat';
+    dispatch(_ChatError(errorMsg));
+    swal("Error", errorMsg, "error");
+    return null;
+  }
 };

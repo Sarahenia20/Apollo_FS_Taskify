@@ -1,5 +1,7 @@
 import { createSlice } from '@reduxjs/toolkit';
 
+
+
 const initialState = {
   loading: false,
   createChatLoading: false,
@@ -7,6 +9,7 @@ const initialState = {
   currentRoom: null,
   chatRooms: [],
   messages: {}, // Object mapping roomId -> array of messages
+  chatMembers: [], // Array of members for the current chat
   hasMoreMessages: false,
   allUsers: [],
   typingUsers: {},
@@ -271,6 +274,63 @@ _AddMessage: (state, action) => {
       } else {
         state.typingUsers = {};
       }
+    },
+    SetChatMembers: (state, action) => {
+      state.chatMembers = action.payload;
+    },
+    
+    _RemoveChatMember: (state, action) => {
+      const memberId = action.payload;
+      
+      // Update chatMembers array
+      state.chatMembers = state.chatMembers.filter(
+        member => member._id !== memberId
+      );
+      
+      // Also update the currentRoom's participants
+      if (state.currentRoom && state.currentRoom.participants) {
+        state.currentRoom.participants = state.currentRoom.participants.filter(
+          member => member._id !== memberId
+        );
+      }
+    },
+    
+    _AddChatMember: (state, action) => {
+      const newMember = action.payload;
+      
+      // Add to chatMembers if not already there
+      if (!state.chatMembers.some(member => member._id === newMember._id)) {
+        state.chatMembers.push(newMember);
+      }
+      
+      // Also add to currentRoom's participants if not already there
+      if (state.currentRoom && state.currentRoom.participants) {
+        if (!state.currentRoom.participants.some(member => member._id === newMember._id)) {
+          state.currentRoom.participants.push(newMember);
+        }
+      }
+    },
+    
+    _ClearChatMessages: (state, action) => {
+      const roomId = action.payload;
+      
+      // Clear messages for this room
+      if (state.messages && state.messages[roomId]) {
+        state.messages[roomId] = [];
+      }
+      
+      // Also update the lastMessage in the chat rooms list
+      if (state.chatRooms && state.chatRooms.length > 0) {
+        const roomIndex = state.chatRooms.findIndex(room => room._id === roomId);
+        if (roomIndex !== -1) {
+          state.chatRooms[roomIndex].lastMessage = null;
+        }
+      }
+      
+      // Clear lastMessage in current room if applicable
+      if (state.currentRoom && state.currentRoom._id === roomId) {
+        state.currentRoom.lastMessage = null;
+      }
     }
   }
 });
@@ -297,7 +357,11 @@ export const {
   _UpdateTypingStatus,
   _ClearTypingStatus,
   _ReplaceMessage,
-  _RemoveMessage
+  _RemoveMessage,
+  _SetChatMembers,
+  _RemoveChatMember,
+  _AddChatMember,
+  _ClearChatMessages
 } = chatSlice.actions;
 
 // Export the reducer as default

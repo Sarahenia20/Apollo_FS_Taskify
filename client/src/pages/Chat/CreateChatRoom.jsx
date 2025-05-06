@@ -11,9 +11,8 @@ const CreateChatRoom = () => {
   const [chatType, setChatType] = useState('individual'); // 'individual' or 'group'
   const [formData, setFormData] = useState({
     name: '',
-    description: '',
     participants: [],
-    isPrivate: true,
+    isPrivate: true, // Always private
     isDirectMessage: true
   });
   const [errors, setErrors] = useState({});
@@ -31,19 +30,13 @@ const CreateChatRoom = () => {
   useEffect(() => {
     if (chatType === 'individual' && selectedUser) {
       const existingDirectChat = chatRooms.find(room => {
-        // Check if it's a direct message
         if (!room.isDirectMessage) return false;
-        
-        // Check if it has exactly 2 participants
         if (room.participants?.length !== 2) return false;
-        
-        // Check if the participants are the current user and the selected user
         return room.participants.some(p => p._id === selectedUser) &&
                room.participants.some(p => p._id === user?.id);
       });
       
       if (existingDirectChat) {
-        // Navigate to the existing chat instead of creating a new one
         navigate(`/chat/room/${existingDirectChat._id}`);
       }
     }
@@ -64,7 +57,6 @@ const CreateChatRoom = () => {
     if (type === 'individual') {
       setFormData({
         name: '',
-        description: '',
         participants: [],
         isPrivate: true,
         isDirectMessage: true
@@ -72,27 +64,24 @@ const CreateChatRoom = () => {
     } else {
       setFormData({
         name: '',
-        description: '',
         participants: [],
-        isPrivate: false,
+        isPrivate: true, // Always private for group chats
         isDirectMessage: false
       });
     }
     
-    // Clear errors
     setErrors({});
     setSelectedUser(null);
   };
   
   // Handle input changes
   const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
+    const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value
+      [name]: value
     }));
     
-    // Clear error when field is edited
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }));
     }
@@ -116,7 +105,6 @@ const CreateChatRoom = () => {
       }));
     }
     
-    // Clear errors
     if (errors.participants) {
       setErrors(prev => ({ ...prev, participants: '' }));
     }
@@ -127,7 +115,6 @@ const CreateChatRoom = () => {
     const participants = selectedOptions ? selectedOptions.map(option => option.value) : [];
     setFormData(prev => ({ ...prev, participants }));
     
-    // Clear error when field is edited
     if (errors.participants) {
       setErrors(prev => ({ ...prev, participants: '' }));
     }
@@ -159,11 +146,7 @@ const CreateChatRoom = () => {
     
     try {
       const createdRoom = await dispatch(CreateNewChatRoom(formData));
-      
-      // Notify other users in real-time about the new chat room
       chatSocketService.notifyNewChatRoom(createdRoom);
-      
-      // Navigate to the new chat room
       navigate(`/chat/room/${createdRoom._id}`);
     } catch (error) {
       console.error('Error creating chat room:', error);
@@ -208,57 +191,13 @@ const CreateChatRoom = () => {
         </div>
       </div>
       
-      <form onSubmit={handleSubmit}>
-        {/* Chat Name - Only for group chats */}
-        {chatType === 'group' && (
+      <form onSubmit={handleSubmit} className="bg-white dark:bg-boxdark p-6 rounded-lg shadow-sm">
+        {/* Individual Chat UI */}
+        {chatType === 'individual' && (
           <div className="mb-4">
             <label className="mb-2.5 block font-medium text-black dark:text-white">
-              Group Name <span className="text-danger">*</span>
+              Select User <span className="text-danger">*</span>
             </label>
-            <input
-              type="text"
-              name="name"
-              value={formData.name}
-              onChange={handleChange}
-              placeholder="Enter group name"
-              className={`w-full rounded-lg border border-stroke bg-white py-3 px-4 
-                text-black focus:border-primary focus-visible:outline-none dark:border-strokedark 
-                dark:bg-meta-4 dark:text-white dark:focus:border-primary
-                ${errors.name ? 'border-danger' : ''}`}
-            />
-            {errors.name && (
-              <p className="text-danger text-xs mt-1">{errors.name}</p>
-            )}
-          </div>
-        )}
-        
-        {/* Description - Only for group chats */}
-        {chatType === 'group' && (
-          <div className="mb-4">
-            <label className="mb-2.5 block font-medium text-black dark:text-white">
-              Description
-            </label>
-            <textarea
-              name="description"
-              value={formData.description}
-              onChange={handleChange}
-              placeholder="Enter group description (optional)"
-              rows="3"
-              className="w-full rounded-lg border border-stroke bg-white py-3 px-4 
-                text-black focus:border-primary focus-visible:outline-none dark:border-strokedark 
-                dark:bg-meta-4 dark:text-white dark:focus:border-primary"
-            ></textarea>
-          </div>
-        )}
-        
-        {/* Participants Selection */}
-        <div className="mb-4">
-          <label className="mb-2.5 block font-medium text-black dark:text-white">
-            {chatType === 'individual' ? 'Select User' : 'Add Participants'} <span className="text-danger">*</span>
-          </label>
-          
-          {chatType === 'individual' ? (
-            // Single user selector for individual chats
             <Select
               name="participants"
               options={userOptions}
@@ -290,66 +229,83 @@ const CreateChatRoom = () => {
                 })
               }}
             />
-          ) : (
-            // Multi-select for group chats
-            <Select
-              isMulti
-              name="participants"
-              options={userOptions}
-              className={`react-select ${errors.participants ? 'border-danger' : ''}`}
-              classNamePrefix="select"
-              placeholder="Select participants"
-              onChange={handleGroupParticipantChange}
-              styles={{
-                control: (base) => ({
-                  ...base,
-                  background: 'white',
-                  borderColor: errors.participants ? '#F87171' : '#E2E8F0',
-                  '&:hover': {
-                    borderColor: '#3B82F6'
-                  }
-                }),
-                menu: (base) => ({
-                  ...base,
-                  background: 'white',
-                  zIndex: 10
-                }),
-                option: (base, { isSelected }) => ({
-                  ...base,
-                  backgroundColor: isSelected ? '#3B82F6' : 'white',
-                  '&:hover': {
-                    backgroundColor: isSelected ? '#3B82F6' : '#E2E8F0'
-                  }
-                })
-              }}
-            />
-          )}
-          
-          {errors.participants && (
-            <p className="text-danger text-xs mt-1">{errors.participants}</p>
-          )}
-        </div>
-        
-        {/* Private Chat Option - Only for group chats */}
-        {chatType === 'group' && (
-          <div className="mb-6 flex items-center">
-            <input
-              type="checkbox"
-              id="isPrivate"
-              name="isPrivate"
-              checked={formData.isPrivate}
-              onChange={handleChange}
-              className="h-5 w-5 rounded border-stroke bg-white checked:bg-primary 
-                checked:border-primary dark:border-strokedark dark:bg-meta-4"
-            />
-            <label htmlFor="isPrivate" className="ml-2.5 block font-medium text-black dark:text-white">
-              Private Group (Only visible to participants)
-            </label>
+            {errors.participants && (
+              <p className="text-danger text-xs mt-1">{errors.participants}</p>
+            )}
           </div>
         )}
         
-        {/* Submit Button */}
-        <div className="flex justify-end gap-4">
+        {/* Group Chat UI */}
+        {chatType === 'group' && (
+          <>
+            {/* Group Name */}
+            <div className="mb-4">
+              <label className="mb-2.5 block font-medium text-black dark:text-white">
+                Group Name <span className="text-danger">*</span>
+              </label>
+              <input
+                type="text"
+                name="name"
+                value={formData.name}
+                onChange={handleChange}
+                placeholder="Enter group name"
+                className={`w-full rounded-lg border border-stroke bg-white py-3 px-4 
+                  text-black focus:border-primary focus-visible:outline-none dark:border-strokedark 
+                  dark:bg-meta-4 dark:text-white dark:focus:border-primary
+                  ${errors.name ? 'border-danger' : ''}`}
+              />
+              {errors.name && (
+                <p className="text-danger text-xs mt-1">{errors.name}</p>
+              )}
+            </div>
+            
+            {/* Group Participants */}
+            <div className="mb-4">
+              <label className="mb-2.5 block font-medium text-black dark:text-white">
+                Add Participants <span className="text-danger">*</span>
+              </label>
+              <Select
+                isMulti
+                name="participants"
+                options={userOptions}
+                className={`react-select ${errors.participants ? 'border-danger' : ''}`}
+                classNamePrefix="select"
+                placeholder="Select participants"
+                onChange={handleGroupParticipantChange}
+                styles={{
+                  control: (base) => ({
+                    ...base,
+                    background: 'white',
+                    borderColor: errors.participants ? '#F87171' : '#E2E8F0',
+                    '&:hover': {
+                      borderColor: '#3B82F6'
+                    }
+                  }),
+                  menu: (base) => ({
+                    ...base,
+                    background: 'white',
+                    zIndex: 10
+                  }),
+                  option: (base, { isSelected }) => ({
+                    ...base,
+                    backgroundColor: isSelected ? '#3B82F6' : 'white',
+                    '&:hover': {
+                      backgroundColor: isSelected ? '#3B82F6' : '#E2E8F0'
+                    }
+                  })
+                }}
+              />
+              {errors.participants && (
+                <p className="text-danger text-xs mt-1">{errors.participants}</p>
+              )}
+            </div>
+            
+            {/* Removed Private Group Option since all groups are always private */}
+          </>
+        )}
+        
+        {/* Action Buttons - Inside the form box */}
+        <div className="flex justify-end gap-4 mt-6 pt-4 border-t border-stroke dark:border-strokedark">
           <button
             type="button"
             onClick={() => navigate('/chat')}

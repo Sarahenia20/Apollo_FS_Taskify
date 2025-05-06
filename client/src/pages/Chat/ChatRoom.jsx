@@ -7,7 +7,11 @@ import {
   SendMessage, 
   MarkMessagesRead,
   ClearCurrentRoom,
-  ClearChatError
+  ClearChatError,
+  ShowChatMembers,
+  ShowChatInfo,
+  ClearChat,
+  LeaveChatRoom
 } from '../../redux/actions/chatActions';
 import chatSocketService from '../../services/chatSocketService';
 
@@ -96,6 +100,44 @@ const ChatRoom = () => {
     // Clean up
     return () => {
       chatSocketService.socketClient.off('new-message', handleNewMessage);
+    };
+  }, [dispatch, roomId]);
+  
+  // Listen for chat cleared event
+  useEffect(() => {
+    const handleChatCleared = (data) => {
+      if (data.roomId === roomId) {
+        console.log("Chat cleared event received:", data);
+        // Refresh messages
+        dispatch(GetMessages(roomId, 1, 20));
+      }
+    };
+    
+    // Setup socket listener for chat cleared
+    chatSocketService.socketClient.on('chat-cleared', handleChatCleared);
+    
+    // Clean up
+    return () => {
+      chatSocketService.socketClient.off('chat-cleared', handleChatCleared);
+    };
+  }, [dispatch, roomId]);
+  
+  // Listen for member updates
+  useEffect(() => {
+    const handleMemberUpdate = (data) => {
+      if (data.roomId === roomId) {
+        console.log("Member update received:", data);
+        // Refresh room data
+        dispatch(GetChatRoom(roomId));
+      }
+    };
+    
+    // Setup socket listener for member updates
+    chatSocketService.socketClient.on('chat-member-update', handleMemberUpdate);
+    
+    // Clean up
+    return () => {
+      chatSocketService.socketClient.off('chat-member-update', handleMemberUpdate);
     };
   }, [dispatch, roomId]);
   
@@ -349,11 +391,29 @@ const ChatRoom = () => {
     return date.toLocaleDateString();
   };
   
-  // Handle leaving the chat
-  const handleLeaveChat = () => {
-    // Handle leave chat logic
+  // Handle menu items
+  const handleViewChatInfo = () => {
     setShowMenu(false);
-    navigate('/chat');
+    dispatch(ShowChatInfo(roomId));
+  };
+  
+  const handleShowMembers = () => {
+    setShowMenu(false);
+    dispatch(ShowChatMembers(roomId));
+  };
+  
+  const handleClearChat = () => {
+    setShowMenu(false);
+    dispatch(ClearChat(roomId));
+  };
+  
+  const handleLeaveChat = () => {
+    setShowMenu(false);
+    if (currentRoom && !currentRoom.isDirectMessage) {
+      dispatch(LeaveChatRoom(roomId));
+    } else {
+      navigate('/chat');
+    }
   };
   
   // Render chat header
@@ -395,7 +455,8 @@ const ChatRoom = () => {
                 : currentRoom.name}
             </h3>
             {!isDirectMessage && currentRoom.participants && (
-              <p className="text-xs text-bodydark2">
+              <p className="text-xs text-bodydark2 cursor-pointer hover:underline" 
+                 onClick={handleShowMembers}>
                 {currentRoom.participants.length} {currentRoom.participants.length === 1 ? 'member' : 'members'}
               </p>
             )}
@@ -437,22 +498,39 @@ const ChatRoom = () => {
                 <div className="py-1">
                   <button 
                     className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-white hover:bg-gray-2 dark:hover:bg-meta-4"
-                    onClick={() => setShowMenu(false)}
+                    onClick={handleViewChatInfo}
                   >
                     View Chat Info
                   </button>
+                  {!isDirectMessage && (
+                    <button 
+                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-white hover:bg-gray-2 dark:hover:bg-meta-4"
+                      onClick={handleShowMembers}
+                    >
+                      View Members
+                    </button>
+                  )}
                   <button 
                     className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-white hover:bg-gray-2 dark:hover:bg-meta-4"
                     onClick={() => setShowMenu(false)}
                   >
                     Mute Notifications
                   </button>
-                  <button 
-                    className="block w-full text-left px-4 py-2 text-sm text-danger hover:bg-gray-2 dark:hover:bg-meta-4"
-                    onClick={handleLeaveChat}
-                  >
-                    {currentRoom.isDirectMessage ? 'Clear Chat' : 'Leave Group'}
-                  </button>
+                  {isDirectMessage ? (
+                    <button 
+                      className="block w-full text-left px-4 py-2 text-sm text-danger hover:bg-gray-2 dark:hover:bg-meta-4"
+                      onClick={handleClearChat}
+                    >
+                      Clear Chat
+                    </button>
+                  ) : (
+                    <button 
+                      className="block w-full text-left px-4 py-2 text-sm text-danger hover:bg-gray-2 dark:hover:bg-meta-4"
+                      onClick={handleLeaveChat}
+                    >
+                      Leave Group
+                    </button>
+                  )}
                 </div>
               </div>
             )}
