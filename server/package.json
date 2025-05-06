@@ -7,6 +7,7 @@
     "dev": "concurrently 'npm start' 'cd ../client && npm run dev'"
   },
   "dependencies": {
+    "@google-cloud/translate": "^9.0.1",
     "@google/generative-ai": "^0.24.0",
     "@sendgrid/mail": "^8.1.4",
     "a": "^3.0.1",
@@ -20,6 +21,7 @@
     "dotenv": "^16.0.3",
     "express": "^4.21.2",
     "express-validator": "^7.2.1",
+    "google-translate": "^3.0.0",
     "helmet": "^8.0.0",
     "jsonwebtoken": "^9.0.0",
     "jwt-decode": "^3.1.2",

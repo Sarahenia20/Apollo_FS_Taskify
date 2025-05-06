@@ -285,52 +285,61 @@ const VideoCallModal = ({ roomName, onClose }) => {
     }
   };
 
-  // Traduire le texte (implémentation similaire à Google Translate)
+  // Traduire le texte en utilisant l'API non officielle de Google Translate
   const translateText = async (targetLang) => {
-    if (!transcript) return;
+    if (!transcript) {
+      setIsTranslating(false);
+      return;
+    }
 
     setIsTranslating(true);
     setTranslateTo(targetLang);
 
     try {
-      // Intégration d'une API de traduction (à remplacer par une API réelle)
-      // Cette section simule une requête API à un service de traduction
-
-      // Pour une implémentation réelle avec l'API Google Cloud Translation:
-      // 1. Créer un compte Google Cloud
-      // 2. Activer l'API Cloud Translation
-      // 3. Obtenir une clé API
-      // 4. Créer un point de terminaison backend sur votre serveur pour protéger votre clé API
-      
-      // Simulation de l'appel API
       const sourceLang = originalTextLanguage;
-      const textToTranslate = transcript;
-      
-      // Simulation de la réponse API
-      setTimeout(() => {
-        let translatedResult;
-        
-        // Langues principales (simulation seulement, à remplacer par vraie API)
-        if (sourceLang === targetLang) {
-          translatedResult = textToTranslate;
-        } else {
-          // Cette simulation est très basique. Dans une implémentation réelle, 
-          // vous appelleriez l'API de traduction de Google ou une alternative.
-          translatedResult = `${textToTranslate} [Traduit de ${getLanguageName(sourceLang)} vers ${getLanguageName(targetLang)}]`;
-        }
-        
-        setTranslatedText(translatedResult);
-        setIsTranslating(false);
-      }, 500); // Simulation du délai de l'API
-      
+      const textToTranslate = encodeURIComponent(transcript);
+
+      // Appel à l'API non officielle de Google Translate
+      const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${sourceLang}&tl=${targetLang}&dt=t&q=${textToTranslate}`;
+      const response = await fetch(url);
+      const data = await response.json();
+
+      // Extraire le texte traduit (la réponse est un tableau complexe)
+      const translatedResult = data[0].map(item => item[0]).join(" ");
+
+      setTranslatedText(translatedResult);
+      setTargetLanguage(targetLang); // Changer la langue d'affichage en fonction de la traduction
     } catch (error) {
       console.error("Erreur lors de la traduction:", error);
-      const errorMessage = getTranslationErrorMessage(targetLanguage);
-      setTranslatedText(errorMessage);
+      setTranslatedText(getTranslationErrorMessage(targetLang));
+    } finally {
       setIsTranslating(false);
+      setShowTranslateOptions(false);
     }
-    
-    setShowTranslateOptions(false);
+
+    // Note: Cette méthode utilise une API non officielle et peut cesser de fonctionner si Google modifie son service.
+    // Pour une solution plus robuste, configurez un backend pour appeler l'API officielle de Google Cloud Translation :
+    // 1. Créez un projet Google Cloud et activez l'API Translation.
+    // 2. Créez une clé API ou utilisez des identifiants de service.
+    // 3. Configurez un serveur backend (par exemple avec Node.js) pour gérer les appels API.
+    // 4. Appelez votre backend depuis ce composant React via fetch ou axios.
+    // Exemple de pseudo-code pour le backend :
+    /*
+    const { TranslationServiceClient } = require('@google-cloud/translate');
+    const translationClient = new TranslationServiceClient();
+    app.post('/translate', async (req, res) => {
+      const { text, sourceLang, targetLang } = req.body;
+      const request = {
+        parent: `projects/your-project-id/locations/global`,
+        contents: [text],
+        mimeType: 'text/plain',
+        sourceLanguageCode: sourceLang,
+        targetLanguageCode: targetLang,
+      };
+      const [response] = await translationClient.translateText(request);
+      res.json({ translatedText: response.translations[0].translatedText });
+    });
+    */
   };
 
   // Obtenir le nom de la langue à partir du code
@@ -459,7 +468,7 @@ const VideoCallModal = ({ roomName, onClose }) => {
       case "en": return "Speak now, the transcript will appear here...";
       case "ar": return "تحدث الآن، سيظهر النص هنا...";
       case "es": return "Hable ahora, la transcripción aparecerá aquí...";
-      case "de": return "Sprechen Sie jetzt, das Transkript wird hier angezeigt...";
+      case "de": return "Sprechen Sie jetzt, das Transkript wird ici angezeigt...";
       default: return "Speak now, the transcript will appear here...";
     }
   };
@@ -579,7 +588,7 @@ const VideoCallModal = ({ roomName, onClose }) => {
               <div className="relative">
                 <button
                   onClick={toggleTranslateOptions}
-                  className="bg-blue-500 hover:bg-blue-600 text-white py-1 px-3 rounded text-sm flex items-center"
+                  className="bg-black hover:bg-gray-900 text-white py-1 px-3 rounded text-sm flex items-center"
                   disabled={!transcript}
                 >
                   <svg
