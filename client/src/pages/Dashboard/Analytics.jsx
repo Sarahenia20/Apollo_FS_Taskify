@@ -9,6 +9,8 @@ import TableOne from "../../components/TableOne";
 import ChartOne from "../../components/ChartOne";
 import ChartTwo from "../../components/ChartTwo";
 import ChartThree from "../../components/ChartThree";
+import PieChart from "../../components/PieChart";
+import Courbe from "../../components/courbe"; // Import the new Courbe component
 import { UseAuth } from "../../hooks/useAuth";
 
 const Analytics = () => {
@@ -25,6 +27,12 @@ const Analytics = () => {
         </div>
         <div className="col-span-12 xl:col-span-5">
           <ChatCard />
+        </div>
+        <div className="col-span-12 xl:col-span-7">
+          <PieChart />
+        </div>
+        <div className="col-span-12 xl:col-span-5">
+          <Courbe /> {/* Replaced PieChart with Courbe */}
         </div>
       </div>
     </DefaultLayout>

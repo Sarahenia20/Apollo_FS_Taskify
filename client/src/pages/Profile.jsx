@@ -551,7 +551,4 @@ const Profile = () => {
   );
 };
 
-export default UseAuth(
-  Profile,
-  ROLES.map((r) => r.title)
-);
+export default Profile;

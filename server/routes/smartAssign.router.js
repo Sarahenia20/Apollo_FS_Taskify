@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const auth = require("../middlewares/auth");
 const mongoose = require("mongoose");
+const axios = require("axios");
 
 const User = mongoose.model("users");
 
@@ -72,13 +73,22 @@ router.get("/test", (req, res) => {
   return res.json({ message: "Smart Assign Router is working" });
 });
 
-router.post("/detect-skills", (req, res) => {
+router.post("/detect-skills", async (req, res) => {
   try {
     const { description } = req.body;
     if (!description) return res.status(400).json({ msg: "Description is required" });
 
+    // Call local NLP service
+    let externalSkills = [];
+    try {
+      const response = await axios.post("http://127.0.0.1:9000/predict-skills", { description });
+      externalSkills = response.data.skills || [];
+    } catch (err) {
+      console.warn("External NLP failed, falling back to internal logic.");
+    }
+
     const descriptionLower = description.toLowerCase().replace(/[^a-z0-9\s\.\-\+\/]/gi, ' ');
-    const extractedSkills = new Set();
+    const extractedSkills = new Set([...externalSkills]);
     const allSkills = getAllSkills();
 
     for (const skill of allSkills) {
@@ -91,7 +101,7 @@ router.post("/detect-skills", (req, res) => {
     }
 
     if (descriptionLower.includes("engineer")) extractedSkills.add("ENGINEER");
-    if (descriptionLower.includes ("Project Manager")) extractedSkills.add("PM");
+    if (descriptionLower.includes("project manager")) extractedSkills.add("PM");
 
     const skillsArray = Array.from(extractedSkills)
       .slice(0, 10)
@@ -112,13 +122,11 @@ router.post("/find-matching-users", async (req, res) => {
     }
 
     const skillValues = skills.map(skill => (skill.value || skill).toLowerCase().trim());
-
     const users = await User.find({}, { fullName: 1, email: 1, picture: 1, skills: 1, roles: 1 }).lean();
 
     const recommendedUsers = users.map(user => {
       const userSkills = (user.skills || []).map(s => s.toLowerCase().trim());
       const matchedSkills = userSkills.filter(skill => skillValues.includes(skill));
-
       const matchScore = Math.round((matchedSkills.length / skillValues.length) * 100);
       const isEngineerMatch = skillValues.includes("engineer") && user.roles?.includes("ENGINEER");
 

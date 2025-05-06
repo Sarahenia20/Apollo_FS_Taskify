@@ -35,12 +35,12 @@ import { notificationSlice } from "./redux/reducers/notifications";
 import TeamsAdmin from "./pages/Teams/teamAdmin";
 import ChatBot from './components/ChatBot/ChatBot';
 import GameHub from "./components/Games";
+import Chat from "./pages/Chat/Chatindex";
+
+import chatSocketService, { socketClient } from "./services/chatSocketService";
 
 
-const socketClient = io("http://localhost:3002", {
-  transports: ["websocket"],
-  upgrade: false,
-});
+
 
 if (localStorage.token) {
   const decoded = jwtDecode(localStorage.token);
@@ -78,21 +78,29 @@ const App = () => {
           dispatch(notificationSlice.actions.addNotifications(n.data));
         })
         .catch((e) => console.log(e));
-      //if connected
-      //connect this user to socket server
+      
+      // If connected, connect this user to socket server
+      socketClient.auth = { token: localStorage.getItem('token') };
       socketClient.connect();
+      
       socketClient.on("connect", () => {
         socketClient.emit("connected_client", user.id);
       });
+      
       socketClient.on("notification", (n) => {
-        // console.log("notification received: " + JSON.stringify(d));
         dispatch(notificationSlice.actions.addNotifications(n));
       });
     } else {
-      //delete user id from socket
+      // Disconnect if not authenticated
       if (socketClient.connected) socketClient.disconnect();
     }
-  }, [isConnected]);
+    
+    // Clean up event listeners
+    return () => {
+      socketClient.off("connect");
+      socketClient.off("notification");
+    };
+  }, [isConnected, user]);
 
   return (
     !loading && (
@@ -120,6 +128,8 @@ const App = () => {
           <Route path="/chart/advanced-chart" element={<AdvancedChart />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/games" element={<GameHub />} />
+          <Route path="/chat/*" element={<Chat />} />
+
 
         </Routes>
         <ChatBot />
