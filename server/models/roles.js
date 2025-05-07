@@ -1,4 +1,3 @@
-// models/Role.js
 const mongoose = require('mongoose');
 
 const roleSchema = new mongoose.Schema({
@@ -14,6 +13,7 @@ const roleSchema = new mongoose.Schema({
     trim: true
   },
   permissions: {
+    // Existing permissions
     createTask: {
       type: Boolean,
       default: false
@@ -39,6 +39,52 @@ const roleSchema = new mongoose.Schema({
       default: false
     },
     manageProjects: {
+      type: Boolean,
+      default: false
+    },
+    
+    // Chat Room permissions
+    manageChatRoom: {
+      type: Boolean,
+      default: false
+    },
+    manageMessages: {
+      type: Boolean,
+      default: false
+    },
+    manageChatMembers: {
+      type: Boolean,
+      default: false
+    },
+    
+    // Video Call permissions
+    manageVideoCalls: {
+      type: Boolean,
+      default: false
+    },
+    
+    // Analytics & Dashboard permissions
+    accessCharts: {
+      type: Boolean,
+      default: false
+    },
+    accessAnalytics: {
+      type: Boolean,
+      default: false
+    },
+    accessActivityTables: {
+      type: Boolean,
+      default: false
+    },
+    
+    // Profile permissions
+    manageProfile: {
+      type: Boolean,
+      default: false
+    },
+    
+    // Chatbot permissions
+    accessChatbot: {
       type: Boolean,
       default: false
     }

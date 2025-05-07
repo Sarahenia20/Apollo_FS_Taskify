@@ -178,7 +178,7 @@ export const AddCommentAction = (form, id) => async (dispatch) => {
     throw error;
   }
 };
-// Helper function to resize image before upload
+
 // Helper function to resize image before upload
 const resizeImage = (file, maxWidth, maxHeight) => {
   return new Promise((resolve) => {
@@ -229,9 +229,9 @@ export const DeleteCommentAction = (id, id_c) => async (dispatch) => {
     });
 };
 
-export const FindTaskAction = () => async (dispatch) => {
+export const FindTaskAction = (userId) => async (dispatch) => {
   await axios
-    .get("/api/tasks")
+    .get(`/api/tasks?userId=${userId}`)
     .then((res) => {
       dispatch(_FindTasks(res.data.data));
     })
@@ -245,32 +245,26 @@ export const FindOneTaskAction = (id) => async (dispatch) => {
   dispatch(setRefresh(true));
   
   try {
-    // Removed the include=project parameter that was causing 500 errors
     const response = await axios.get(`/api/tasks/${id}`);
     console.log('FindOneTaskAction response:', response.data);
     
-    // Dispatch the action with the response data
     dispatch(_FindOneTask(response.data));
     
-    // Set refresh to false with a slight delay to ensure UI updates
     setTimeout(() => {
       dispatch(setRefresh(false));
     }, 300);
     
     dispatch(setErrors({}));
     
-    // Return the response for promise chaining
     return response;
   } catch (error) {
     console.error('FindOneTaskAction error:', error);
     console.error('Error response:', error.response?.data);
     
-    // Handle 404 specially
     if (error.response?.status === 404) {
       console.log('Task not found');
     }
     
-    // Handle 500 errors
     if (error.response?.status === 500) {
       console.error('Server error when fetching task. Check your backend logs!');
     }
@@ -278,7 +272,6 @@ export const FindOneTaskAction = (id) => async (dispatch) => {
     dispatch(setErrors(error.response?.data || { message: 'Failed to fetch task' }));
     dispatch(setRefresh(false));
     
-    // Re-throw for promise handling
     throw error;
   }
 };
@@ -311,13 +304,13 @@ export const DeleteAttachmentAction = (id) => async (dispatch) => {
       });
   }
 };
+
 // Action to reschedule task via drag and drop
 export const RescheduleTaskAction = (id, newDates) => async (dispatch) => {
   console.log("RescheduleTaskAction called with:", { id, newDates });
   dispatch(setRefresh(true));
   
   try {
-    // Format dates to ensure they're properly formatted for the API
     const formattedDates = {
       start_date: typeof newDates.start_date === 'string' 
         ? newDates.start_date 
@@ -330,45 +323,35 @@ export const RescheduleTaskAction = (id, newDates) => async (dispatch) => {
     
     console.log("Making API call with formatted dates:", formattedDates);
     
-    // Make API call to reschedule the task
     const response = await axios.patch(`/api/tasks/${id}/reschedule`, formattedDates);
     
-    // If successful, update the task in Redux
     if (response.data && response.data.success) {
       console.log("Reschedule successful:", response.data);
       
-      // Update the specific task in the state
       dispatch(_FindOneTask(response.data.data));
       
-      // Refresh all tasks to ensure the list is up to date
       dispatch(FindTaskAction());
       
-      // Show success message
       swal("Success", "Task rescheduled successfully", "success");
     } else {
-      // Handle API success but response indicates failure
       console.error("API returned success: false", response.data);
       swal("Error", response.data?.error || "Failed to reschedule task", "error");
     }
   } catch (error) {
-    // Log detailed error information
     console.error("Reschedule error:", error);
     console.error("Error details:", error.response?.data);
     
-    // Show error message
     swal("Error", error.response?.data?.error || "Failed to reschedule task", "error");
     
-    // Set errors in Redux store
     dispatch(setErrors(error.response?.data || { error: "Failed to reschedule task" }));
   } finally {
-    // Always reset the refresh state
     setTimeout(() => {
       dispatch(setRefresh(false));
     }, 500);
   }
 };
-// Add this new action to your tasks.js Redux actions file
 
+// Action to fetch task comments
 export const GetTaskCommentsAction = (taskId) => async (dispatch) => {
   console.log('GetTaskCommentsAction called with task ID:', taskId);
   dispatch(setRefresh(true));
@@ -380,7 +363,6 @@ export const GetTaskCommentsAction = (taskId) => async (dispatch) => {
     dispatch(setRefresh(false));
     dispatch(setErrors({}));
     
-    // Return the comments array from the response
     return response.data.comments || [];
   } catch (error) {
     console.error('Error fetching comments:', error);
@@ -394,7 +376,6 @@ export const GetTaskCommentsAction = (taskId) => async (dispatch) => {
     
     dispatch(setRefresh(false));
     
-    // Return empty array in case of error
     return [];
   }
 };

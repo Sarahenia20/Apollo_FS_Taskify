@@ -2,20 +2,12 @@ var express = require('express');
 const axios = require("axios");
 const jwt = require('jsonwebtoken');
 const UserModel = require('../../models/users');
-const dotenv = require('dotenv');
-const fs = require('fs');
 
 // Load .env (default environment)
-if (fs.existsSync('.env')) {
-    dotenv.config({ path: '.env' });
-}
 
-// Load .env.development (additional variables)
-if (fs.existsSync('.env.development')) {
-    dotenv.config({ path: '.env.development' });
-}
 
  
+require("dotenv").config();
 
 
 

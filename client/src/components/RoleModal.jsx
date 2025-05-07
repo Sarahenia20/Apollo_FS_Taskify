@@ -3,13 +3,24 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
 const PERMISSIONS = [
-  { id: "create_task", label: "Create Task" },
-  { id: "view_tasks", label: "View Tasks" },
-  { id: "edit_tasks", label: "Edit Tasks" },
-  { id: "delete_tasks", label: "Delete Tasks" },
-  { id: "manage_users", label: "Manage Users" },
   { id: "view_reports", label: "View Reports" },
-  { id: "manage_projects", label: "Manage Projects" }
+  { id: "manage_users", label: "Manage Users" },
+  { id: "manage_tasks", label: "Manage Tasks" },
+  { id: "manage_projects", label: "Manage Projects" },
+  // Chat Room Permissions
+  { id: "manage_chat_room", label: "Manage Chat Rooms" },
+  { id: "manage_messages", label: "Manage Messages" },
+  { id: "manage_chat_members", label: "Manage Chat Members" },
+  // Video Call Permissions
+  { id: "manage_video_calls", label: "Manage Video Calls" },
+  // Analytics & Dashboard Permissions
+  { id: "access_charts", label: "Access Charts" },
+  { id: "access_analytics", label: "Access Analytics" },
+  { id: "access_activity_tables", label: "Access Activity Tables" },
+  // Profile Permissions
+  { id: "manage_profile", label: "Manage Profiles" },
+  // chatbot
+  {id: "access_chatbot", label: "Access ChatBot"}
 ];
 
 // Enhanced role description generator
@@ -195,6 +206,13 @@ const RoleModal = ({ isOpen, onClose, onSave }) => {
   const [roleDescription, setRoleDescription] = useState('');
   const [selectedPermissions, setSelectedPermissions] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [permissionCategories, setPermissionCategories] = useState([
+    { name: "General", expanded: true },
+    { name: "Chat & Messages", expanded: false },
+    { name: "Video Calls", expanded: false },
+    { name: "Analytics", expanded: false },
+    { name: "Profiles", expanded: false }
+  ]);
 
   // Generate description based on role name
   useEffect(() => {
@@ -399,6 +417,44 @@ const RoleModal = ({ isOpen, onClose, onSave }) => {
     }
   };
 
+  const toggleCategory = (categoryIndex) => {
+    setPermissionCategories(prevCategories => 
+      prevCategories.map((category, index) => 
+        index === categoryIndex 
+          ? { ...category, expanded: !category.expanded } 
+          : category
+      )
+    );
+  };
+
+  // Helper function to get permissions for a specific category
+  const getCategoryPermissions = (categoryName) => {
+    switch(categoryName) {
+      case "General":
+        return PERMISSIONS.filter(p => 
+          ["view_reports", "manage_users", "manage_tasks", "manage_projects"].includes(p.id)
+        );
+      case "Chat & Messages":
+        return PERMISSIONS.filter(p => 
+          ["manage_chat_room", "manage_messages", "manage_chat_members", "access_chatbot"].includes(p.id)
+        );
+      case "Video Calls":
+        return PERMISSIONS.filter(p => 
+          ["manage_video_calls"].includes(p.id)
+        );
+      case "Analytics":
+        return PERMISSIONS.filter(p => 
+          ["access_charts", "access_analytics", "access_activity_tables"].includes(p.id)
+        );
+      case "Profiles":
+        return PERMISSIONS.filter(p => 
+          ["manage_profile"].includes(p.id)
+        );
+      default:
+        return [];
+    }
+  };
+
   const handleSubmit = () => {
     if (!roleName.trim()) return;
     
@@ -406,16 +462,15 @@ const RoleModal = ({ isOpen, onClose, onSave }) => {
     const newRole = {
       name: roleName,
       description: roleDescription || `Role for ${roleName}`, // Ensure description is never empty
-      permissions: {
-        createTask: selectedPermissions.includes("create_task"),
-        viewTasks: selectedPermissions.includes("view_tasks"),
-        editTasks: selectedPermissions.includes("edit_tasks"),
-        deleteTasks: selectedPermissions.includes("delete_tasks"),
-        manageUsers: selectedPermissions.includes("manage_users"),
-        viewReports: selectedPermissions.includes("view_reports"),
-        manageProjects: selectedPermissions.includes("manage_projects")
-      }
+      permissions: {}
     };
+    
+    // Dynamically add all permissions from PERMISSIONS array to the role object
+    PERMISSIONS.forEach(permission => {
+      // Convert permission.id (e.g., "manage_users") to camelCase (e.g., "manageUsers")
+      const permKey = permission.id.replace(/_([a-z])/g, (match, letter) => letter.toUpperCase());
+      newRole.permissions[permKey] = selectedPermissions.includes(permission.id);
+    });
     
     onSave(newRole);
     resetForm();
@@ -430,75 +485,118 @@ const RoleModal = ({ isOpen, onClose, onSave }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
-      <div className="w-full max-w-xl bg-white dark:bg-boxdark rounded-sm shadow-default">
-        <div className="border-b border-stroke px-6.5 py-4 dark:border-strokedark">
-          <h3 className="font-medium text-black dark:text-white">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-60">
+      <div className="w-full max-w-md bg-white dark:bg-boxdark rounded-lg shadow-2xl max-h-[85vh] flex flex-col overflow-hidden">
+        {/* Header */}
+        <div className="px-5 py-3 border-b border-stroke dark:border-strokedark bg-gray-50 dark:bg-boxdark-2 rounded-t-lg">
+          <h3 className="font-semibold text-black dark:text-white text-lg">
             Create New Role
           </h3>
         </div>
-        <div className="p-6.5">
-          <div className="mb-4.5">
-            <label className="mb-2.5 block text-black dark:text-white">
+        
+        {/* Form content with scrollable area */}
+        <div className="p-5 overflow-y-auto flex-1">
+          {/* Role name field */}
+          <div className="mb-4">
+            <label className="mb-1.5 block text-sm font-medium text-black dark:text-white">
               Role Name
             </label>
             <input
               type="text"
               placeholder="Enter role name"
-              className="w-full rounded border-[1.5px] border-stroke bg-transparent px-5 py-3 font-medium outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:focus:border-primary"
+              className="w-full rounded-md border border-stroke bg-transparent px-4 py-2 text-sm outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:focus:border-primary"
               value={roleName}
               onChange={(e) => setRoleName(e.target.value)}
             />
           </div>
 
-          <div className="mb-4.5">
-            <label className="mb-2.5 block text-black dark:text-white">
+          {/* Role description field */}
+          <div className="mb-4">
+            <label className="mb-1.5 block text-sm font-medium text-black dark:text-white">
               Role Description
             </label>
-            <textarea
-              rows={3}
-              placeholder="Description will be generated based on role name"
-              className="w-full rounded border-[1.5px] border-stroke bg-transparent px-5 py-3 font-medium outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:focus:border-primary"
-              value={roleDescription}
-              onChange={(e) => setRoleDescription(e.target.value)}
-            ></textarea>
-            {isLoading && (
-              <p className="text-sm text-meta-3">Generating description...</p>
-            )}
-          </div>
-
-          <div className="mb-4.5">
-            <label className="mb-2.5 block text-black dark:text-white">
-              Permissions
-            </label>
-            <div className="rounded border-[1.5px] border-stroke bg-transparent p-4 dark:border-form-strokedark dark:bg-form-input">
-              {PERMISSIONS.map((permission) => (
-                <div key={permission.id} className="mb-2 flex items-center">
-                  <input
-                    type="checkbox"
-                    id={permission.id}
-                    checked={selectedPermissions.includes(permission.id)}
-                    onChange={() => handlePermissionChange(permission.id)}
-                    className="mr-2.5"
-                  />
-                  <label htmlFor={permission.id} className="text-black dark:text-white">
-                    {permission.label}
-                  </label>
+            <div className="relative">
+              <textarea
+                rows={2}
+                placeholder="Description will be generated based on role name"
+                className="w-full rounded-md border border-stroke bg-transparent px-4 py-2 text-sm outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:focus:border-primary"
+                value={roleDescription}
+                onChange={(e) => setRoleDescription(e.target.value)}
+              ></textarea>
+              {isLoading && (
+                <div className="absolute right-2 bottom-2">
+                  <span className="inline-block animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full"></span>
                 </div>
-              ))}
+              )}
             </div>
           </div>
 
-          <div className="flex justify-end gap-4.5">
+          {/* Permissions section */}
+          <div className="mb-3">
+            <label className="mb-1.5 block text-sm font-medium text-black dark:text-white">
+              Permissions
+            </label>
+            
+            <div className="rounded-md border border-stroke bg-transparent dark:border-form-strokedark dark:bg-form-input overflow-hidden">
+              <div className="max-h-40 overflow-y-auto">
+                {/* Accordion style permission categories */}
+                {permissionCategories.map((category, categoryIndex) => (
+                  <div key={category.name} className="border-b border-stroke dark:border-strokedark last:border-b-0">
+                    <div
+                      className="flex items-center justify-between cursor-pointer py-2 px-3 hover:bg-gray-50 dark:hover:bg-boxdark-2 transition-colors"
+                      onClick={() => toggleCategory(categoryIndex)}
+                    >
+                      <h4 className="text-sm font-medium text-black dark:text-white flex items-center">
+                        {category.expanded ? (
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5 text-primary" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                          </svg>
+                        ) : (
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5 text-primary" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                        {category.name}
+                      </h4>
+                    </div>
+                    
+                    {category.expanded && (
+                      <div className="px-3 py-2 bg-gray-50 dark:bg-boxdark-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-1 gap-x-3">
+                          {getCategoryPermissions(category.name).map((permission) => (
+                            <div key={permission.id} className="flex items-center">
+                              <input
+                                type="checkbox"
+                                id={permission.id}
+                                checked={selectedPermissions.includes(permission.id)}
+                                onChange={() => handlePermissionChange(permission.id)}
+                                className="mr-1.5 h-3.5 w-3.5 accent-primary"
+                              />
+                              <label htmlFor={permission.id} className="text-xs text-black dark:text-white truncate">
+                                {permission.label}
+                              </label>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Action buttons */}
+          <div className="flex justify-end mt-5 gap-3">
             <button
               onClick={onClose}
-              className="flex justify-center rounded border border-stroke py-2 px-6 font-medium text-black hover:shadow-1 dark:border-strokedark dark:text-white"
+              className="flex justify-center rounded-md border border-stroke py-1.5 px-4 text-sm font-medium text-black hover:bg-gray-50 dark:border-strokedark dark:text-white dark:hover:bg-boxdark-2 transition-colors"
             >
               Cancel
             </button>
             <button
               onClick={handleSubmit}
-              className="flex justify-center rounded bg-primary py-2 px-6 font-medium text-gray hover:shadow-1"
+              className="flex justify-center rounded-md bg-primary py-1.5 px-4 text-sm font-medium text-white hover:bg-primary/90 transition-colors"
             >
               Save
             </button>

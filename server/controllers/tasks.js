@@ -1,9 +1,22 @@
+"use strict";
+
 const tasksModel = require("../models/tasks");
+const usersModel = require("../models/users");
+const mongoose = require('mongoose');
 const socket = require("../socket");
 const tasksValidation = require("../validation/tasksValidation");
 const { addNotification } = require("./notifications");
 const fs = require('fs').promises;
 const path = require('path');
+const { nodeMailer } = require('../config/nodeMailer1');
+require('dotenv').config();
+
+// Initialize Twilio client
+const twilio = require('twilio');
+const twilioClient = twilio(
+  process.env.TWILIO_ACCOUNT_SID,
+  process.env.TWILIO_AUTH_TOKEN
+);
 
 // Helper function to handle file deletion
 const deleteFile = async (filePath) => {
@@ -36,7 +49,40 @@ const transformTaskBody = (body) => {
   return transformedBody;
 };
 
-/* Add tasks with file upload */
+/* Get all tasks */
+const GetAll = async (req, res) => {
+  try {
+    const userId = req.user?._id;
+    const userRole = req.user?.roles; // Assuming roles is stored in the user object
+
+    let tasks;
+    if (userRole === 'ADMIN') {
+      // Admins see all tasks
+      tasks = await tasksModel.find({})
+        .populate('assigns', 'fullName email')
+        .sort({ createdAt: -1 });
+    } else {
+      // Non-admins see only tasks assigned to them
+      tasks = await tasksModel.find({ assigns: userId })
+        .populate('assigns', 'fullName email')
+        .sort({ createdAt: -1 });
+    }
+
+    res.status(200).json({
+      success: true,
+      count: tasks.length,
+      data: tasks
+    });
+  } catch (error) {
+    console.error('Get Tasks Error:', error);
+    res.status(500).json({ 
+      error: 'Failed to retrieve tasks', 
+      details: error.message 
+    });
+  }
+};
+
+/* Add tasks with file upload and SMS notification */
 const Add = async (req, res) => {
   // Extensive logging for debugging
   console.log('=================== TASK CREATION DEBUG ===================');
@@ -104,6 +150,19 @@ const Add = async (req, res) => {
     // Create task
     const data = await tasksModel.create(transformedBody);
 
+    // Send SMS notification using Twilio
+    try {
+      await twilioClient.messages.create({
+        body: `New task created: ${transformedBody.title}`,
+        from: process.env.TWILIO_PHONE_NUMBER,
+        to: '+21699385385'
+      });
+      console.log(`✅ SMS sent to +21699385385 for task: ${transformedBody.title}`);
+    } catch (smsError) {
+      console.error(`❌ Error sending SMS:`, smsError);
+      // Note: We don't fail the request if SMS fails, just log the error
+    }
+
     // Notification logic for assigned users
     if (transformedBody.assigns && transformedBody.assigns.length) {
       const sockets_of_these_people = transformedBody.assigns.reduce(
@@ -125,6 +184,35 @@ const Add = async (req, res) => {
       // Emit socket notifications
       if (sockets_of_these_people.length > 0) {
         socket.io.to(sockets_of_these_people).emit("notification", notifications);
+      }
+
+      // Fetch assigned users' details for email notifications
+      const assignedUsers = await usersModel.find({ _id: { $in: transformedBody.assigns } }).select('email');
+
+      // Send emails to assigned users
+      for (const user of assignedUsers) {
+        const subject = `Nouvelle tâche: ${transformedBody.title}`;
+        const html = `
+          <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
+            <h2 style="color: #333;">Nouvelle tâche assignée</h2>
+            <p>Une nouvelle tâche vous a été assignée :</p>
+            <ul>
+              <li><strong>Titre:</strong> ${transformedBody.title}</li>
+              <li><strong>Description:</strong> ${transformedBody.description || "Aucune description"}</li>
+              <li><strong>Date limite:</strong> ${transformedBody.end_date}</li>
+              <li><strong>Priorité:</strong> ${transformedBody.priority}</li>
+            </ul>
+            <p style="color: #d9534f; font-weight: bold;">Merci de respecter la date limite !</p>
+          </div>
+        `;
+
+        // Send email
+        try {
+          await nodeMailer(user.email, subject, html);
+          console.log(`✅ Email sent to ${user.email}`);
+        } catch (error) {
+          console.error(`❌ Erreur email à ${user.email}:`, error);
+        }
       }
     }
 
@@ -149,27 +237,6 @@ const Add = async (req, res) => {
   }
 };
 
-/* Get all tasks */
-const GetAll = async (req, res) => {
-  try {
-    const tasks = await tasksModel.find({})
-      .populate('assigns', 'fullName email')
-      .sort({ createdAt: -1 }); // Sort by most recent first
-
-    res.status(200).json({
-      success: true,
-      count: tasks.length,
-      data: tasks
-    });
-  } catch (error) {
-    console.error('Get Tasks Error:', error);
-    res.status(500).json({ 
-      error: 'Failed to retrieve tasks', 
-      details: error.message 
-    });
-  }
-};
-
 /* Get single task with improved error handling */
 const GetOne = async (req, res) => {
   console.log('GetOne Task Request:', { 
@@ -186,7 +253,7 @@ const GetOne = async (req, res) => {
       });
     }
     
-    // Find the task by ID with comprehensive population - Add detailed try/catch for debugging
+    // Find the task by ID with comprehensive population
     let task;
     try {
       task = await tasksModel.findById(req.params.id);
@@ -218,7 +285,6 @@ const GetOne = async (req, res) => {
       console.log('Assigns populated successfully');
     } catch (assignsError) {
       console.error('Error populating assigns:', assignsError);
-      // Continue instead of failing - partial data is better than none
     }
 
     // Populate comments.by separately with error handling
@@ -230,7 +296,6 @@ const GetOne = async (req, res) => {
       console.log('Comments populated successfully:', task.comments?.length || 0);
     } catch (commentsError) {
       console.error('Error populating comments:', commentsError);
-      // Continue instead of failing - partial data is better than none
     }
 
     // Log successful retrieval
@@ -397,6 +462,7 @@ const DeleteOne = async (req, res) => {
     });
   }
 };
+
 // Download attachment
 const DownloadAttachment = async (req, res) => {
   try {
@@ -501,7 +567,6 @@ const AddFromSuggestion = async (req, res) => {
     });
   }
 };
-// Add this to your controllers/tasks.js file
 
 /* Reschedule Task (Update date/time via drag and drop) */
 const RescheduleTask = async (req, res) => {
@@ -519,7 +584,7 @@ const RescheduleTask = async (req, res) => {
       console.log("Missing required fields:", { start_date, end_date });
       return res.status(400).json({ 
         success: false,
-        error: 'Start date and end date are required',
+        error: '`Start date and end date are required`',
       });
     }
 
@@ -605,6 +670,7 @@ const RescheduleTask = async (req, res) => {
     });
   }
 };
+
 // Update the module exports to include the new method
 module.exports = {
   Add,

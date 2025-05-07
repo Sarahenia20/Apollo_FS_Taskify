@@ -8,6 +8,7 @@ import ChartTen from '../../components/ChartTen'
 import StorageChart from '../../components/StorageChart'
 import StorageList from '../../components/StorageList'
 import DataStatsThree from '../../components/DataStatsThree'
+import { UseAuth } from "../../hooks/useAuth";
 
 const BasicChart = () => {
   const [taskStats, setTaskStats] = useState({
@@ -79,4 +80,4 @@ const BasicChart = () => {
   );
 };
 
-export default BasicChart;
+export default UseAuth(BasicChart, ["ADMIN"]);

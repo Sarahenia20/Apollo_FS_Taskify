@@ -73,7 +73,7 @@ router.get("/test", (req, res) => {
   return res.json({ message: "Smart Assign Router is working" });
 });
 
-router.post("/detect-skills", async (req, res) => {
+router.post("/predict-skills", async (req, res) => {
   try {
     const { description } = req.body;
     if (!description) return res.status(400).json({ msg: "Description is required" });

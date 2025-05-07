@@ -4,11 +4,19 @@ import Breadcrumb from "../components/Breadcrumb";
 import EnhancedCalendar from "../components/elements/Calendar";
 import ScheduleCallModal from "../components/VideoCall/ScheduleCallForm";
 import VideoCallModal from "../components/VideoCall/VideoCallModal";
+import NotificationManager from "../components/VideoCall/NotificationManager";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import { UseAuth } from "../hooks/useAuth";
 import { ROLES } from "../data/roles";
 import { useDispatch, useSelector } from "react-redux";
-import { getCallsByParticipantId, checkUpcomingCalls, setActiveCall, generateRoomName, markCallAsStarted } from "../redux/actions/VideoCalls";
+import { 
+  getCallsByParticipantId, 
+  getAllScheduledCalls,
+  checkUpcomingCalls, 
+  setActiveCall, 
+  generateRoomName, 
+  markCallAsStarted 
+} from "../redux/actions/VideoCalls";
 import moment from "moment";
 
 const Calendar = () => {
@@ -17,10 +25,11 @@ const Calendar = () => {
   const [selectedCallData, setSelectedCallData] = useState(null);
   const [editMode, setEditMode] = useState(false);
   const [upcomingCalls, setUpcomingCalls] = useState([]);
-  const [videoCallState, setVideoCallState] = useState({
-    open: false,
-    roomName: null
-  });
+  
+  // Using the same pattern as the EnhancedCalendar for video call state
+  const [showVideoCall, setShowVideoCall] = useState(false);
+  const [selectedCall, setSelectedCall] = useState(null);
+  const [currentRoomName, setCurrentRoomName] = useState("");
 
   // Get current user ID from auth state
   const authState = useSelector((state) => state.auth || {});
@@ -56,7 +65,7 @@ const Calendar = () => {
     return () => clearInterval(interval);
   }, [videoCalls]);
 
-  // Set up interval to check for upcoming calls (existing notification system)
+  // Set up interval to check for upcoming calls
   useEffect(() => {
     // Check immediately when component mounts
     dispatch(checkUpcomingCalls());
@@ -98,90 +107,38 @@ const Calendar = () => {
     }
   };
 
-  // Function to join a call
+  // Function to join a call - using the EXACT SAME PATTERN as the EnhancedCalendar component
   const handleJoinCall = (call) => {
+    console.log("Calendar.handleJoinCall called with call:", call);
+    
+    // Make sure we have a valid call
+    if (!call || !call._id) {
+      console.error("Invalid call object received in handleJoinCall:", call);
+      return;
+    }
+    
+    // Using the exact pattern from EnhancedCalendar handleSelectEvent
     dispatch(setActiveCall(call));
     const roomName = generateRoomName(call._id, call.call_name);
     dispatch(markCallAsStarted(call._id));
     
-    // Open the video call modal with the generated room name
-    setVideoCallState({
-      open: true,
-      roomName: roomName
-    });
-  };
-
-  // Format time difference for display
-  const formatTimeDiff = (call) => {
-    const now = new Date();
-    const startTime = new Date(call.start_time);
-    const diffMinutes = Math.floor((startTime - now) / (1000 * 60));
+    // Update state to show the modal
+    setCurrentRoomName(roomName);
+    setSelectedCall(call);
+    setShowVideoCall(true);
     
-    if (diffMinutes < 1) return "starting now";
-    if (diffMinutes === 1) return "in 1 minute";
-    if (diffMinutes < 60) return `in ${diffMinutes} minutes`;
-    
-    const hours = Math.floor(diffMinutes / 60);
-    const minutes = diffMinutes % 60;
-    
-    if (hours === 1 && minutes === 0) return "in 1 hour";
-    if (hours === 1) return `in 1 hour ${minutes} minutes`;
-    if (minutes === 0) return `in ${hours} hours`;
-    return `in ${hours} hours ${minutes} minutes`;
+    console.log("Video call initiated with roomName:", roomName);
   };
 
   return (
     <DefaultLayout>
       <Breadcrumb pageName="Calendar" />
 
-      {/* Upcoming Calls Notification Banner */}
-      {upcomingCalls.length > 0 && (
-        <div className="mb-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-semibold text-blue-800 dark:text-blue-200">
-                Upcoming Calls
-              </h3>
-              <p className="text-sm text-blue-600 dark:text-blue-300">
-                You have {upcomingCalls.length} call{upcomingCalls.length !== 1 ? 's' : ''} scheduled in the next hour
-              </p>
-            </div>
-          </div>
-          
-          <div className="mt-3 space-y-2">
-            {upcomingCalls.map((call) => (
-              <div 
-                key={call._id} 
-                className="flex items-center justify-between bg-white dark:bg-gray-800 p-3 rounded-md shadow-sm"
-              >
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
-                      <svg className="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                      </svg>
-                    </div>
-                  </div>
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-900 dark:text-white">
-                      {call.call_name}
-                    </p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                      {formatTimeDiff(call)} • {moment(call.start_time).format('h:mm A')}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => handleJoinCall(call)}
-                  className="ml-4 inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                >
-                  Join Now
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* Notification Manager for Popup Notifications */}
+      <NotificationManager 
+        upcomingCalls={upcomingCalls} 
+        onJoinCall={handleJoinCall} 
+      />
 
       {/* Actions Bar */}
       <div className="flex justify-between items-center mb-4">
@@ -219,7 +176,10 @@ const Calendar = () => {
       </div>
 
       {/* Enhanced Calendar Component */}
-      <EnhancedCalendar onScheduleCall={handleScheduleCall} />
+      <EnhancedCalendar 
+        onScheduleCall={handleScheduleCall} 
+        onJoinCall={handleJoinCall}
+      />
       
       {/* Schedule Call Modal */}
       {showScheduleModal && (
@@ -236,19 +196,20 @@ const Calendar = () => {
       )}
 
       {/* Video Call Modal */}
-      {videoCallState.open && (
+      {showVideoCall && selectedCall && currentRoomName && (
         <VideoCallModal
-          roomName={videoCallState.roomName}
-          onClose={() => setVideoCallState({open: false, roomName: null})}
+          roomName={currentRoomName}
+          onClose={() => {
+            console.log("Closing VideoCallModal");
+            setShowVideoCall(false);
+            setSelectedCall(null);
+            setCurrentRoomName("");
+            dispatch(clearActiveCall());
+          }}
         />
       )}
     </DefaultLayout>
   );
 };
 
-export default UseAuth(
-  Calendar,
-  ROLES.map((r) => {
-    return r.title;
-  })
-);
+export default Calendar;

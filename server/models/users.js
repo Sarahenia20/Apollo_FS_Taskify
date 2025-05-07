@@ -14,7 +14,9 @@ const usersSchema = new Schema(
     },
     password: {
       type: String,
-      required: true,
+    required: function() {
+      return this.authType === 'local' || !this.authType;
+    }
     },
     phone: {
       type: String,
@@ -42,6 +44,11 @@ const usersSchema = new Schema(
     twoFactorEnabled: {
       type: Boolean,
       default: true,
+    },
+    authType: {
+      type: String,
+      enum: ['local', 'google', 'github'],
+      default: 'local'
     },
   },
   { 

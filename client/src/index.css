@@ -284,3 +284,54 @@ span.flatpickr-weekday,
     opacity: 0;
   }
 }
+/* Notification animations */
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideOutRight {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+.notification-enter {
+  animation: slideInRight 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.notification-exit {
+  animation: slideOutRight 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Add a subtle bounce effect */
+@keyframes pulse {
+  0% { transform: scale(1); }
+  5% { transform: scale(1.03); }
+  10% { transform: scale(1); }
+}
+
+.notification-pulse {
+  animation: pulse 3s ease infinite;
+}
+
+/* Add a subtle glow effect for important notifications */
+.notification-glow {
+  box-shadow: 0 0 8px rgba(59, 130, 246, 0.5);
+  transition: box-shadow 0.3s ease;
+}
+
+.notification-glow:hover {
+  box-shadow: 0 0 15px rgba(59, 130, 246, 0.7);
+}

@@ -209,3 +209,27 @@ exports.DeleteRole = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+exports.calculateUsersBySkills = async (req, res) => {
+  try {
+    const data = await usersModel.find();
+    const m = new Map();
+
+    for (const user of data) {
+      const skills = user.skills || [];
+      for (const skill of skills) {
+        if (!m.has(skill)) {
+          m.set(skill, 1);
+        } else {
+          m.set(skill, m.get(skill) + 1);
+        }
+      }
+    }
+
+    // Convertir la Map en objet pour envoi en JSON
+    const result = Object.fromEntries(m);
+
+    return res.json(result);
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+};

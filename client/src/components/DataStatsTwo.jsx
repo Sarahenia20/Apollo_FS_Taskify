@@ -9,7 +9,7 @@ const DataStatsTwo = () => {
           <h2 className='mb-1.5 text-title-md2 font-bold text-black dark:text-white'>
             Highlights
           </h2>
-          <p className='font-medium'>Latest social statistics</p>
+          <p className='font-medium'>Latest users statistics</p>
         </div>
         <DropdownDefault />
       </div>
@@ -72,9 +72,9 @@ const DataStatsTwo = () => {
             />
           </svg>
 
-          <h4 className='mt-5 mb-2 font-medium'>Instagram Followers</h4>
+          <h4 className='mt-5 mb-2 font-medium'>Overall User Productivity</h4>
           <h3 className='mb-2 text-title-md font-bold text-black dark:text-white'>
-            7.8/10
+            4.6/10
           </h3>
           <p className='flex items-center gap-1 text-sm font-medium'>
             <svg

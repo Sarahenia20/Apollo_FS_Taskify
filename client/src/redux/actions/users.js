@@ -7,6 +7,7 @@ import {
   _FindOneUser,
   _FindUsers,
   _setCurrentUser,
+  _FetchSkillsOfUsers
 } from "../reducers/users";
 import { setRefresh } from "../reducers/commons";
 import { setAuthToken } from "../../lib/setAuthToken"; // Correct import path
@@ -283,5 +284,30 @@ export const UpdateMyProfile = (form) => async (dispatch) => {
     dispatch(setRefresh(false));
     
     throw err;
+  }
+};
+
+
+export const FetchSkillsOfUsers = () => async (dispatch) => {
+  logAction('FetchSkillsOfUsers');
+  
+  // Ensure auth headers are set correctly
+  checkAuthHeaders();
+  
+  dispatch(setRefresh(true));
+  
+  try {
+    const res = await axios.get("/api/users/calculateSkills");
+    logAction('FetchSkillsOfUsers Success', res.data);
+    
+    const { data } = res;
+    console.log("data from fetchskillof users",res)
+    dispatch(_FetchSkillsOfUsers(data || []));
+    dispatch(setRefresh(false));
+  } catch (err) {
+    logAction('FindUsers Error', err);
+    
+    dispatch(setErrors(err?.response?.data || { message: "Error fetching skills" }));
+    dispatch(setRefresh(false));
   }
 };
