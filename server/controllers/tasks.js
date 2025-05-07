@@ -155,9 +155,9 @@ const Add = async (req, res) => {
       await twilioClient.messages.create({
         body: `New task created: ${transformedBody.title}`,
         from: process.env.TWILIO_PHONE_NUMBER,
-        to: '+21699385385'
+        to: '+21651918318'
       });
-      console.log(`✅ SMS sent to +21699385385 for task: ${transformedBody.title}`);
+      console.log(`✅ SMS sent to +21651918318 for task: ${transformedBody.title}`);
     } catch (smsError) {
       console.error(`❌ Error sending SMS:`, smsError);
       // Note: We don't fail the request if SMS fails, just log the error

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Logo from "../../images/logo/logo.svg";
 import LogoDark from "../../images/logo/logo-dark.svg";
 import cover from "../../images/logo/reset.svg";
@@ -9,12 +9,32 @@ import InputGroup from "../../components/form/InputGroup";
 
 const Reset = () => {
   const [form, setfForm] = useState({});
+  const [captchaText, setCaptchaText] = useState("");
+  const [userCaptchaInput, setUserCaptchaInput] = useState("");
+  const [captchaError, setCaptchaError] = useState("");
+  
   const dispatch = useDispatch();
   const { content } = useSelector((state) => state.errors);
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
   const email = searchParams.get("email");
   const token = searchParams.get("_token");
+
+  // Generate random captcha text
+  const generateCaptcha = () => {
+    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let result = '';
+    const charactersLength = characters.length;
+    for (let i = 0; i < 6; i++) {
+      result += characters.charAt(Math.floor(Math.random() * charactersLength));
+    }
+    setCaptchaText(result);
+  };
+
+  // Generate captcha on component mount
+  useEffect(() => {
+    generateCaptcha();
+  }, []);
 
   const OnChangeHandler = (e) => {
     setfForm({
@@ -25,8 +45,18 @@ const Reset = () => {
 
   const onSubmitHandler = (e) => {
     e.preventDefault();
+    
+    // Verify captcha before submitting
+    if (userCaptchaInput !== captchaText) {
+      setCaptchaError("CAPTCHA verification failed. Please try again.");
+      generateCaptcha();
+      setUserCaptchaInput("");
+      return;
+    }
+    
     dispatch(ResetAction(form, email, token));
   };
+  
   return (
     <>
       <div className="h-screen rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
@@ -112,6 +142,82 @@ const Reset = () => {
                   action={OnChangeHandler}
                   errors={content?.confirm ?? ""}
                 />
+                
+                {/* CAPTCHA Section */}
+                <div className="mb-4.5">
+                  <label className="mb-2.5 block font-medium text-black dark:text-white">
+                    CAPTCHA Verification
+                  </label>
+                  <div className="flex flex-col gap-3">
+                    <div className="bg-gray-200 dark:bg-gray-700 p-3 rounded-lg flex items-center justify-between">
+                      <div className="font-bold tracking-wider text-lg select-none relative">
+                        <span className="select-none" style={{ 
+                          fontFamily: 'monospace', 
+                          letterSpacing: '0.5em',
+                          textDecoration: 'line-through',
+                          background: 'repeating-linear-gradient(45deg, #3056D3, #3056D3 10px, #4A6CF7 10px, #4A6CF7 20px)',
+                          WebkitBackgroundClip: 'text',
+                          WebkitTextFillColor: 'transparent',
+                          fontStyle: 'italic',
+                          fontWeight: 'bold'
+                        }}>
+                          {captchaText}
+                        </span>
+                      </div>
+                      <button 
+                        type="button" 
+                        onClick={generateCaptcha}
+                        className="p-2 rounded-md bg-primary text-white hover:bg-opacity-90"
+                      >
+                        <svg 
+                          className="w-5 h-5"
+                          fill="none" 
+                          stroke="currentColor" 
+                          viewBox="0 0 24 24" 
+                          xmlns="http://www.w3.org/2000/svg"
+                        >
+                          <path 
+                            strokeLinecap="round" 
+                            strokeLinejoin="round" 
+                            strokeWidth={2} 
+                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" 
+                          />
+                        </svg>
+                      </button>
+                    </div>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        name="captcha"
+                        value={userCaptchaInput}
+                        onChange={(e) => setUserCaptchaInput(e.target.value)}
+                        placeholder="Enter the CAPTCHA text above"
+                        className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 outline-none focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:focus:border-primary"
+                      />
+                      <span className="absolute right-4 top-4">
+                        <svg
+                          className="fill-current"
+                          width="22"
+                          height="22"
+                          viewBox="0 0 22 22"
+                          fill="none"
+                          xmlns="http://www.w3.org/2000/svg"
+                        >
+                          <g opacity="0.5">
+                            <path
+                              d="M19.2516 3.30005H2.75156C1.58281 3.30005 0.585938 4.26255 0.585938 5.46567V16.6032C0.585938 17.7719 1.54844 18.7688 2.75156 18.7688H19.2516C20.4203 18.7688 21.4172 17.8063 21.4172 16.6032V5.4313C21.4172 4.26255 20.4203 3.30005 19.2516 3.30005ZM19.2516 4.84692C19.2859 4.84692 19.3203 4.84692 19.3547 4.84692L11.0016 10.2094L2.64844 4.84692C2.68281 4.84692 2.71719 4.84692 2.75156 4.84692H19.2516ZM19.2516 17.1532H2.75156C2.40781 17.1532 2.13281 16.8782 2.13281 16.5344V6.35942L10.1766 11.5157C10.4172 11.6875 10.6922 11.7563 10.9672 11.7563C11.2422 11.7563 11.5172 11.6875 11.7578 11.5157L19.8016 6.35942V16.5688C19.8703 16.9125 19.5953 17.1532 19.2516 17.1532Z"
+                              fill=""
+                            />
+                          </g>
+                        </svg>
+                      </span>
+                    </div>
+                    {captchaError && (
+                      <div className="text-red-500 text-sm">{captchaError}</div>
+                    )}
+                  </div>
+                </div>
+                
                 <div className="mb-5">
                   <input
                     type="submit"
