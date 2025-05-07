@@ -40,7 +40,7 @@ const Register = async (req, res) => {
           errors.email = "User exists";
           res.status(404).json(errors);
         } else {
-          const password = generatePassword(10);
+          req.body.authType = 'local';
           const hash = bcrypt.hashSync(req.body.password, 10); //hashed password
           req.body.password = hash;
           if (Array.isArray(req.body.roles)) {
