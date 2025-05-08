@@ -10,7 +10,7 @@ console.log("Imported Controllers:", Object.keys(Controllers));
 // Add POST route for creating users
 Router.post(
   "/users", 
-  passport.authenticate("jwt", { session: false }),
+  //passport.authenticate("jwt", { session: false }),
   Controllers.CreateUser
 );
 Router.get(

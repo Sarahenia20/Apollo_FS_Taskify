@@ -136,6 +136,7 @@ const getUserDataGoogle = async (req, res) => {
         // Update existing user's OAuth info if needed
         if (!user.authType) {
           user.authType = 'google';
+          user.picture = userData.picture;
           await user.save();
           console.log('Updated existing user with authType:', user.email);
         }
