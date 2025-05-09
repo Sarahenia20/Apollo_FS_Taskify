@@ -5,6 +5,8 @@ import { GetOverviewStats } from '../../redux/actions/adminChatActions';
 import { Link } from 'react-router-dom';
 import { Bar, Line } from 'react-chartjs-2';
 import DefaultLayout from '../../layout/DefaultLayout';
+import { UseAuth } from "../../hooks/useAuth";
+import { ROLES } from "../../data/roles";
 import Breadcrumb from '../../components/Breadcrumb';
 import {
   Chart as ChartJS,
@@ -366,4 +368,4 @@ const StatCard = ({ icon, title, value, trend, color }) => (
   </div>
 );
 
-export default AdminDashboard;
+export default UseAuth(AdminDashboard, ["ADMIN"]);

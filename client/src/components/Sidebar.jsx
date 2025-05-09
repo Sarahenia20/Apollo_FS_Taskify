@@ -348,7 +348,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
                   <NavLink
                     to="/admin"
                     className={`group relative flex items-center gap-2.5 rounded-sm px-4 py-2 font-medium text-bodydark1 duration-300 ease-in-out hover:bg-graydark dark:hover:bg-meta-4 ${
-                      pathname.includes("admin") && "bg-graydark dark:bg-meta-4"
+                      pathname.includes("admin")
                     }`}
                   >
                     <svg
@@ -376,29 +376,6 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
                       </defs>
                     </svg>
                     Analytics
-                  </NavLink>
-                </li>
-                <li>
-                  <NavLink
-                    to="/chatadmin"
-                    className={`group relative flex items-center gap-2.5 rounded-sm px-4 py-2 font-medium text-bodydark1 duration-300 ease-in-out hover:bg-graydark dark:hover:bg-meta-4 ${
-                      pathname.includes("chat") && "bg-graydark dark:bg-meta-4"
-                    }`}
-                  >
-                    <svg
-                      className="fill-current"
-                      width="18"
-                      height="18"
-                      viewBox="0 0 18 18"
-                      fill="none"
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <path
-                        fill="currentColor"
-                        d="M.5 3.5V3a.5.5 0 00-.5.5h.5zm6 0H7a.5.5 0 00-.5-.5v.5zm0 11v.5a.5.5 0 00.5-.5h-.5zm-6 0H0a.5.5 0 00.5.5v-.5zm8-11V3a.5.5 0 00-.5.5h.5zm6 0h.5a.5.5 0 00-.5-.5v.5zm0 6v.5a.5.5 0 00.5-.5h-.5zm-6 0H8a.5.5 0 00.5.5v-.5zM0 1h7V0H0v1zm8 0h7V0H8v1zM.5 4h6V3h-6v1zM6 3.5v11h1v-11H6zM6.5 14h-6v1h6v-1zm-5.5.5v-11H0v11h1zM8.5 4h6V3h-6v1zm5.5-.5v6h1v-6h-1zm.5 5.5h-6v1h6V9zM9 9.5v-6H8v6h1z"
-                      />
-                    </svg>
-                    Chat
                   </NavLink>
                 </li>
                 <li>
@@ -433,10 +410,32 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
                         </clipPath>
                       </defs>
                     </svg>
-                    Activity Tables
+                    Activity Log
                   </NavLink>
                 </li>
-  
+                <li>
+                  <NavLink
+                    to="/chatadmin"
+                    className={`group relative flex items-center gap-2.5 rounded-sm px-4 py-2 font-medium text-bodydark1 duration-300 ease-in-out hover:bg-graydark dark:hover:bg-meta-4 ${
+                      pathname.includes("chat") && " dark:bg-meta-4"
+                    }`}
+                  >
+                    <svg
+                      className="fill-current"
+                      width="18"
+                      height="18"
+                      viewBox="0 0 18 18"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        fill="currentColor"
+                        d="M.5 3.5V3a.5.5 0 00-.5.5h.5zm6 0H7a.5.5 0 00-.5-.5v.5zm0 11v.5a.5.5 0 00.5-.5h-.5zm-6 0H0a.5.5 0 00.5.5v-.5zm8-11V3a.5.5 0 00-.5.5h.5zm6 0h.5a.5.5 0 00-.5-.5v.5zm0 6v.5a.5.5 0 00.5-.5h-.5zm-6 0H8a.5.5 0 00.5.5v-.5zM0 1h7V0H0v1zm8 0h7V0H8v1zM.5 4h6V3h-6v1zM6 3.5v11h1v-11H6zM6.5 14h-6v1h6v-1zm-5.5.5v-11H0v11h1zM8.5 4h6V3h-6v1zm5.5-.5v6h1v-6h-1zm.5 5.5h-6v1h6V9zM9 9.5v-6H8v6h1z"
+                      />
+                    </svg>
+                    Chat
+                  </NavLink>
+                </li> 
                 {/* <!-- Menu Item Chart --> */}
                 <SidebarLinkGroup
                   activeCondition={
@@ -558,9 +557,9 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
     >
       {/* <!-- SIDEBAR HEADER --> */}
       <div className="flex items-center justify-between gap-2 px-6 py-5.5 lg:py-6.5">
-        <NavLink to="/">
-          <img src={Logo} alt="Logo" />
-        </NavLink>
+  <NavLink to="/" className="sidebar-logo">
+    <img src={Logo} alt="Logo" className="taskify-logo" />
+  </NavLink>
 
         <button
           ref={trigger}
@@ -796,64 +795,6 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
               {/* <!-- Menu Item Tables --> */}
               <li>
                 <NavLink
-                  to="/admin"
-                  className={`group relative flex items-center gap-2.5 rounded-sm px-4 py-2 font-medium text-bodydark1 duration-300 ease-in-out hover:bg-graydark dark:hover:bg-meta-4 ${
-                    pathname.includes("admin") && "bg-graydark dark:bg-meta-4"
-                  }`}
-                >
-                  <svg
-                    className="fill-current"
-                    width="16"
-                    height="16"
-                    viewBox="0 0 16 16"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <g clipPath="url(#clip0_130_9756)">
-                    <path d="M4 11a1 1 0 112 0v1a1 1 0 11-2 0v-1zm6-4a1 1 0 112 0v5a1 1 0 11-2 0V7zM7 9a1 1 0 012 0v3a1 1 0 11-2 0V9z" />
-      <path d="M4 1.5H3a2 2 0 00-2 2V14a2 2 0 002 2h10a2 2 0 002-2V3.5a2 2 0 00-2-2h-1v1h1a1 1 0 011 1V14a1 1 0 01-1 1H3a1 1 0 01-1-1V3.5a1 1 0 011-1h1v-1z" />
-      <path d="M9.5 1a.5.5 0 01.5.5v1a.5.5 0 01-.5.5h-3a.5.5 0 01-.5-.5v-1a.5.5 0 01.5-.5h3zm-3-1A1.5 1.5 0 005 1.5v1A1.5 1.5 0 006.5 4h3A1.5 1.5 0 0011 2.5v-1A1.5 1.5 0 009.5 0h-3z" />
-                    </g>
-                    <defs>
-                      <clipPath id="clip0_130_9756">
-                        <rect
-                          width="16"
-                          height="16"
-                          fill="white"
-                          transform="translate(0 0.052124)"
-                        />
-                      </clipPath>
-                    </defs>
-                  </svg>
-                  Analytics
-                </NavLink>
-              </li>
-              <li>
-                  <NavLink
-                    to="/chatadmin"
-                    className={`group relative flex items-center gap-2.5 rounded-sm px-4 py-2 font-medium text-bodydark1 duration-300 ease-in-out hover:bg-graydark dark:hover:bg-meta-4 ${
-                      pathname.includes("chat") && " dark:bg-meta-4"
-                    }`}
-                  >
-                    <svg
-                      className="fill-current"
-                      width="18"
-                      height="18"
-                      viewBox="0 0 18 18"
-                      fill="none"
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <path
-                        fill="currentColor"
-                        d="M.5 3.5V3a.5.5 0 00-.5.5h.5zm6 0H7a.5.5 0 00-.5-.5v.5zm0 11v.5a.5.5 0 00.5-.5h-.5zm-6 0H0a.5.5 0 00.5.5v-.5zm8-11V3a.5.5 0 00-.5.5h.5zm6 0h.5a.5.5 0 00-.5-.5v.5zm0 6v.5a.5.5 0 00.5-.5h-.5zm-6 0H8a.5.5 0 00.5.5v-.5zM0 1h7V0H0v1zm8 0h7V0H8v1zM.5 4h6V3h-6v1zM6 3.5v11h1v-11H6zM6.5 14h-6v1h6v-1zm-5.5.5v-11H0v11h1zM8.5 4h6V3h-6v1zm5.5-.5v6h1v-6h-1zm.5 5.5h-6v1h6V9zM9 9.5v-6H8v6h1z"
-                      />
-                    </svg>
-                    Chat
-                  </NavLink>
-                </li>
-                
-              <li>
-                <NavLink
                   to="/tables"
                   className={`group relative flex items-center gap-2.5 rounded-sm px-4 py-2 font-medium text-bodydark1 duration-300 ease-in-out hover:bg-graydark dark:hover:bg-meta-4 ${
                     pathname.includes("tables") && "bg-graydark dark:bg-meta-4"
@@ -887,7 +828,64 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
                   Activity Tables
                 </NavLink>
               </li>
-
+              <li>
+              <NavLink
+                  to="/games"
+                  className={`group relative flex items-center gap-2.5 rounded-sm px-4 py-2 font-medium text-bodydark1 duration-300 ease-in-out hover:bg-graydark dark:hover:bg-meta-4 ${
+                    pathname.includes("games") && "bg-graydark dark:bg-meta-4"
+                  }`}
+                >
+                  <svg
+                    className="fill-current"
+                    width="18"
+                    height="18"
+                    viewBox="0 0 18 18"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M6.75 2.25C6.3375 2.25 6 2.5875 6 3V4.5C6 4.9125 6.3375 5.25 6.75 5.25H8.25V6.75H6.75C6.3375 6.75 6 7.0875 6 7.5V9C6 9.4125 6.3375 9.75 6.75 9.75H8.25V11.25H6.75C6.3375 11.25 6 11.5875 6 12V13.5C6 13.9125 6.3375 14.25 6.75 14.25H11.25C11.6625 14.25 12 13.9125 12 13.5V12C12 11.5875 11.6625 11.25 11.25 11.25H9.75V9.75H11.25C11.6625 9.75 12 9.4125 12 9V7.5C12 7.0875 11.6625 6.75 11.25 6.75H9.75V5.25H11.25C11.6625 5.25 12 4.9125 12 4.5V3C12 2.5875 11.6625 2.25 11.25 2.25H6.75ZM15.75 3.75C15.3375 3.75 15 4.0875 15 4.5V6C15 6.4125 15.3375 6.75 15.75 6.75H16.5C16.9125 6.75 17.25 6.4125 17.25 6V4.5C17.25 4.0875 16.9125 3.75 16.5 3.75H15.75ZM15.75 9.75C15.3375 9.75 15 10.0875 15 10.5V12C15 12.4125 15.3375 12.75 15.75 12.75H16.5C16.9125 12.75 17.25 12.4125 17.25 12V10.5C17.25 10.0875 16.9125 9.75 16.5 9.75H15.75ZM1.5 4.5C1.5 4.0875 1.8375 3.75 2.25 3.75H3.75C4.1625 3.75 4.5 4.0875 4.5 4.5V5.25C4.5 5.6625 4.1625 6 3.75 6H3V6.75C3 7.1625 2.6625 7.5 2.25 7.5C1.8375 7.5 1.5 7.1625 1.5 6.75V4.5ZM1.5 10.5C1.5 10.0875 1.8375 9.75 2.25 9.75H3V9C3 8.5875 3.3375 8.25 3.75 8.25C4.1625 8.25 4.5 8.5875 4.5 9V11.25C4.5 11.6625 4.1625 12 3.75 12H2.25C1.8375 12 1.5 11.6625 1.5 11.25V10.5Z"
+                      fill=""
+                    />
+                  </svg>
+                  Games
+                </NavLink>
+              </li>
+              <li>
+                <NavLink
+                  to="/admin"
+                  className={`group relative flex items-center gap-2.5 rounded-sm px-4 py-2 font-medium text-bodydark1 duration-300 ease-in-out hover:bg-graydark dark:hover:bg-meta-4 ${
+                    pathname.includes("admin") && "bg-graydark dark:bg-meta-4"
+                  }`}
+                >
+                  <svg
+                    className="fill-current"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 16 16"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <g clipPath="url(#clip0_130_9756)">
+                    <path d="M4 11a1 1 0 112 0v1a1 1 0 11-2 0v-1zm6-4a1 1 0 112 0v5a1 1 0 11-2 0V7zM7 9a1 1 0 012 0v3a1 1 0 11-2 0V9z" />
+                     <path d="M4 1.5H3a2 2 0 00-2 2V14a2 2 0 002 2h10a2 2 0 002-2V3.5a2 2 0 00-2-2h-1v1h1a1 1 0 011 1V14a1 1 0 01-1 1H3a1 1 0 01-1-1V3.5a1 1 0 011-1h1v-1z" />
+                     <path d="M9.5 1a.5.5 0 01.5.5v1a.5.5 0 01-.5.5h-3a.5.5 0 01-.5-.5v-1a.5.5 0 01.5-.5h3zm-3-1A1.5 1.5 0 005 1.5v1A1.5 1.5 0 006.5 4h3A1.5 1.5 0 0011 2.5v-1A1.5 1.5 0 009.5 0h-3z" />
+                    </g>
+                    <defs>
+                      <clipPath id="clip0_130_9756">
+                        <rect
+                          width="16"
+                          height="16"
+                          fill="white"
+                          transform="translate(0 0.052124)"
+                        />
+                      </clipPath>
+                    </defs>
+                  </svg>
+                  Analytics
+                </NavLink>
+              </li>
+       
               {/* <!-- Menu Item Chart --> */}
               <SidebarLinkGroup
                 activeCondition={
@@ -992,29 +990,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
                 
               </SidebarLinkGroup>
               {/* <!-- Menu Item Chart --> */}
-              <li>
-              <NavLink
-                  to="/games"
-                  className={`group relative flex items-center gap-2.5 rounded-sm px-4 py-2 font-medium text-bodydark1 duration-300 ease-in-out hover:bg-graydark dark:hover:bg-meta-4 ${
-                    pathname.includes("games") && "bg-graydark dark:bg-meta-4"
-                  }`}
-                >
-                  <svg
-                    className="fill-current"
-                    width="18"
-                    height="18"
-                    viewBox="0 0 18 18"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path
-                      d="M6.75 2.25C6.3375 2.25 6 2.5875 6 3V4.5C6 4.9125 6.3375 5.25 6.75 5.25H8.25V6.75H6.75C6.3375 6.75 6 7.0875 6 7.5V9C6 9.4125 6.3375 9.75 6.75 9.75H8.25V11.25H6.75C6.3375 11.25 6 11.5875 6 12V13.5C6 13.9125 6.3375 14.25 6.75 14.25H11.25C11.6625 14.25 12 13.9125 12 13.5V12C12 11.5875 11.6625 11.25 11.25 11.25H9.75V9.75H11.25C11.6625 9.75 12 9.4125 12 9V7.5C12 7.0875 11.6625 6.75 11.25 6.75H9.75V5.25H11.25C11.6625 5.25 12 4.9125 12 4.5V3C12 2.5875 11.6625 2.25 11.25 2.25H6.75ZM15.75 3.75C15.3375 3.75 15 4.0875 15 4.5V6C15 6.4125 15.3375 6.75 15.75 6.75H16.5C16.9125 6.75 17.25 6.4125 17.25 6V4.5C17.25 4.0875 16.9125 3.75 16.5 3.75H15.75ZM15.75 9.75C15.3375 9.75 15 10.0875 15 10.5V12C15 12.4125 15.3375 12.75 15.75 12.75H16.5C16.9125 12.75 17.25 12.4125 17.25 12V10.5C17.25 10.0875 16.9125 9.75 16.5 9.75H15.75ZM1.5 4.5C1.5 4.0875 1.8375 3.75 2.25 3.75H3.75C4.1625 3.75 4.5 4.0875 4.5 4.5V5.25C4.5 5.6625 4.1625 6 3.75 6H3V6.75C3 7.1625 2.6625 7.5 2.25 7.5C1.8375 7.5 1.5 7.1625 1.5 6.75V4.5ZM1.5 10.5C1.5 10.0875 1.8375 9.75 2.25 9.75H3V9C3 8.5875 3.3375 8.25 3.75 8.25C4.1625 8.25 4.5 8.5875 4.5 9V11.25C4.5 11.6625 4.1625 12 3.75 12H2.25C1.8375 12 1.5 11.6625 1.5 11.25V10.5Z"
-                      fill=""
-                    />
-                  </svg>
-                  Games
-                </NavLink>
-              </li>
+              
             </ul>
           </div>
         </nav>

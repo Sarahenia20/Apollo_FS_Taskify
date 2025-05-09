@@ -10,9 +10,12 @@ import projectsReducer from "./reducers/projects";
 import { teamsSlice } from "./reducers/teams";
 import { chatSlice } from './reducers/chatReducer';
 import { adminChatSlice } from './reducers/adminChatReducer';
+import { activitySlice } from "./reducers/activitySlice"; // Add this import
 
-import videoCallsReducer from "./reducers/VideoCalls";  // Changed to default import
-import smartAssignReducer from "./reducers/smartAssign"; // Make sure this path is correct
+import predictionsReducer from "./reducers/predictions";
+import videoCallsReducer from "./reducers/VideoCalls";
+import smartAssignReducer from "./reducers/smartAssign";
+
 export const store = configureStore({
   reducer: {
     auth: authSlice.reducer,
@@ -24,9 +27,11 @@ export const store = configureStore({
     roles: rolesReducer,
     projects: projectsReducer,
     teams: teamsSlice.reducer,
-    smartAssign: smartAssignReducer ,
-    videoCalls: videoCallsReducer,  // Use the default export directly
+    smartAssign: smartAssignReducer,
+    videoCalls: videoCallsReducer,
     chat: chatSlice.reducer,
-    admin: adminChatSlice.reducer
+    admin: adminChatSlice.reducer,
+    predictions: predictionsReducer,
+    activity: activitySlice.reducer  // Add this line
   },
 });

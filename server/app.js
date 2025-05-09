@@ -6,7 +6,6 @@ const { default: mongoose } = require("mongoose");
 const helmet = require("helmet");
 const cors = require('cors'); // Add cors for cross-origin support
 
-
 /* routers */
 const authRouter = require("./routes/auth.router");
 const usersRouter = require("./routes/users.router");
@@ -23,13 +22,18 @@ const imagesRouter = require('./routes/images.router');
 const taskGeneratorRouter = require("./routes/tasksGenerator.router");
 const chatbotRouter = require("./routes/chatbot.router");
 const videoCallRoutes = require("./routes/VideoCall.router");
-const chatRouter=require("./routes/chats.router") ; 
-
+const chatRouter = require("./routes/chats.router");
+const predictionRoutes = require('./routes/predictionRoutes');
 const teamsRouter = require("./routes/teams.router");
-const gamesRouter=require("./routes/gameRoom");
+const gamesRouter = require("./routes/gameRoom");
+// Add the new activity routes
+const activityRoutes = require('./routes/activityRoutes');
+
 const io = require("./socket");
 const passport = require("passport");
 require("dotenv").config();
+const { MOCK_TYPE } = require('./constants/MOCK_TYPE');
+global.MOCK_TYPE = MOCK_TYPE;
 
 var app = express();
 
@@ -95,6 +99,11 @@ mongoose
 app.use(express.static(path.join(__dirname, "public")));
 app.use('/uploads', express.static('uploads'));
 
+// Add the activity logger middleware after passport initialization
+// but before route registration
+const activityLogger = require('./middlewares/activityLogger');
+app.use(activityLogger);
+
 // Route registration
 app.use("/api", [
   projectsRouter,
@@ -109,8 +118,12 @@ app.use("/api", [
   taskGeneratorRouter,
   chatbotRouter,
   gamesRouter,
-  chatRouter
+  chatRouter,
+  predictionRoutes
 ]);
+
+// Register activity routes separately
+app.use("/api/activities", activityRoutes);
 
 // Additional routes
 app.use("/api/auth/2fa", twoFactorAuthRouter);
@@ -118,6 +131,7 @@ app.use('/api/login-activity', loginActivityRoutes);
 app.use('/api/test-email', testEmailRoute);
 app.use('/api/images', imagesRouter);
 app.use("/api/video-calls", videoCallRoutes);
+
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error('Unhandled Error:', err);
@@ -128,5 +142,3 @@ app.use((err, req, res, next) => {
 });
 
 module.exports = app;
-
-

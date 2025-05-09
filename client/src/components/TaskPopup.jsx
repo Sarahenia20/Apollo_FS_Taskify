@@ -816,6 +816,7 @@ const SparkleIcon = ({ isHovered }) => {
                   label={"Status"}
                   options={status}
                   name="status"
+
                   action={(e) => OnChangeSelect(e, "status")}
                   required={true}
                   defaultValue={

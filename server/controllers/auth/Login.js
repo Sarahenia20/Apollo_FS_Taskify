@@ -98,7 +98,6 @@ const Login = (req, res) => {
   
   const { errors, isValid } = loginValidation(req.body);
   
-
   console.log(errors,isValid)
   try {
     if (!isValid) {
@@ -146,6 +145,19 @@ const Login = (req, res) => {
                       "Test reason - Force email alert for testing",
                     ],
                   };
+
+                  // Also log the login in our new activity tracking system
+                  if (req.logActivity) {
+                    req.logActivity(
+                      "User Login",
+                      `Login from ${req.ip || req.connection.remoteAddress}`,
+                      "login",
+                      user._id,
+                      "User"
+                    ).catch(err => {
+                      console.error("Error logging activity:", err);
+                    });
+                  }
 
                   // Convert async function to promise chain
                   Promise.resolve()

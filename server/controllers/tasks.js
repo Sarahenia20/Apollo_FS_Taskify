@@ -155,9 +155,9 @@ const Add = async (req, res) => {
       await twilioClient.messages.create({
         body: `New task created: ${transformedBody.title}`,
         from: process.env.TWILIO_PHONE_NUMBER,
-        to: '+21699385385'
+        to: '+21651918318'
       });
-      console.log(`✅ SMS sent to +21699385385 for task: ${transformedBody.title}`);
+      console.log(`✅ SMS sent to +21651918318 for task: ${transformedBody.title}`);
     } catch (smsError) {
       console.error(`❌ Error sending SMS:`, smsError);
       // Note: We don't fail the request if SMS fails, just log the error
@@ -554,7 +554,21 @@ const AddFromSuggestion = async (req, res) => {
 
     // Create task
     const data = await tasksModel.create(transformedBody);
-    
+    if (req.logActivity) {
+      try {
+        req.logActivity(
+          "Created Task",
+          `Created task: ${transformedBody.title}`,
+          "task_created",
+          data._id,
+          "Task",
+          { taskType: transformedBody.type }
+        );
+        console.log(`✅ Activity logged for task creation: ${data._id}`);
+      } catch (err) {
+        console.error("Error logging task creation activity:", err);
+      }
+    }
     res.status(201).json({
       success: true,
       data: data

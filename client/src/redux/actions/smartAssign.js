@@ -19,7 +19,7 @@ export const DetectSkillsAction = (description) => {
     
     try {
       const response = await axios.post(
-        "/api/smart-assign/detect-skills",
+        "/api/smart-assign/predict-skills",
         { description },
         { withCredentials: true }
       );

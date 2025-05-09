@@ -440,7 +440,7 @@ const EnhancedCalendar = ({ onScheduleCall }) => {
       console.log("Initial data fetch for tasks and video calls");
       
       // Fetch tasks first
-      dispatch(FindTaskAction());
+      dispatch(FindTaskAction(currentUserId));
       
       // Then fetch video calls with a slight delay to avoid race conditions
       setTimeout(() => {
@@ -461,7 +461,7 @@ const EnhancedCalendar = ({ onScheduleCall }) => {
   useEffect(() => {
     if (refresh && initialDataFetched) {
       console.log("Refreshing data due to refresh state change");
-      dispatch(FindTaskAction());
+      dispatch(FindTaskAction(currentUserId));
       
       // Only refresh video calls if we're not currently fetching
       if (!fetchingCalls) {
