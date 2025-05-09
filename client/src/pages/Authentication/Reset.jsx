@@ -8,10 +8,12 @@ import { useDispatch, useSelector } from "react-redux";
 import InputGroup from "../../components/form/InputGroup";
 
 const Reset = () => {
-  const [form, setfForm] = useState({});
+  const [form, setForm] = useState({});
   const [captchaText, setCaptchaText] = useState("");
-  const [userCaptchaInput, setUserCaptchaInput] = useState("");
+  const [userInput, setUserInput] = useState("");
   const [captchaError, setCaptchaError] = useState("");
+  const [audioCaptchaText, setAudioCaptchaText] = useState("");
+  const [isAudioPlayed, setIsAudioPlayed] = useState(false);
   
   const dispatch = useDispatch();
   const { content } = useSelector((state) => state.errors);
@@ -20,7 +22,7 @@ const Reset = () => {
   const email = searchParams.get("email");
   const token = searchParams.get("_token");
 
-  // Generate random captcha text
+  // Generate both text and audio CAPTCHA
   const generateCaptcha = () => {
     const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
     let result = '';
@@ -29,15 +31,35 @@ const Reset = () => {
       result += characters.charAt(Math.floor(Math.random() * charactersLength));
     }
     setCaptchaText(result);
+    setIsAudioPlayed(false); // Reset audio mode
+
+    const pmEnglishWords = [
+      "project", "team", "task", "planning", "deadline",
+      "resource", "management", "budget", "risk", "tracking"
+    ];
+    const selectedWords = [];
+    const shuffledWords = pmEnglishWords.sort(() => Math.random() - 0.5);
+    for (let i = 0; i < 3; i++) {
+      selectedWords.push(shuffledWords[i]);
+    }
+    setAudioCaptchaText(selectedWords.join(" "));
   };
 
-  // Generate captcha on component mount
+  // Play audio CAPTCHA
+  const playAudioCaptcha = () => {
+    const utterance = new SpeechSynthesisUtterance(audioCaptchaText);
+    utterance.lang = 'en-US'; // Changed to English
+    window.speechSynthesis.speak(utterance);
+    setIsAudioPlayed(true);
+  };
+
+  // Generate captchas on component mount
   useEffect(() => {
     generateCaptcha();
   }, []);
 
   const OnChangeHandler = (e) => {
-    setfForm({
+    setForm({
       ...form,
       [e.target.name]: e.target.value,
     });
@@ -46,11 +68,15 @@ const Reset = () => {
   const onSubmitHandler = (e) => {
     e.preventDefault();
     
-    // Verify captcha before submitting
-    if (userCaptchaInput !== captchaText) {
+    // Verify CAPTCHA (either text or audio based on user interaction)
+    const isTextMatch = userInput === captchaText;
+    const isAudioMatch = isAudioPlayed && userInput.toLowerCase() === audioCaptchaText.toLowerCase();
+    
+    if (!isTextMatch && !isAudioMatch) {
       setCaptchaError("CAPTCHA verification failed. Please try again.");
       generateCaptcha();
-      setUserCaptchaInput("");
+      setUserInput("");
+      setIsAudioPlayed(false);
       return;
     }
     
@@ -143,55 +169,69 @@ const Reset = () => {
                   errors={content?.confirm ?? ""}
                 />
                 
-                {/* CAPTCHA Section */}
+                {/* CAPTCHA Verification Section with Single Input */}
                 <div className="mb-4.5">
                   <label className="mb-2.5 block font-medium text-black dark:text-white">
                     CAPTCHA Verification
                   </label>
                   <div className="flex flex-col gap-3">
+                    {/* Combined Text and Audio CAPTCHA on a single line */}
                     <div className="bg-gray-200 dark:bg-gray-700 p-3 rounded-lg flex items-center justify-between">
-                      <div className="font-bold tracking-wider text-lg select-none relative">
-                        <span className="select-none" style={{ 
-                          fontFamily: 'monospace', 
-                          letterSpacing: '0.5em',
-                          textDecoration: 'line-through',
-                          background: 'repeating-linear-gradient(45deg, #3056D3, #3056D3 10px, #4A6CF7 10px, #4A6CF7 20px)',
-                          WebkitBackgroundClip: 'text',
-                          WebkitTextFillColor: 'transparent',
-                          fontStyle: 'italic',
-                          fontWeight: 'bold'
-                        }}>
-                          {captchaText}
-                        </span>
+                      <div className="font-bold tracking-wider text-lg select-none" style={{ 
+                        color: '#1E40AF',
+                        fontFamily: 'monospace',
+                        letterSpacing: '0.2em'
+                      }}>
+                        {captchaText}
                       </div>
-                      <button 
-                        type="button" 
-                        onClick={generateCaptcha}
-                        className="p-2 rounded-md bg-primary text-white hover:bg-opacity-90"
-                      >
-                        <svg 
-                          className="w-5 h-5"
-                          fill="none" 
-                          stroke="currentColor" 
-                          viewBox="0 0 24 24" 
-                          xmlns="http://www.w3.org/2000/svg"
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={playAudioCaptcha}
+                          className="p-2 rounded-md bg-primary text-white hover:bg-opacity-90"
                         >
-                          <path 
-                            strokeLinecap="round" 
-                            strokeLinejoin="round" 
-                            strokeWidth={2} 
-                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" 
-                          />
-                        </svg>
-                      </button>
+                          <svg
+                            className="w-5 h-5"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            xmlns="http://www.w3.org/2000/svg"
+                          >
+                            <path d="M11 5L6 9H2V15H6L11 19V5Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                            <path d="M15.54 8.46C16.2601 9.18014 16.75 10.1405 16.75 11.125C16.75 12.1095 16.2601 13.0699 15.54 13.79" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                            <path d="M18.44 5.66C20.1802 7.40022 21.25 9.75825 21.25 12.125C21.25 14.4917 20.1802 16.8498 18.44 18.59" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={generateCaptcha}
+                          className="p-2 rounded-md bg-primary text-white hover:bg-opacity-90"
+                        >
+                          <svg
+                            className="w-5 h-5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                            xmlns="http://www.w3.org/2000/svg"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                            />
+                          </svg>
+                        </button>
+                      </div>
                     </div>
+
+                    {/* Single Input for Both Text and Audio CAPTCHA */}
                     <div className="relative">
                       <input
                         type="text"
                         name="captcha"
-                        value={userCaptchaInput}
-                        onChange={(e) => setUserCaptchaInput(e.target.value)}
-                        placeholder="Enter the CAPTCHA text above"
+                        value={userInput}
+                        onChange={(e) => setUserInput(e.target.value)}
+                        placeholder="Enter what you see or hear"
                         className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 outline-none focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:focus:border-primary"
                       />
                       <span className="absolute right-4 top-4">
@@ -217,7 +257,7 @@ const Reset = () => {
                     )}
                   </div>
                 </div>
-                
+
                 <div className="mb-5">
                   <input
                     type="submit"
