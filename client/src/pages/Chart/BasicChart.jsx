@@ -9,6 +9,7 @@ import StorageChart from '../../components/StorageChart'
 import StorageList from '../../components/StorageList'
 import DataStatsThree from '../../components/DataStatsThree'
 import { UseAuth } from "../../hooks/useAuth";
+import { ROLES } from "../../data/roles";
 
 const BasicChart = () => {
   const [taskStats, setTaskStats] = useState({
@@ -80,4 +81,7 @@ const BasicChart = () => {
   );
 };
 
-export default UseAuth(BasicChart, ["ADMIN"]);
+export default UseAuth(
+  BasicChart,
+  ROLES.filter((r) => r.title != "ENGINEER").map((i) => i.title)
+);

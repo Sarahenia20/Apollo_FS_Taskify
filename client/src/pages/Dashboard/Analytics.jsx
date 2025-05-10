@@ -12,6 +12,7 @@ import ChartThree from "../../components/ChartThree";
 import PieChart from "../../components/PieChart";
 import Courbe from "../../components/courbe"; // Import the new Courbe component
 import { UseAuth } from "../../hooks/useAuth";
+import { ROLES } from "../../data/roles";
 
 const Analytics = () => {
   return (
@@ -39,4 +40,7 @@ const Analytics = () => {
   );
 };
 
-export default UseAuth(Analytics, ["ADMIN"]);
+export default UseAuth(
+  Analytics,
+  ROLES.filter((r) => r.title != "ENGINEER").map((i) => i.title)
+);

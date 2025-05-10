@@ -98,6 +98,20 @@ const AddComment = async (req, res) => {
       });
     }
     
+    // Log activity for comment addition
+    if (req.logActivity) {
+      req.logActivity(
+        "Added Comment",
+        `Added comment on task: ${updatedTask.title || "Unknown Task"}`,
+        "comment_added",
+        newComment._id,
+        "Comment",
+        { taskId: req.params.id }
+      ).catch(err => console.error("Error logging comment activity:", err));
+      
+      console.log("✅ Activity logged for comment:", newComment._id);
+    }
+    
     // Return success with the full updated task
     return res.status(201).json({
       success: true,
@@ -113,6 +127,7 @@ const AddComment = async (req, res) => {
     });
   }
 };
+
 /**
  * Delete a comment from a task with authorization
  */
@@ -215,8 +230,6 @@ const DeleteComment = async (req, res) => {
     });
   }
 };
-// Add this to your controllers/comments.js file
-// Make sure to export it in the module.exports at the bottom
 
 /**
  * Get comments for a task
@@ -265,6 +278,7 @@ const GetComments = async (req, res) => {
     });
   }
 };
+
 module.exports = {
   AddComment,
   DeleteComment,

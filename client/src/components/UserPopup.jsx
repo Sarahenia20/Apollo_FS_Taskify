@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import InputGroup from "./form/InputGroup";
-import RolesSelectGroup from "./form/RolesSelectGroup"; // Import specialized roles component
-import SkillsSelectGroup from "./form/SkillsSelectGroup"; // Import specialized skills component
+import RolesSelectGroup from "./form/RolesSelectGroup";
+import SkillsSelectGroup from "./form/SkillsSelectGroup";
 import { useDispatch, useSelector } from "react-redux";
 import { AddUser, UpdateUser } from "../redux/actions/users";
 import { _FindOneUser } from "../redux/reducers/users";
@@ -13,6 +13,7 @@ const UserPopup = (props) => {
   const dispatch = useDispatch();
   const { content } = useSelector((state) => state.errors);
   const { _ONE } = useSelector((state) => state.users);
+  const [formHeading, setFormHeading] = useState("Add New User");
 
   const OnChangeHandler = (e) => {
     setForm({
@@ -39,6 +40,12 @@ const UserPopup = (props) => {
 
   useEffect(() => {
     setForm(_ONE);
+    // Set heading based on whether we're adding or editing
+    if (Object.keys(_ONE).length > 0) {
+      setFormHeading("Edit User Profile");
+    } else {
+      setFormHeading("Add New User");
+    }
   }, [_ONE]);
 
   const onSubmitHandler = (e) => {
@@ -78,129 +85,176 @@ const UserPopup = (props) => {
   
   return (
     <div
-      className={`fixed left-0 top-0 z-99999 flex h-screen w-full justify-center overflow-y-scroll bg-black/80 px-4 py-5 ${
+      className={`fixed left-0 top-0 z-99999 flex h-screen w-full justify-center items-center backdrop-blur-sm bg-black/70 px-4 py-5 ${
         props.popupOpen === true ? "block" : "hidden"
       }`}
     >
-      <div className="relative m-auto w-full max-w-180 rounded-sm border border-stroke bg-gray p-4 shadow-default dark:border-strokedark dark:bg-meta-4 sm:p-8 xl:p-10">
-        <button
-          onClick={() => {
-            props.setPopupOpen(false);
-            dispatch(_FindOneUser({}));
-            setTimeout(() => {
-              dispatch(setRefresh(false));
-            }, 2000);
-          }}
-          className="absolute right-1 top-1 sm:right-5 sm:top-5"
-        >
-          <svg
-            className="fill-current"
-            width="20"
-            height="20"
-            viewBox="0 0 20 20"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
+      <div 
+        className="relative w-full max-w-180 bg-white dark:bg-boxdark rounded-xl border border-stroke dark:border-strokedark shadow-2xl overflow-hidden transform transition-all duration-300 dark:bg-meta-4"
+        style={{
+          boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)"
+        }}
+      >
+        {/* Form Header */}
+        <div className="bg-gray-50 dark:bg-meta-3 px-8 py-4 border-b border-stroke dark:border-strokedark flex justify-between items-center">
+          <h3 className="text-xl font-semibold text-black dark:text-white">
+            {formHeading}
+          </h3>
+          <button
+            onClick={() => {
+              props.setPopupOpen(false);
+              dispatch(_FindOneUser({}));
+              setTimeout(() => {
+                dispatch(setRefresh(false));
+              }, 2000);
+            }}
+            className="text-gray-500 dark:text-gray-400 hover:text-primary dark:hover:text-primary transition-colors rounded-full p-1 hover:bg-gray-100 dark:hover:bg-meta-4"
           >
-            <path
-              fillRule="evenodd"
-              clipRule="evenodd"
-              d="M11.8913 9.99599L19.5043 2.38635C20.032 1.85888 20.032 1.02306 19.5043 0.495589C18.9768 -0.0317329 18.141 -0.0317329 17.6135 0.495589L10.0001 8.10559L2.38673 0.495589C1.85917 -0.0317329 1.02343 -0.0317329 0.495873 0.495589C-0.0318274 1.02306 -0.0318274 1.85888 0.495873 2.38635L8.10887 9.99599L0.495873 17.6056C-0.0318274 18.1331 -0.0318274 18.9689 0.495873 19.4964C0.717307 19.7177 1.05898 19.9001 1.4413 19.9001C1.75372 19.9001 2.13282 19.7971 2.40606 19.4771L10.0001 11.8864L17.6135 19.4964C17.8349 19.7177 18.1766 19.9001 18.5589 19.9001C18.8724 19.9001 19.2531 19.7964 19.5265 19.4737C20.0319 18.9452 20.0245 18.1256 19.5043 17.6056L11.8913 9.99599Z"
-              fill=""
-            />
-          </svg>
-        </button>
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
 
-        <form onSubmit={onSubmitHandler}>
+        <form onSubmit={onSubmitHandler} className="p-8">
           {!refresh ? (
-            <div className="p-6.5">
-              <InputGroup
-                label={"Full Name"}
-                name={"fullName"}
-                type={"text"}
-                placeholder={"Enter your full name "}
-                required={true}
-                action={OnChangeHandler}
-                errors={content?.fullName ?? ""}
-                defaultValue={form?.fullName ?? ""}
-              />
-              <InputGroup
-                label={"Email"}
-                name={"email"}
-                type={"email"}
-                placeholder={"Enter your email "}
-                required={true}
-                action={OnChangeHandler}
-                errors={content?.email ?? ""}
-                defaultValue={form?.email ?? ""}
-              />
-              <InputGroup
-                label={"Phone"}
-                name={"phone"}
-                type={"phone"}
-                placeholder={"Enter your phone "}
-                required={true}
-                action={OnChangeHandler}
-                errors={content?.phone ?? ""}
-                defaultValue={form?.phone ?? ""}
-              />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="md:col-span-2">
+                <p className="text-sm text-body dark:text-bodydark mb-6">
+                  {Object.keys(_ONE).length > 0 
+                    ? "Update the user information below" 
+                    : "Please fill in the details to create a new user"}
+                </p>
+              </div>
               
-              {/* Add password field for new users */}
-              {!Object.keys(_ONE).length > 0 && (
-                <div className="mb-5.5">
-                  <label className="mb-3 block text-sm font-medium text-black dark:text-white">
-                    Password <span className="text-meta-1">*</span>
-                  </label>
-                  <input
-                    type="password"
-                    name="password"
-                    placeholder="Enter password"
-                    required
-                    onChange={OnChangeHandler}
-                    className="w-full rounded border border-stroke bg-transparent py-3 px-5 text-black dark:text-white outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input"
-                  />
-                  {content?.password && (
-                    <p className="text-meta-1">{content.password}</p>
-                  )}
+              {/* Personal Info Section */}
+              <div className="space-y-5">
+                <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 border-b pb-2 mb-3">
+                  Personal Information
+                </h4>
+                
+                <InputGroup
+                  label={"Full Name"}
+                  name={"fullName"}
+                  type={"text"}
+                  placeholder={"Enter full name"}
+                  required={true}
+                  action={OnChangeHandler}
+                  errors={content?.fullName ?? ""}
+                  defaultValue={form?.fullName ?? ""}
+                />
+                
+                <InputGroup
+                  label={"Email Address"}
+                  name={"email"}
+                  type={"email"}
+                  placeholder={"email@example.com"}
+                  required={true}
+                  action={OnChangeHandler}
+                  errors={content?.email ?? ""}
+                  defaultValue={form?.email ?? ""}
+                />
+                
+                <InputGroup
+                  label={"Phone Number"}
+                  name={"phone"}
+                  type={"phone"}
+                  placeholder={"+1 (555) 123-4567"}
+                  required={true}
+                  action={OnChangeHandler}
+                  errors={content?.phone ?? ""}
+                  defaultValue={form?.phone ?? ""}
+                />
+                
+                {/* Add password field for new users */}
+                {!Object.keys(_ONE).length > 0 && (
+                  <div className="mb-1">
+                    <label className="mb-2.5 block text-sm font-medium text-black dark:text-white">
+                      Password <span className="text-meta-1">*</span>
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="password"
+                        name="password"
+                        placeholder="Enter secure password"
+                        required
+                        onChange={OnChangeHandler}
+                        className="w-full rounded-lg border border-stroke bg-transparent py-3 pl-5 pr-10 text-black dark:text-white outline-none transition focus:border-primary focus:ring-1 focus:ring-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:focus:border-primary"
+                      />
+                      <span className="absolute right-4 top-3.5 text-gray-500">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M19 11H5C3.89543 11 3 11.8954 3 13V20C3 21.1046 3.89543 22 5 22H19C20.1046 22 21 21.1046 21 20V13C21 11.8954 20.1046 11 19 11Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                          <path d="M7 11V7C7 5.67392 7.52678 4.40215 8.46447 3.46447C9.40215 2.52678 10.6739 2 12 2C13.3261 2 14.5979 2.52678 15.5355 3.46447C16.4732 4.40215 17 5.67392 17 7V11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      </span>
+                    </div>
+                    {content?.password && (
+                      <p className="mt-1 text-sm text-meta-1">{content.password}</p>
+                    )}
+                  </div>
+                )}
+              </div>
+              
+              {/* Roles and Skills Section */}
+              <div className="space-y-5">
+                <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 border-b pb-2 mb-3">
+                  Roles & Skills
+                </h4>
+                
+                {/* Using the specialized RolesSelectGroup */}
+                <RolesSelectGroup
+                  label="User Roles"
+                  name="roles"
+                  required={true}
+                  action={OnChangeRoles}
+                  errors={content?.roles ?? ""}
+                  defaultValue={form?.roles || []}
+                />
+                
+                {/* Using the SkillsSelectGroup */}
+                <SkillsSelectGroup
+                  label="User Skills"
+                  name="skills"
+                  required={false}
+                  action={OnChangeSkills}
+                  errors={content?.skills ?? ""}
+                  defaultValue={form?.skills || []}
+                  maxSkills={10}
+                />
+              </div>
+              
+              {/* Submit Button - Full Width */}
+              <div className="md:col-span-2 mt-2">
+                <div className="flex items-center justify-between">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      props.setPopupOpen(false);
+                      dispatch(_FindOneUser({}));
+                    }}
+                    className="py-3 px-6 rounded-lg border border-stroke text-body dark:text-bodydark hover:bg-gray-50 dark:hover:bg-meta-4 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  
+                  <button
+                    type="submit"
+                    className="py-3 px-6 rounded-lg bg-primary text-white font-medium hover:bg-primary/90 transition-colors"
+                  >
+                    {Object.keys(_ONE).length > 0 ? "Update User" : "Create User"}
+                  </button>
                 </div>
-              )}
-              
-              {/* Using the specialized RolesSelectGroup */}
-              <RolesSelectGroup
-                label="Roles"
-                name="roles"
-                required={true}
-                action={OnChangeRoles}
-                errors={content?.roles ?? ""}
-                defaultValue={form?.roles || []}
-              />
-              
-              {/* Using the SkillsSelectGroup from your friend */}
-              <SkillsSelectGroup
-                label="Skills"
-                name="skills"
-                required={false}
-                action={OnChangeSkills}
-                errors={content?.skills ?? ""}
-                defaultValue={form?.skills || []}
-                maxSkills={10}
-              />
-
-              <button
-                type="submit"
-                className="flex w-full justify-center rounded bg-primary p-3 font-medium text-gray"
-              >
-                Save User
-              </button>
+              </div>
             </div>
           ) : (
-            <div className="bg-gray-900 flex min-h-screen items-center justify-center">
-              <div className="w-[200px]">
-                <div className="space-y-5 rounded-2xl bg-white/5 p-4 shadow-xl shadow-black/5">
-                  <div className="bg-rose-100/10 h-24 rounded-lg"></div>
+            <div className="flex min-h-[300px] items-center justify-center">
+              <div className="w-full max-w-[400px] mx-auto">
+                <div className="space-y-5 rounded-xl bg-white/5 p-4 shadow-xl animate-pulse">
+                  <div className="bg-gray-200 dark:bg-boxdark-2 h-24 rounded-lg"></div>
                   <div className="space-y-3">
-                    <div className="bg-rose-100/10 h-3 w-3/5 rounded-lg"></div>
-                    <div className="bg-rose-100/20 h-3 w-4/5 rounded-lg"></div>
-                    <div className="bg-rose-100/20 h-3 w-2/5 rounded-lg"></div>
+                    <div className="bg-gray-200 dark:bg-boxdark-2 h-3 w-3/5 rounded-lg"></div>
+                    <div className="bg-gray-200 dark:bg-boxdark-2 h-3 w-4/5 rounded-lg"></div>
+                    <div className="bg-gray-200 dark:bg-boxdark-2 h-3 w-2/5 rounded-lg"></div>
                   </div>
                 </div>
               </div>

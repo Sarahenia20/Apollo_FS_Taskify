@@ -4,18 +4,10 @@ const Controllers = require("../controllers/tasks");
 const passport = require("passport");
 const upload = require('../middlewares/fileUpload');
 
-// Middleware to log route access (for debugging)
-const logRouteAccess = (req, res, next) => {
-  console.log(`Accessing route: ${req.method} ${req.path}`);
-  console.log('Request Body:', req.body);
-  next();
-};
-
 // Create task with file upload
 Router.post(
   "/tasks", 
   passport.authenticate("jwt", { session: false }),
-  logRouteAccess,
   upload.single('attachment'),
   Controllers.Add
 );
@@ -24,7 +16,6 @@ Router.post(
 Router.post(
   "/tasks/addFromSuggestion",
   passport.authenticate("jwt", { session: false }),
-  logRouteAccess,
   Controllers.AddFromSuggestion
 );
 
@@ -46,7 +37,6 @@ Router.get(
 Router.put(
   "/tasks/:id",
   passport.authenticate("jwt", { session: false }),
-  logRouteAccess,
   upload.single('attachment'),
   Controllers.UpdateOne
 );
@@ -71,11 +61,11 @@ Router.delete(
   passport.authenticate("jwt", { session: false }),
   Controllers.DeleteAttachment
 );
+
 // Reschedule task (update date via drag and drop)
 Router.patch(
   "/tasks/:id/reschedule",
   passport.authenticate("jwt", { session: false }),
-  logRouteAccess,
   Controllers.RescheduleTask
 );
 

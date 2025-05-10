@@ -197,19 +197,21 @@ const Roles = () => {
   return (
     <DefaultLayout>
       <Breadcrumb pageName="Roles" />
-      <UserHeader status={false} />
       
-      {/* Add New Role Button */}
-      <div className="mb-6 flex items-center justify-between">
+      {/* Updated UserHeader with Add Role button */}
+      <UserHeader 
+        status={true} 
+        buttonText="Add New Role"
+        popupOpen={isModalOpen} 
+        setPopupOpen={setIsModalOpen}
+        onButtonClick={() => setIsModalOpen(true)}
+      />
+      
+      {/* Title without the Add New Role button */}
+      <div className="mb-6">
         <h2 className="text-title-md2 font-semibold text-black dark:text-white">
           Manage Roles
         </h2>
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="inline-flex items-center justify-center rounded-md bg-primary py-2 px-10 text-center font-medium text-white hover:bg-opacity-90 lg:px-8 xl:px-10"
-        >
-          Add New Role
-        </button>
       </div>
       
       {loading ? (

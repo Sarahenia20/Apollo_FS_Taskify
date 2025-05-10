@@ -4,7 +4,8 @@ var cookieParser = require("cookie-parser");
 var logger = require("morgan");
 const { default: mongoose } = require("mongoose");
 const helmet = require("helmet");
-const cors = require('cors'); // Add cors for cross-origin support
+const cors = require('cors');
+const passport = require("passport");
 
 /* routers */
 const authRouter = require("./routes/auth.router");
@@ -26,18 +27,20 @@ const chatRouter = require("./routes/chats.router");
 const predictionRoutes = require('./routes/predictionRoutes');
 const teamsRouter = require("./routes/teams.router");
 const gamesRouter = require("./routes/gameRoom");
-// Add the new activity routes
 const activityRoutes = require('./routes/activityRoutes');
+const seedRoutes = require('./routes/seedRoutes');
+const dashboardRoutes = require('./routes/dashboardRoutes');
+const statsRoutes = require('./routes/statsRoutes');
+const taskPrioritiesRouter = require('./routes/taskPriorities'); // NEW: Added task priorities router
 
 const io = require("./socket");
-const passport = require("passport");
 require("dotenv").config();
 const { MOCK_TYPE } = require('./constants/MOCK_TYPE');
 global.MOCK_TYPE = MOCK_TYPE;
 
 var app = express();
 
-// Enable CORS if needed
+// Enable CORS
 app.use(cors({
   origin: ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:5173'],
   credentials: true
@@ -58,13 +61,12 @@ app.use(
 // Add basic request logging middleware
 app.use(logger("dev"));
 
-// IMPORTANT: Body parsing middleware needs to come BEFORE routes
-// Increased limits for JSON and URL-encoded data
+// Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
 
-// Debugging middleware - place after body parsers but before routes
+// Debugging middleware
 const debugMiddleware = (req, res, next) => {
   console.log('Request Details:');
   console.log('Method:', req.method);
@@ -75,10 +77,53 @@ const debugMiddleware = (req, res, next) => {
 };
 app.use(debugMiddleware);
 
-// Passport JWT configuration
+// Passport initialization
 require("./middlewares/passport-jwt")(passport);
+app.use(passport.initialize());
 
-// MongoDB Connection with improved error handling
+// Unprotected routes
+app.use("/api", authRouter);
+app.use("/api/auth/2fa", twoFactorAuthRouter);
+app.use('/api/test-email', testEmailRoute);
+app.use('/api/seed', seedRoutes);
+
+// UPDATED: Import the correct activity logger middleware
+const activityLoggerMiddleware = require('./middlewares/activityLoggerMiddleware');
+
+// UPDATED: Protected routes with JWT authentication and activity logger middleware
+app.use("/api", passport.authenticate('jwt', { session: false }), activityLoggerMiddleware, [
+  projectsRouter,
+  usersRouter,
+  roleRouter,
+  fakeRouter,
+  tasksRouter,
+  commentsRouter,
+  notificationsRouter,
+  teamsRouter,
+  taskGeneratorRouter,
+  chatbotRouter,
+  gamesRouter,
+  chatRouter,
+  predictionRoutes,
+  loginActivityRoutes,
+  imagesRouter,
+  videoCallRoutes
+]);
+
+// UPDATED: Activity routes with proper authentication (remove duplicate middleware)
+app.use("/api/activities", passport.authenticate('jwt', { session: false }), activityRoutes);
+
+// NEW: Task priorities route (this is what your frontend is looking for)
+app.use('/api/tasks', passport.authenticate('jwt', { session: false }), taskPrioritiesRouter);
+
+// Stats and dashboard routes (these can remain as they are)
+app.use('/api/activities/stats', statsRoutes);
+app.use('/api/dashboard', dashboardRoutes);
+
+// REMOVED: The old priorities route that was causing conflicts
+// app.use('/api/priorities', prioritiesRoutes);
+
+// MongoDB Connection
 mongoose
   .connect(process.env.MONGO_URI, {
     useNewUrlParser: true,
@@ -98,39 +143,6 @@ mongoose
 // Static file serving
 app.use(express.static(path.join(__dirname, "public")));
 app.use('/uploads', express.static('uploads'));
-
-// Add the activity logger middleware after passport initialization
-// but before route registration
-const activityLogger = require('./middlewares/activityLogger');
-app.use(activityLogger);
-
-// Route registration
-app.use("/api", [
-  projectsRouter,
-  authRouter,
-  usersRouter,
-  roleRouter,
-  fakeRouter,
-  tasksRouter,
-  commentsRouter,
-  notificationsRouter,
-  teamsRouter,
-  taskGeneratorRouter,
-  chatbotRouter,
-  gamesRouter,
-  chatRouter,
-  predictionRoutes
-]);
-
-// Register activity routes separately
-app.use("/api/activities", activityRoutes);
-
-// Additional routes
-app.use("/api/auth/2fa", twoFactorAuthRouter);
-app.use('/api/login-activity', loginActivityRoutes);
-app.use('/api/test-email', testEmailRoute);
-app.use('/api/images', imagesRouter);
-app.use("/api/video-calls", videoCallRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

@@ -34,7 +34,6 @@ function recordLoginActivity(user, req, isSuccessful, is2FARequired = false) {
         return loginActivity.save().then(() => {
           // Send alert if suspicious
           if (isSuccessful && suspiciousCheck.isSuspicious) {
-            // Convert async function to promise chain
             return Promise.resolve().then(async () => {
               try {
                 const result = await sendSuspiciousLoginAlert(
@@ -93,141 +92,106 @@ function recordLoginActivity(user, req, isSuccessful, is2FARequired = false) {
   }
 }
 
-const Login = (req, res) => {
-  console.log("im @ login ")
-  
+const Login = async (req, res) => {
+  console.log("🔍 Login attempt for:", req.body.email);
+
   const { errors, isValid } = loginValidation(req.body);
-  
-  console.log(errors,isValid)
+  console.log("🔍 Validation result:", { isValid, errors });
+
+  if (!isValid) {
+    console.log("❌ Validation failed:", errors);
+    return res.status(400).json({ errors });
+  }
+
   try {
-    if (!isValid) {
-      res.status(404).json(errors);
-    } else {
-      UserModel.findOne({ email: req.body.email }).then((user) => {
-        if (!user) {
-          errors.email = "User does not exist";
-          res.status(404).json(errors);
-        } else {
-          bcrypt.compare(req.body.password, user.password).then((isMatch) => {
-            if (!isMatch) {
-              // Record failed login
-              recordLoginActivity(user, req, false).then(() => {
-                errors.password = "Incorrect password";
-                res.status(404).json(errors);
-              });
-            } else {
-              // Check if 2FA is enabled for this user
-              if (user.twoFactorEnabled === true && !TEST_MODE) {
-                // Record successful login with 2FA required
-                recordLoginActivity(user, req, true, true).then(() => {
-                  // Return a response indicating 2FA is required
-                  res.status(200).json({
-                    message: "2FA_REQUIRED",
-                    email: user.email,
-                    twoFactorRequired: true,
-                  });
-                });
-              } else {
-                // Record successful login
-                recordLoginActivity(user, req, true).then((securityCheck) => {
-                  // For testing email functionality
-                  console.log("email alert functionality log...");
-                  const testLoginActivity = {
-                    timestamp: new Date(),
-                    ipAddress: req.ip || req.connection.remoteAddress,
-                    userAgent: req.headers["user-agent"],
-                    deviceInfo: {
-                      browser: "Chrome",
-                      os: "Windows",
-                      device: "Desktop",
-                    },
-                    suspiciousReason: [
-                      "Test reason - Force email alert for testing",
-                    ],
-                  };
+    const user = await UserModel.findOne({ email: req.body.email });
+    console.log("🔍 User lookup:", user ? user.email : "Not found");
 
-                  // Also log the login in our new activity tracking system
-                  if (req.logActivity) {
-                    req.logActivity(
-                      "User Login",
-                      `Login from ${req.ip || req.connection.remoteAddress}`,
-                      "login",
-                      user._id,
-                      "User"
-                    ).catch(err => {
-                      console.error("Error logging activity:", err);
-                    });
-                  }
+    if (!user) {
+      console.log("❌ User does not exist:", req.body.email);
+      return res.status(400).json({ errors: { email: "User does not exist" } });
+    }
 
-                  // Convert async function to promise chain
-                  Promise.resolve()
-                    .then(async () => {
-                      try {
-                        const emailResult = await sendSuspiciousLoginAlert(
-                          user,
-                          testLoginActivity
-                        );
-                        console.log(
-                          "Suspicious log email sending result:",
-                          emailResult
-                        );
+    const isMatch = await bcrypt.compare(req.body.password, user.password);
+    console.log("🔍 Password match:", isMatch);
 
-                        if (emailResult.previewUrl) {
-                          console.log(
-                            "📧 View  email at:",
-                            emailResult.previewUrl
-                          );
-                        }
+    if (!isMatch) {
+      console.log("❌ Incorrect password for:", req.body.email);
+      await recordLoginActivity(user, req, false);
+      return res.status(400).json({ errors: { password: "Incorrect password" } });
+    }
 
-                        return emailResult;
-                      } catch (error) {
-                        console.error("Error sending email:", error);
-                        return { success: false, error: error.message };
-                      }
-                    })
-                    .finally(() => {
-                      // 2FA not required or TEST_MODE is enabled, proceed with normal login
-                      var token = jwt.sign(
-                        {
-                          id: user._id,
-                          fullName: user.fullName,
-                          email: user.email,
-                          roles: user.roles,
-                        },
-                        process.env.PRIVATE_KEY,
-                        { expiresIn: "1h" }
-                      );
-
-                      // Add security alert to response if suspicious login detected
-                      const response = {
-                        message: "Success",
-                        token: token,
-                      };
-
-                      if (securityCheck.isSuspicious) {
-                        response.securityAlert = {
-                          message:
-                            "Suspicious login detected. A security alert has been sent to your email.",
-                          reasons: securityCheck.reasons,
-                        };
-
-                        if (securityCheck.emailPreviewUrl) {
-                          response.securityAlert.emailPreviewUrl =
-                            securityCheck.emailPreviewUrl;
-                        }
-                      }
-
-                      res.status(200).json(response);
-                    });
-                });
-              }
-            }
-          });
-        }
+    // Check if 2FA is enabled for this user
+    if (user.twoFactorEnabled === true && !TEST_MODE) {
+      console.log("🔍 2FA required for:", user.email);
+      await recordLoginActivity(user, req, true, true);
+      // Log 2FA required activity
+      if (req.logActivity) {
+        await req.logActivity(
+          "2FA Login Required",
+          `2FA required for login from ${req.ip || req.connection.remoteAddress}`,
+          "login_2fa_required",
+          user._id,
+          "User"
+        );
+      }
+      return res.status(200).json({
+        message: "2FA_REQUIRED",
+        email: user.email,
+        twoFactorRequired: true,
       });
     }
+
+    // Record successful login
+    const securityCheck = await recordLoginActivity(user, req, true);
+    console.log("🔍 Security check:", securityCheck);
+
+    // Log successful login
+    if (req.logActivity) {
+      await req.logActivity(
+        "User Login",
+        `Login from ${req.ip || req.connection.remoteAddress}`,
+        "login",
+        user._id,
+        "User",
+        { isSuspicious: securityCheck.isSuspicious }
+      );
+    }
+
+    // Generate JWT
+    const token = jwt.sign(
+      {
+        id: user._id,
+        fullName: user.fullName,
+        email: user.email,
+        roles: user.roles,
+      },
+      process.env.PRIVATE_KEY,
+      { expiresIn: "1h" }
+    );
+    console.log("🔍 Generated token:", token);
+
+    // Add security alert to response if suspicious login detected
+    const response = {
+      message: "Success",
+      token,
+    };
+
+    if (securityCheck.isSuspicious) {
+      response.securityAlert = {
+        message: "Suspicious login detected. A security alert has been sent to your email.",
+        reasons: securityCheck.reasons,
+      };
+      if (securityCheck.emailPreviewUrl) {
+        response.securityAlert.emailPreviewUrl = securityCheck.emailPreviewUrl;
+      }
+    }
+
+    console.log("✅ Login successful for:", user.email);
+    res.status(200).json(response);
   } catch (error) {
-    res.status(404).json(error.message);
+    console.error("❌ Login error:", error);
+    res.status(500).json({ errors: { server: "Internal server error" } });
   }
 };
 

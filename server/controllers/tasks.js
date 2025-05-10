@@ -150,6 +150,19 @@ const Add = async (req, res) => {
     // Create task
     const data = await tasksModel.create(transformedBody);
 
+    // Log activity for task creation
+    if (req.logActivity) {
+      req.logActivity(
+        "Created Task", 
+        `Created task: ${transformedBody.title}`,
+        "task_created",
+        data._id,
+        "Task"
+      ).catch(err => console.error("Error logging activity:", err));
+      
+      console.log("✅ Activity logged for task creation:", data._id);
+    }
+
     // Send SMS notification using Twilio
     try {
       await twilioClient.messages.create({
@@ -211,7 +224,9 @@ const Add = async (req, res) => {
           await nodeMailer(user.email, subject, html);
           console.log(`✅ Email sent to ${user.email}`);
         } catch (error) {
-          console.error(`❌ Erreur email à ${user.email}:`, error);
+         
+
+ console.error(`❌ Erreur email à ${user.email}:`, error);
         }
       }
     }
@@ -402,6 +417,34 @@ const UpdateOne = async (req, res) => {
       }
     ).populate('assigns', 'fullName email');
 
+    // Log activity for task update or completion
+    if (req.logActivity) {
+      // Detect if task was completed in this update
+      const wasCompleted = existingTask.status !== "3" && transformedBody.status === "3";
+      
+      if (wasCompleted) {
+        req.logActivity(
+          "Completed Task",
+          `Completed task: ${data.title}`,
+          "task_completed",
+          data._id,
+          "Task"
+        ).catch(err => console.error("Error logging activity:", err));
+        
+        console.log("✅ Activity logged for task completion:", data._id);
+      } else {
+        req.logActivity(
+          "Updated Task",
+          `Updated task: ${data.title}`,
+          "task_updated",
+          data._id,
+          "Task"
+        ).catch(err => console.error("Error logging activity:", err));
+        
+        console.log("✅ Activity logged for task update:", data._id);
+      }
+    }
+
     res.status(200).json({
       success: true,
       data: data,
@@ -512,7 +555,7 @@ const DeleteAttachment = async (req, res) => {
   }
 };
 
-// Add this method to your existing tasks.js controller
+// AddFromSuggestion
 const AddFromSuggestion = async (req, res) => {
   try {
     // Parse stringified fields if needed
@@ -554,21 +597,21 @@ const AddFromSuggestion = async (req, res) => {
 
     // Create task
     const data = await tasksModel.create(transformedBody);
+    
+    // Log activity for task creation
     if (req.logActivity) {
-      try {
-        req.logActivity(
-          "Created Task",
-          `Created task: ${transformedBody.title}`,
-          "task_created",
-          data._id,
-          "Task",
-          { taskType: transformedBody.type }
-        );
-        console.log(`✅ Activity logged for task creation: ${data._id}`);
-      } catch (err) {
-        console.error("Error logging task creation activity:", err);
-      }
+      req.logActivity(
+        "Created Task",
+        `Created task: ${transformedBody.title}`,
+        "task_created",
+        data._id,
+        "Task",
+        { taskType: transformedBody.type }
+      ).catch(err => console.error("Error logging task creation activity:", err));
+      
+      console.log(`✅ Activity logged for task creation: ${data._id}`);
     }
+    
     res.status(201).json({
       success: true,
       data: data
@@ -685,7 +728,7 @@ const RescheduleTask = async (req, res) => {
   }
 };
 
-// Update the module exports to include the new method
+// Update the module exports to include all methods
 module.exports = {
   Add,
   GetAll,

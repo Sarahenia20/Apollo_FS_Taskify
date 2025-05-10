@@ -10,7 +10,7 @@ import projectsReducer from "./reducers/projects";
 import { teamsSlice } from "./reducers/teams";
 import { chatSlice } from './reducers/chatReducer';
 import { adminChatSlice } from './reducers/adminChatReducer';
-import { activitySlice } from "./reducers/activitySlice"; // Add this import
+import activityReducer from "./reducers/activityReducer";
 
 import predictionsReducer from "./reducers/predictions";
 import videoCallsReducer from "./reducers/VideoCalls";
@@ -32,6 +32,6 @@ export const store = configureStore({
     chat: chatSlice.reducer,
     admin: adminChatSlice.reducer,
     predictions: predictionsReducer,
-    activity: activitySlice.reducer  // Add this line
+    activity: activityReducer,  // Add this line
   },
 });

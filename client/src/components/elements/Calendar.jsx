@@ -25,15 +25,30 @@ const localizer = momentLocalizer(moment);
 
 // Define priority colors and labels
 const priorityColors = {
-  "1": { color: "#4caf50", label: "Low Priority" },
-  "2": { color: "orange", label: "Medium Priority" },
-  "3": { color: "#ff3d71", label: "High Priority" },
-  "4": { color: "#ff0000", label: "Critical Priority" }
+  "1": { color: "#4caf50", darkColor: "#5CFF5C", label: "Low Priority" },
+  "2": { color: "#ff9800", darkColor: "#FFB74D", label: "Medium Priority" },
+  "3": { color: "#f44336", darkColor: "#FF5252", label: "High Priority" },
+  "4": { color: "#9c27b0", darkColor: "#CE93D8", label: "Critical Priority" }
+};
+
+// Video call colors
+const videoCallColors = {
+  light: "#6366f1",
+  dark: "#818cf8"
 };
 
 // Event component for Agenda view
 const AgendaEvent = ({ event }) => {
   const [expandedComments, setExpandedComments] = useState(false);
+  
+  // Get dark mode state
+  const isDarkMode = useSelector((state) => {
+    if (state.layout && state.layout.theme !== undefined) {
+      return state.layout.theme === 'dark';
+    }
+    // Fallback to checking HTML element class if Redux state is not available
+    return document.documentElement.classList.contains('dark');
+  });
   
   // Helper function to render comments with toggle functionality
   const renderComments = (comments) => {
@@ -51,21 +66,21 @@ const AgendaEvent = ({ event }) => {
 
     return (
       <div className="mt-4">
-        <h5 className="text-sm font-medium text-gray-700 mb-2">
+        <h5 className={`text-sm font-medium ${isDarkMode ? 'text-bodydark' : 'text-gray-700'} mb-2`}>
           Comments:
         </h5>
         <div className="space-y-3">
           {commentsToShow.map((comment, index) => (
-            <div key={comment._id || index} className="bg-gray-50 p-3 rounded-md">
+            <div key={comment._id || index} className={`${isDarkMode ? 'bg-boxdark-2' : 'bg-gray-50'} p-3 rounded-md`}>
               <div className="flex justify-between items-start">
                 <div className="font-medium text-sm">
                   {comment.by?.fullName || "User"}
                 </div>
-                <div className="text-xs text-gray-500">
+                <div className={`text-xs ${isDarkMode ? 'text-bodydark-2' : 'text-gray-500'}`}>
                   {moment(comment.createdAt).fromNow()}
                 </div>
               </div>
-              <div className="mt-1 text-sm text-gray-700">
+              <div className={`mt-1 text-sm ${isDarkMode ? 'text-bodydark' : 'text-gray-700'}`}>
                 {comment.content}
               </div>
             </div>
@@ -74,7 +89,7 @@ const AgendaEvent = ({ event }) => {
           {hasMoreComments && (
             <button 
               onClick={() => setExpandedComments(!expandedComments)}
-              className="text-xs text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-medium bg-blue-50 px-3 py-1 rounded-full"
+              className={`text-xs text-primary hover:text-primary/80 hover:underline cursor-pointer font-medium ${isDarkMode ? 'bg-boxdark-2' : 'bg-blue-50'} px-3 py-1 rounded-full`}
             >
               {expandedComments 
                 ? "Show fewer comments" 
@@ -99,8 +114,8 @@ const AgendaEvent = ({ event }) => {
           const participantsList = participants.map(p => p.fullName || p.email || "Unnamed user").join(", ");
           participantsDisplay = (
             <div className="mt-2 text-sm">
-              <p className="font-medium text-gray-700">Participants:</p>
-              <p className="text-gray-700 mt-1">{participantsList}</p>
+              <p className={`font-medium ${isDarkMode ? 'text-bodydark' : 'text-gray-700'}`}>Participants:</p>
+              <p className={`${isDarkMode ? 'text-bodydark' : 'text-gray-700'} mt-1`}>{participantsList}</p>
             </div>
           );
         }
@@ -114,27 +129,27 @@ const AgendaEvent = ({ event }) => {
       if (typeof teamInfo === 'object' && teamInfo !== null && teamInfo.Name) {
         teamDisplay = (
           <div className="mt-2 text-sm">
-            <p className="font-medium text-gray-700">Team:</p>
-            <p className="text-gray-700 mt-1">{teamInfo.Name}</p>
+            <p className={`font-medium ${isDarkMode ? 'text-bodydark' : 'text-gray-700'}`}>Team:</p>
+            <p className={`${isDarkMode ? 'text-bodydark' : 'text-gray-700'} mt-1`}>{teamInfo.Name}</p>
           </div>
         );
       }
     }
     
     return (
-      <div className="mb-6 bg-white rounded-lg shadow-sm border-l-4" style={{ borderLeftColor: "#6366f1" }}>
+      <div className={`mb-6 ${isDarkMode ? 'bg-boxdark' : 'bg-white'} rounded-lg shadow-sm border-l-4 transform transition-transform hover:scale-[1.01]`} style={{ borderLeftColor: isDarkMode ? videoCallColors.dark : videoCallColors.light }}>
         <div className="p-4">
           <div className="flex justify-between">
-            <h4 className="font-semibold text-lg flex items-center">
+            <h4 className={`font-semibold text-lg flex items-center ${isDarkMode ? 'text-white' : 'text-black'}`}>
               <span className="mr-2">📹</span>
               {event.title}
             </h4>
-            <div className="text-xs font-medium px-2 py-1 rounded-full bg-indigo-100 text-indigo-800">
+            <div className={`text-xs font-medium px-2 py-1 rounded-full ${isDarkMode ? 'bg-indigo-900 text-indigo-200' : 'bg-indigo-100 text-indigo-800'}`}>
               Video Call
             </div>
           </div>
           
-          <p className="text-gray-600 mt-2 text-sm">
+          <p className={`${isDarkMode ? 'text-bodydark' : 'text-gray-600'} mt-2 text-sm`}>
             {moment(event.start).format('h:mm A')} to {moment(event.end).format('h:mm A')}
             {event.resource && event.resource.duration && 
               ` (${event.resource.duration} minute${event.resource.duration !== 1 ? 's' : ''})`
@@ -143,8 +158,8 @@ const AgendaEvent = ({ event }) => {
           
           {event.resource && event.resource.description && (
             <div className="mt-3 text-sm">
-              <p className="font-medium text-gray-700">Description:</p>
-              <p className="text-gray-700 mt-1">{event.resource.description}</p>
+              <p className={`font-medium ${isDarkMode ? 'text-bodydark' : 'text-gray-700'}`}>Description:</p>
+              <p className={`${isDarkMode ? 'text-bodydark' : 'text-gray-700'} mt-1`}>{event.resource.description}</p>
             </div>
           )}
           
@@ -155,16 +170,16 @@ const AgendaEvent = ({ event }) => {
           {teamDisplay}
 
           <div className="flex flex-wrap gap-2 mt-4">
-            <span className="px-2 py-1 bg-indigo-100 text-indigo-800 text-xs rounded-full">
+            <span className={`px-2 py-1 ${isDarkMode ? 'bg-indigo-900 text-indigo-200' : 'bg-indigo-100 text-indigo-800'} text-xs rounded-full`}>
               {event.resource?.status || "Scheduled"}
             </span>
             {event.resource?.team_id && (
-              <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+              <span className={`px-2 py-1 ${isDarkMode ? 'bg-blue-900 text-blue-200' : 'bg-blue-100 text-blue-800'} text-xs rounded-full`}>
                 Team Call
               </span>
             )}
             {event.resource?.participants && event.resource.participants.length > 0 && (
-              <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+              <span className={`px-2 py-1 ${isDarkMode ? 'bg-green-900 text-green-200' : 'bg-green-100 text-green-800'} text-xs rounded-full`}>
                 {event.resource.participants.length} participant{event.resource.participants.length !== 1 ? 's' : ''}
               </span>
             )}
@@ -176,6 +191,7 @@ const AgendaEvent = ({ event }) => {
   
   // Get priority information for tasks
   const priorityInfo = priorityColors[event.priority] || priorityColors["2"];
+  const priorityColor = isDarkMode ? priorityInfo.darkColor : priorityInfo.color;
   
   // Basic event information
   const startTime = moment(event.start).format('h:mm A');
@@ -187,24 +203,24 @@ const AgendaEvent = ({ event }) => {
   
   return (
     <div 
-      className="mb-6 bg-white rounded-lg shadow-sm border-l-4" 
-      style={{ borderLeftColor: priorityInfo.color }}
+      className={`mb-6 ${isDarkMode ? 'bg-boxdark' : 'bg-white'} rounded-lg shadow-sm border-l-4 transform transition-transform hover:scale-[1.01]`} 
+      style={{ borderLeftColor: priorityColor }}
     >
       <div className="p-4">
         <div className="flex justify-between">
-          <h4 className="font-semibold text-lg">{event.title}</h4>
+          <h4 className={`font-semibold text-lg ${isDarkMode ? 'text-white' : 'text-black'}`}>{event.title}</h4>
           <div className="text-xs font-medium px-2 py-1 rounded-full" style={{ 
-            backgroundColor: priorityInfo.color + '20',
-            color: priorityInfo.color
+            backgroundColor: `${priorityColor}30`,
+            color: priorityColor
           }}>
             {priorityInfo.label}
           </div>
         </div>
         
         {event.allDay ? (
-          <p className="text-gray-600 mt-2 text-sm">All-day task</p>
+          <p className={`${isDarkMode ? 'text-bodydark' : 'text-gray-600'} mt-2 text-sm`}>All-day task</p>
         ) : (
-          <p className="text-gray-600 mt-2 text-sm">
+          <p className={`${isDarkMode ? 'text-bodydark' : 'text-gray-600'} mt-2 text-sm`}>
             {startTime} to {endTime}
             {duration >= 1 
               ? ` (${Math.round(duration * 10) / 10} hour${duration !== 1 ? 's' : ''})`
@@ -215,8 +231,8 @@ const AgendaEvent = ({ event }) => {
         
         {event.resource && event.resource.description && (
           <div className="mt-3 text-sm">
-            <p className="font-medium text-gray-700">Description:</p>
-            <p className="text-gray-700 mt-1">{event.resource.description}</p>
+            <p className={`font-medium ${isDarkMode ? 'text-bodydark' : 'text-gray-700'}`}>Description:</p>
+            <p className={`${isDarkMode ? 'text-bodydark' : 'text-gray-700'} mt-1`}>{event.resource.description}</p>
           </div>
         )}
 
@@ -224,14 +240,14 @@ const AgendaEvent = ({ event }) => {
         {hasComments && renderComments(event.resource.comments)}
         
         <div className="flex flex-wrap gap-2 mt-4">
-          <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+          <span className={`px-2 py-1 ${isDarkMode ? 'bg-blue-900 text-blue-200' : 'bg-blue-100 text-blue-800'} text-xs rounded-full`}>
             {event.resource?.status === "1" ? "To Do" :
               event.resource?.status === "2" ? "In Progress" :
               event.resource?.status === "3" ? "Testing" :
               event.resource?.status === "4" ? "Completed" : "To Do"}
           </span>
           {hasComments && (
-            <span className="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full">
+            <span className={`px-2 py-1 ${isDarkMode ? 'bg-purple-900 text-purple-200' : 'bg-purple-100 text-purple-800'} text-xs rounded-full`}>
               {event.resource.comments.length} comment{event.resource.comments.length !== 1 ? 's' : ''}
             </span>
           )}
@@ -243,6 +259,15 @@ const AgendaEvent = ({ event }) => {
 
 // Custom Agenda component for narrative view
 const SmartAgenda = ({ events, date }) => {
+  // Get dark mode state
+  const isDarkMode = useSelector((state) => {
+    if (state.layout && state.layout.theme !== undefined) {
+      return state.layout.theme === 'dark';
+    }
+    // Fallback to checking HTML element class if Redux state is not available
+    return document.documentElement.classList.contains('dark');
+  });
+  
   // Group events by date
   const eventsByDate = useMemo(() => {
     const grouped = {};
@@ -288,10 +313,10 @@ const SmartAgenda = ({ events, date }) => {
         <h3 className="text-xl font-bold text-primary mb-3">{dateHeader}</h3>
         
         {dayEvents.length === 0 ? (
-          <p className="text-gray-500 italic">No events scheduled for this day.</p>
+          <p className={`${isDarkMode ? 'text-bodydark' : 'text-gray-500'} italic`}>No events scheduled for this day.</p>
         ) : (
           <>
-            <p className="text-gray-700 mb-4">
+            <p className={`${isDarkMode ? 'text-bodydark' : 'text-gray-700'} mb-4`}>
               {isToday 
                 ? `You have ${dayEvents.length} event${dayEvents.length > 1 ? 's' : ''} scheduled for today` 
                 : `You have ${dayEvents.length} event${dayEvents.length > 1 ? 's' : ''} scheduled for ${momentDate.format('MMM D')}`
@@ -319,17 +344,29 @@ const SmartAgenda = ({ events, date }) => {
 
 // Calendar Legend Component to explain colors
 const CalendarLegend = () => {
+  // Get dark mode state
+  const isDarkMode = useSelector((state) => {
+    if (state.layout && state.layout.theme !== undefined) {
+      return state.layout.theme === 'dark';
+    }
+    // Fallback to checking HTML element class if Redux state is not available
+    return document.documentElement.classList.contains('dark');
+  });
+  
   return (
-    <div className="bg-white p-4 rounded-md shadow-sm mb-4">
-      <h4 className="text-sm font-semibold mb-2">Calendar Legend</h4>
-      <div className="grid grid-cols-2 gap-2">
+    <div className="calendar-legend">
+      <h4>Calendar Legend</h4>
+      <div className="legend-grid">
         {/* Task priorities */}
         <div>
-          <h5 className="text-xs font-medium mb-1">Task Priorities</h5>
+          <h5>Task Priorities</h5>
           <div className="grid grid-cols-2 gap-1">
-            {Object.entries(priorityColors).map(([key, { color, label }]) => (
+            {Object.entries(priorityColors).map(([key, { color, darkColor, label }]) => (
               <div key={key} className="flex items-center text-xs">
-                <span className="inline-block w-3 h-3 rounded-full mr-2" style={{ backgroundColor: color }}></span>
+                <span 
+                  className="color-indicator" 
+                  style={{ backgroundColor: isDarkMode ? darkColor : color }}
+                ></span>
                 {label}
               </div>
             ))}
@@ -338,9 +375,12 @@ const CalendarLegend = () => {
         
         {/* Video Calls */}
         <div>
-          <h5 className="text-xs font-medium mb-1">Event Types</h5>
+          <h5>Event Types</h5>
           <div className="flex items-center text-xs mb-1">
-            <span className="inline-block w-3 h-3 rounded-full mr-2" style={{ backgroundColor: "#6366f1" }}></span>
+            <span 
+              className="color-indicator" 
+              style={{ backgroundColor: isDarkMode ? videoCallColors.dark : videoCallColors.light }}
+            ></span>
             <span className="mr-1">📹</span>
             Video Call
           </div>
@@ -360,32 +400,48 @@ const EnhancedCalendar = ({ onScheduleCall }) => {
   // Get auth state to access current user ID
   const authState = useSelector((state) => state.auth || {});
   
+  // Get dark mode state
+  const isDarkMode = useSelector((state) => {
+    if (state.layout && state.layout.theme !== undefined) {
+      return state.layout.theme === 'dark';
+    }
+    // Fallback to checking HTML element class
+    return document.documentElement.classList.contains('dark');
+  });
+  
+  // Force theme refresh when dark mode changes
+  useEffect(() => {
+    const calendarElement = document.querySelector('.rbc-calendar');
+    if (calendarElement) {
+      if (isDarkMode) {
+        calendarElement.classList.add('rbc-calendar-dark');
+      } else {
+        calendarElement.classList.remove('rbc-calendar-dark');
+      }
+    }
+  }, [isDarkMode]);
+  
   // Extract current user ID from auth state
   // Try multiple common patterns to find the user ID
   const currentUserId = useMemo(() => {
     // Common auth state patterns
     if (authState.user && authState.user._id) {
-      console.log("Found user ID in auth.user._id:", authState.user._id);
       return authState.user._id;
     }
     
     if (authState.data && authState.data._id) {
-      console.log("Found user ID in auth.data._id:", authState.data._id);
       return authState.data._id;
     }
     
     if (authState._id) {
-      console.log("Found user ID in auth._id:", authState._id);
       return authState._id;
     }
     
     if (authState.user && authState.user.id) {
-      console.log("Found user ID in auth.user.id:", authState.user.id);
       return authState.user.id;
     }
     
     if (authState.id) {
-      console.log("Found user ID in auth.id:", authState.id);
       return authState.id;
     }
     
@@ -408,31 +464,6 @@ const EnhancedCalendar = ({ onScheduleCall }) => {
   const [selectedCall, setSelectedCall] = useState(null);
   const [currentRoomName, setCurrentRoomName] = useState("");
   const [allEvents, setAllEvents] = useState([]);
-  
-  // Debug hook for Redux state
-  useEffect(() => {
-    console.log("=== VIDEO CALLS REDUX STATE DEBUG ===");
-    console.log("Full videoCallsState:", videoCallsState);
-    console.log("videoCallsState._ALL:", videoCallsState._ALL);
-    console.log("videoCallsState type:", typeof videoCallsState);
-    console.log("videoCallsState._ALL type:", typeof videoCallsState._ALL);
-    console.log("Is _ALL an array?", Array.isArray(videoCallsState._ALL));
-    
-    // Check if video calls are being stored with a different property name
-    if (videoCallsState) {
-      Object.keys(videoCallsState).forEach(key => {
-        console.log(`videoCallsState.${key}:`, videoCallsState[key]);
-      });
-    }
-    
-    console.log("=== END VIDEO CALLS DEBUG ===");
-    
-    // Also log auth state for debugging
-    console.log("=== AUTH STATE DEBUG ===");
-    console.log("Auth state:", authState);
-    console.log("Current user ID:", currentUserId);
-    console.log("=== END AUTH STATE DEBUG ===");
-  }, [videoCallsState, authState, currentUserId]);
   
   // Initial data fetch - ONLY RUN ONCE
   useEffect(() => {
@@ -607,7 +638,7 @@ const EnhancedCalendar = ({ onScheduleCall }) => {
     }
   }, []);
   
-  // Create events from Redux state data - FIXED VERSION
+  // Create events from Redux state data
   useEffect(() => {
     // Skip if we haven't done initial fetch yet
     if (!initialDataFetched) return;
@@ -688,13 +719,16 @@ const EnhancedCalendar = ({ onScheduleCall }) => {
     if (event.type === "videoCall") {
       return {
         style: { 
-          backgroundColor: "#6366f1", // Video call color
-          borderRadius: '4px',
-          opacity: 0.8,
+          backgroundColor: isDarkMode ? videoCallColors.dark : videoCallColors.light,
+          borderRadius: '8px',
+          opacity: 0.9,
           color: 'white',
           border: '0px',
           display: 'block',
-          cursor: 'pointer'
+          cursor: 'pointer',
+          padding: '2px 5px',
+          fontSize: '0.85rem',
+          transition: 'all 0.2s ease'
         },
         // Add a video camera icon in the title
         title: `📹 ${event.title}`
@@ -702,19 +736,24 @@ const EnhancedCalendar = ({ onScheduleCall }) => {
     } else {
       // Task styling
       const priorityInfo = priorityColors[event.priority] || priorityColors["2"];
+      const priorityColor = isDarkMode ? priorityInfo.darkColor : priorityInfo.color;
+      
       return {
         style: { 
-          backgroundColor: priorityInfo.color,
-          borderRadius: '4px',
-          opacity: 0.8,
+          backgroundColor: priorityColor,
+          borderRadius: '8px',
+          opacity: 0.85,
           color: 'white',
           border: '0px',
           display: 'block',
-          cursor: 'pointer'
+          cursor: 'pointer',
+          padding: '2px 5px',
+          fontSize: '0.85rem',
+          transition: 'all 0.2s ease'
         }
       };
     }
-  }, []);
+  }, [isDarkMode]);
   
   // Handle select event
   const handleSelectEvent = useCallback((event) => {
@@ -900,7 +939,7 @@ const EnhancedCalendar = ({ onScheduleCall }) => {
     };
   }, [allEvents]);
   
-  // Refresh calls manually - Updated to use participant-specific method
+  // Refresh calls manually
   const handleManualRefresh = useCallback(() => {
     if (!fetchingCalls) {
       console.log("Manual refresh of video calls");
@@ -933,20 +972,20 @@ const EnhancedCalendar = ({ onScheduleCall }) => {
   }, [dispatch]);
   
   return (
-    <div className="my-4">
+    <div className={`my-4 calendar-container ${isDarkMode ? 'dark-theme' : 'light-theme'}`}>
       <div className="mb-4">
-        <h3 className="text-lg font-medium">Calendar Schedule</h3>
+        <h3 className={`text-lg font-medium ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>Calendar Schedule</h3>
         
         <div className="flex justify-between items-center mt-2">
-          <p className="text-sm text-gray-500">
+          <p className={`text-sm ${isDarkMode ? 'text-bodydark' : 'text-gray-500'}`}>
             {eventCounts.total} event{eventCounts.total !== 1 ? 's' : ''} scheduled
             {eventCounts.total > 0 && (
-              <span className="text-xs ml-1 text-gray-400">
+              <span className={`text-xs ml-1 ${isDarkMode ? 'text-bodydark-2' : 'text-gray-400'}`}>
                 ({eventCounts.tasks} tasks, {eventCounts.calls} calls)
               </span>
             )}
             {currentUserId && (
-              <span className="text-xs ml-1 text-blue-500">
+              <span className="text-xs ml-1 text-primary">
                 • Showing your calls
               </span>
             )}
@@ -958,14 +997,14 @@ const EnhancedCalendar = ({ onScheduleCall }) => {
               disabled={fetchingCalls}
               className={`px-3 py-1 rounded-md text-sm ${
                 fetchingCalls 
-                  ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
-                  : 'bg-blue-500 text-white hover:bg-blue-600'
+                  ? `${isDarkMode ? 'bg-bodydark text-boxdark' : 'bg-gray-200 text-gray-400'} cursor-not-allowed` 
+                  : 'bg-primary text-white hover:bg-primary/90'
               }`}
             >
               {fetchingCalls ? 'Refreshing...' : 'Refresh Calls'}
             </button>
             
-            <div className="text-sm text-gray-600 italic">
+            <div className={`text-sm ${isDarkMode ? 'text-bodydark' : 'text-gray-600'} italic`}>
               <span>Tip: </span>
               <span>Drag events to reschedule them, or resize to change duration.</span>
             </div>
@@ -981,14 +1020,14 @@ const EnhancedCalendar = ({ onScheduleCall }) => {
       
       {/* Calendar View Selector */}
       <div className="mb-4">
-        <div className="flex space-x-2">
+        <div className="flex flex-wrap gap-2">
           {["month", "week", "day", "agenda"].map((view) => (
             <button
               key={view}
-              className={`px-3 py-1 rounded-md ${
+              className={`calendar-view-button ${
                 viewType === view
-                  ? "bg-primary text-white"
-                  : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                  ? "calendar-view-button-active"
+                  : "calendar-view-button-inactive"
               }`}
               onClick={() => setViewType(view)}
             >
@@ -998,39 +1037,41 @@ const EnhancedCalendar = ({ onScheduleCall }) => {
         </div>
       </div>
       
-      {viewType === 'agenda' ? (
-        // Custom agenda view with narrative style
-        <SmartAgenda events={allEvents} date={new Date()} />
-      ) : (
-        // Regular calendar for other views
-        <DnDCalendar
-          localizer={localizer}
-          events={allEvents}
-          startAccessor="start"
-          endAccessor="end"
-          style={{ height: 600 }}
-          views={["month", "week", "day", "agenda"]}
-          view={viewType}
-          onView={setViewType}
-          defaultView="month"
-          eventPropGetter={eventStyleGetter}
-          onSelectEvent={handleSelectEvent}
-          onEventDrop={handleEventDrop}
-          onEventResize={handleEventResize}
-          formats={formats}
-          resizable
-          selectable
-          popup
-          step={15} // 15-minute intervals
-          timeslots={4} // 4 slots per hour
-          showMultiDayTimes
-          // Time range for day/week views - show 7am to 9pm
-          min={new Date(new Date().setHours(7, 0, 0))}
-          max={new Date(new Date().setHours(21, 0, 0))}
-          draggableAccessor={() => true}
-          resizableAccessor={() => true}
-        />
-      )}
+      <div className={`calendar-wrapper ${isDarkMode ? 'dark' : ''}`}>
+        {viewType === 'agenda' ? (
+          // Custom agenda view with narrative style
+          <SmartAgenda events={allEvents} date={new Date()} />
+        ) : (
+          // Regular calendar for other views
+          <DnDCalendar
+            localizer={localizer}
+            events={allEvents}
+            startAccessor="start"
+            endAccessor="end"
+            style={{ height: "auto", minHeight: 600 }} // Change from fixed height to auto with min-height
+            views={["month", "week", "day", "agenda"]}
+            view={viewType}
+            onView={setViewType}
+            defaultView="month"
+            eventPropGetter={eventStyleGetter}
+            onSelectEvent={handleSelectEvent}
+            onEventDrop={handleEventDrop}
+            onEventResize={handleEventResize}
+            formats={formats}
+            resizable
+            selectable
+            popup
+            step={15}
+            timeslots={4}
+            showMultiDayTimes
+            min={new Date(new Date().setHours(7, 0, 0))}
+            max={new Date(new Date().setHours(21, 0, 0))}
+            draggableAccessor={() => true}
+            resizableAccessor={() => true}
+            className="view-transition"
+          />
+        )}
+      </div>
       
       {showVideoCall && selectedCall && currentRoomName && (
         <VideoCallModal

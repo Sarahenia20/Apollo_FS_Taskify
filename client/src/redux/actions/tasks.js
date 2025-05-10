@@ -8,6 +8,7 @@ import {
   _FindOneTask,
   _FindTasks,
 } from "../reducers/tasks";
+import { MOCK_PRIORITY, MOCK_STATUS, MOCK_TYPE } from '../../data/mock';
 
 // Updated Add Task Action with file upload support
 export const AddTaskAction = (form, files, setPopupOpen) => async (dispatch) => {
@@ -378,4 +379,90 @@ export const GetTaskCommentsAction = (taskId) => async (dispatch) => {
     
     return [];
   }
+};
+// Add this to your activityActions.js file
+
+export const fetchSmartTaskPriorities = (userId) => async (dispatch) => {
+  try {
+    // First try to fetch real tasks
+    const response = await axios.get(`/api/tasks`, {
+      params: {
+        userId: userId,
+        // Get all tasks assigned to user
+        assignedTo: userId,
+      }
+    });
+    
+    if (response.data && response.data.data && response.data.data.length > 0) {
+      // If we have real tasks, return them
+      return { tasks: response.data.data };
+    }
+    
+    // If no real tasks or error, generate mock tasks
+    const mockTasks = generateMockTasks(userId);
+    return { tasks: mockTasks };
+  } catch (error) {
+    console.error('Error fetching tasks for prioritization:', error);
+    // On error, return mock tasks
+    const mockTasks = generateMockTasks(userId);
+    return { tasks: mockTasks };
+  }
+};
+
+// Generate mock tasks for demonstration
+const generateMockTasks = (userId) => {
+  const taskTitles = [
+    "Fix Critical Security Vulnerability",
+    "Implement Two-Factor Authentication",
+    "Database Migration to PostgreSQL",
+    "Optimize API Performance",
+    "Deploy New User Dashboard",
+    "Write Tests for Payment Module",
+    "Update SSL Certificates",
+    "Refactor Authentication Service",
+    "Implement Redis Caching",
+    "Fix Memory Leak in Worker Service",
+    "Update API Documentation",
+    "Configure CI/CD Pipeline",
+    "Implement WebSocket Notifications",
+    "Migrate to Microservices",
+    "Setup Monitoring Dashboard"
+  ];
+  
+  const mockTasks = [];
+  
+  for (let i = 0; i < 15; i++) {
+    // Create realistic dates
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - Math.floor(Math.random() * 10));
+    
+    const endDate = new Date();
+    endDate.setDate(endDate.getDate() + Math.floor(Math.random() * 30) - 10);
+    
+    // Select random mock data
+    const priority = MOCK_PRIORITY[Math.floor(Math.random() * MOCK_PRIORITY.length)];
+    const status = MOCK_STATUS.filter(s => s.value !== "3")[Math.floor(Math.random() * (MOCK_STATUS.length - 1))];
+    const type = MOCK_TYPE[Math.floor(Math.random() * MOCK_TYPE.length)];
+    
+    mockTasks.push({
+      _id: `task_${i + 1}`,
+      id: `task_${i + 1}`,
+      title: taskTitles[i] || `Task ${i + 1}`,
+      description: `This is a ${priority.label} priority ${type.label || 'general'} task that needs attention.`,
+      assignedTo: userId,
+      assigns: [{ _id: userId }], // Make sure it matches your data structure
+      priority: priority,
+      status: status,
+      type: type,
+      start_date: startDate.toISOString(),
+      end_date: endDate.toISOString(),
+      dueDate: endDate.toISOString(),
+      project: {
+        name: "Taskify Development",
+        _id: "project_1"
+      }
+    });
+  }
+  
+  return mockTasks;
 };

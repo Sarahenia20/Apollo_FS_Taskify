@@ -7,7 +7,13 @@ import UserPopup from "./UserPopup";
 import { useDispatch } from "react-redux";
 import { setRefresh } from "../redux/reducers/commons";
 
-const UserHeader = ({ status, popupOpen, setPopupOpen }) => {
+const UserHeader = ({ 
+  status, 
+  popupOpen, 
+  setPopupOpen,
+  buttonText = "Add User", // Default button text
+  onButtonClick = null // Optional callback for button click
+}) => {
   const trigger = useRef(null);
   const popup = useRef(null);
   const dispatch = useDispatch();
@@ -37,6 +43,15 @@ const UserHeader = ({ status, popupOpen, setPopupOpen }) => {
     document.addEventListener("keydown", keyHandler);
     return () => document.removeEventListener("keydown", keyHandler);
   });
+
+  // Handle button click
+  const handleButtonClick = () => {
+    if (onButtonClick) {
+      onButtonClick();
+    } else {
+      setPopupOpen(!popupOpen);
+    }
+  };
 
   return (
     <div className="flex flex-col gap-y-4 rounded-sm border border-stroke bg-white p-3 shadow-default dark:border-strokedark dark:bg-boxdark sm:flex-row sm:items-center sm:justify-between">
@@ -74,9 +89,7 @@ const UserHeader = ({ status, popupOpen, setPopupOpen }) => {
           <div>
             <button
               ref={trigger}
-              onClick={() => {
-                setPopupOpen(!popupOpen);
-              }}
+              onClick={handleButtonClick}
               className="flex items-center gap-2 rounded bg-primary px-4.5 py-2 font-medium text-white hover:bg-opacity-80"
             >
               <svg
@@ -92,15 +105,17 @@ const UserHeader = ({ status, popupOpen, setPopupOpen }) => {
                   fill=""
                 />
               </svg>
-              Add User
+              {buttonText}
             </button>
 
             {/* <!-- ===== User Popup Start ===== --> */}
-            <UserPopup
-              popupOpen={popupOpen}
-              setPopupOpen={setPopupOpen}
-              popup={popup}
-            />
+            {!onButtonClick && (
+              <UserPopup
+                popupOpen={popupOpen}
+                setPopupOpen={setPopupOpen}
+                popup={popup}
+              />
+            )}
             {/* <!-- ===== User Popup End ===== --> */}
           </div>
         )}
