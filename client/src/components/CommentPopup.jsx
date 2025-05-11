@@ -8,23 +8,16 @@ import {
 import axios from "axios";
 import Swal from "sweetalert2"; // Import SweetAlert2
 
-// List of bad words (you can expand this list)
+// List of bad words - keeping only essential ones for filtering
 const badWords = [
-  "damn",
-  "hell",
-  "shit",
   "fuck",
+  "shit",
   "bitch",
   "ass",
-  "crap",
-  "piss",
   "dick",
-  "bastard",
-  // Add French bad words if needed
   "merde",
-  "connard",
-  "salope",
   "putain",
+  "salope",
 ];
 
 // Enhanced trigger phrases for English and French (unchanged)
@@ -33,7 +26,7 @@ const triggerPhrases = {
     label: "Greeting (EN)",
     options: [
       "Hello! Any updates on this task?",
-      "Hey there, how’s the progress?",
+      "Hey there, how's the progress?",
       "Hi, quick check-in on this task.",
     ],
   },
@@ -377,20 +370,45 @@ const CommentPopup = ({ popupOpen, setPopupOpen, taskId, task }) => {
     return [];
   };
 
-  const getProjectName = () => {
-    if (!taskData) {
-      return "Project";
-    }
-
-    if (typeof taskData.project === "object" && taskData.project?.name) {
-      return taskData.project.name;
-    }
-
-    if (typeof taskData.project === "string") {
-      return taskData.project;
-    }
-
+const getProjectName = () => {
+  if (!taskData || !taskData.project) {
     return "Project";
+  }
+
+  // If project is an object with a name property, use it
+  if (typeof taskData.project === "object" && taskData.project.name) {
+    return taskData.project.name;
+  }
+
+  // If project is an object but only has an ID (or other fields without name)
+  if (typeof taskData.project === "object" && taskData.project._id) {
+    // Don't display the ID
+    return "Project";
+  }
+
+  // If project is just a string (likely an ID)
+  if (typeof taskData.project === "string") {
+    // Check if it looks like a MongoDB ObjectID
+    if (isObjectId(taskData.project)) {
+      return "Project"; // Don't display the ID
+    }
+    // If it's not an ID format, it might actually be the project name
+    return taskData.project;
+  }
+
+  return "Project";
+};
+  // Helper function to check if a string looks like a MongoDB ObjectID
+  const isObjectId = (str) => {
+    return str && /^[0-9a-fA-F]{24}$/.test(str);
+  };
+
+  // Get display title - if title is an ObjectID, show "Untitled Task"
+  const getDisplayTitle = () => {
+    if (!taskData.title || isObjectId(taskData.title)) {
+      return "Untitled Task";
+    }
+    return taskData.title;
   };
 
   return (
@@ -399,7 +417,7 @@ const CommentPopup = ({ popupOpen, setPopupOpen, taskId, task }) => {
         popupOpen ? "block" : "hidden"
       }`}
     >
-      <div className="relative m-auto w-full max-w-4xl rounded-sm border border-stroke bg-gray p-4 shadow-default dark:border-strokedark dark:bg-meta-4 sm:p-8 xl:p-10">
+      <div className="relative m-auto w-full max-w-4xl rounded-2xl border border-stroke bg-gray p-4 shadow-xl dark:border-strokedark dark:bg-meta-4 sm:p-8 xl:p-10">
         <button
           onClick={() => setPopupOpen(false)}
           className="absolute right-1 top-1 sm:right-5 sm:top-5"
@@ -422,8 +440,8 @@ const CommentPopup = ({ popupOpen, setPopupOpen, taskId, task }) => {
         </button>
 
         <div className="flex flex-col gap-6">
-          {/* Task Details Section (unchanged) */}
-          <div className="rounded-lg border border-stroke bg-white p-6 dark:border-strokedark dark:bg-boxdark">
+          {/* Task Details Section */}
+          <div className="rounded-xl border border-stroke bg-white p-6 shadow-sm dark:border-strokedark dark:bg-boxdark">
             {taskDetailsLoading ? (
               <div className="flex justify-center py-10">
                 <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
@@ -435,9 +453,7 @@ const CommentPopup = ({ popupOpen, setPopupOpen, taskId, task }) => {
             ) : (
               <>
                 <h2 className="mb-4 text-2xl font-bold text-black dark:text-white">
-                  {taskData.title && taskData.title !== taskData._id
-                    ? taskData.title
-                    : "Untitled Task"}
+                  {getDisplayTitle()}
                   {(loading || refresh) && (
                     <span className="ml-2 inline-block h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent"></span>
                   )}
@@ -447,12 +463,12 @@ const CommentPopup = ({ popupOpen, setPopupOpen, taskId, task }) => {
                   {/* Left Column */}
                   <div className="space-y-4">
                     <div className="flex items-center gap-2">
-                      <span className="rounded-md bg-blue-100 px-3 py-1 text-sm font-medium text-blue-800">
+                      <span className="rounded-full bg-blue-100 px-4 py-1.5 text-sm font-medium text-blue-800">
                         {getProjectName()}
                       </span>
                       {taskData.status && (
                         <span
-                          className={`rounded-md px-3 py-1 text-sm font-medium ${
+                          className={`rounded-full px-4 py-1.5 text-sm font-medium ${
                             taskData.status === "1"
                               ? "bg-gray-100 text-gray-800"
                               : taskData.status === "2"
@@ -482,7 +498,6 @@ const CommentPopup = ({ popupOpen, setPopupOpen, taskId, task }) => {
                       </p>
                     </div>
 
-                    {console.log("Attachment data:", taskData.attachment)}
                     {taskData.attachment && taskData.attachment.path ? (
                       <div>
                         <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">
@@ -493,12 +508,6 @@ const CommentPopup = ({ popupOpen, setPopupOpen, taskId, task }) => {
                             href={fixImageUrl(taskData.attachment.path)}
                             download={taskData.attachment.originalname || "attachment"}
                             className="flex items-center gap-2 rounded-md bg-primary px-3 py-1 text-sm text-white hover:bg-opacity-90"
-                            onClick={() =>
-                              console.log(
-                                "Download URL:",
-                                fixImageUrl(taskData.attachment.path)
-                              )
-                            }
                           >
                             <svg
                               className="h-4 w-4"
@@ -578,7 +587,7 @@ const CommentPopup = ({ popupOpen, setPopupOpen, taskId, task }) => {
                           getAssignees().map((assignee, index) => (
                             <div
                               key={assignee._id || index}
-                              className="flex items-center gap-2 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-full"
+                              className="flex items-center gap-2 bg-gray-100 dark:bg-gray-700 px-3 py-1.5 rounded-full"
                             >
                               <img
                                 src={
@@ -610,7 +619,7 @@ const CommentPopup = ({ popupOpen, setPopupOpen, taskId, task }) => {
           </div>
 
           {/* Comments Section */}
-          <div className="rounded-lg border border-stroke bg-white p-6 dark:border-strokedark dark:bg-boxdark">
+          <div className="rounded-xl border border-stroke bg-white p-6 shadow-sm dark:border-strokedark dark:bg-boxdark">
             <h3 className="mb-4 text-xl font-semibold text-black dark:text-white">
               Comments & Discussion
               {initialLoading && (

@@ -1,10 +1,11 @@
 const express = require("express");
 const Router = express.Router();
 const passport = require("passport");
+const axios = require('axios');
 const ProjectModel = require("../models/projet");
 const TaskModel = require("../models/tasks");
 
-// In-memory context store (for demo; use Redis or DB for production)
+// In-memory context store
 const userContexts = {};
 
 Router.post("/chatbot/message", passport.authenticate("jwt", { session: false, failWithError: true }), async (req, res) => {
@@ -15,160 +16,165 @@ Router.post("/chatbot/message", passport.authenticate("jwt", { session: false, f
     // Initialize context if not present
     if (!userContexts[userId]) userContexts[userId] = {};
 
-    // Helper for flexible matching
-    const messageIncludes = (msg, keywords) => {
-      msg = msg.toLowerCase();
-      return keywords.some(keyword => msg.includes(keyword));
+    // Log every incoming message for debugging
+    console.log(`[CHATBOT] Received message: "${message}"`);
+
+    // STEP 1: Handle greetings - these show the menu
+    const greetings = ['hello', 'hi', 'hey', 'hii', 'helo', 'start', 'help'];
+    if (greetings.includes(message.toLowerCase().trim())) {
+      console.log("[CHATBOT] Detected greeting, showing menu");
+      userContexts[userId].lastQuery = null;
+      
+      const messages = [
+        `👋 Hello ${req.user.fullName}! I'm your Taskify Assistant.`,
+        "I can help you with project management or answer any questions!",
+        "Use the buttons below for quick actions:"
+      ];
+      
+      const suggestions = [
+        "Show my projects",
+        "Show my tasks",
+        "Create new project",
+        "Create new task"
+      ];
+      
+      return res.json({ messages, suggestions });
+    }
+
+    // STEP 2: Handle EXACT button text only
+    const buttonHandlers = {
+      "Show my projects": async () => {
+        console.log("[CHATBOT] Handling 'Show my projects'");
+        const projects = await ProjectModel.find({});
+        userContexts[userId].lastQuery = 'projects';
+        
+        return {
+          response: projects.length > 0 
+            ? `📊 You have ${projects.length} project${projects.length !== 1 ? 's' : ''}. Would you like to see details?`
+            : "📂 No projects yet. Would you like to create one?",
+          suggestions: projects.length > 0 
+            ? ["Yes", "No", "Create new project"]
+            : ["Create new project", "Help"]
+        };
+      },
+      
+      "Show my tasks": async () => {
+        console.log("[CHATBOT] Handling 'Show my tasks'");
+        const tasks = await TaskModel.find({});
+        userContexts[userId].lastQuery = 'tasks';
+        
+        return {
+          response: tasks.length > 0
+            ? `📋 You have ${tasks.length} task${tasks.length !== 1 ? 's' : ''}. Would you like to see details?`
+            : "📋 No tasks yet. Would you like to create one?",
+          suggestions: tasks.length > 0
+            ? ["Yes", "No", "Create new task"]
+            : ["Create new task", "Help"]
+        };
+      },
+      
+      "Yes": async () => {
+        if (!userContexts[userId].lastQuery) {
+          return {
+            response: "Yes to what? Try asking me a specific question!",
+            suggestions: ["Show my projects", "Show my tasks", "Help"]
+          };
+        }
+        
+        // Handle showing details based on last query
+        if (userContexts[userId].lastQuery === 'projects') {
+          const projects = await ProjectModel.find({});
+          const messages = ["Here are your projects:"];
+          
+          projects.forEach((project, index) => {
+            messages.push(`${index + 1}. ${project.project_name} - ${project.status}`);
+          });
+          
+          return { messages, suggestions: ["Show my tasks", "Help"] };
+        }
+        
+        if (userContexts[userId].lastQuery === 'tasks') {
+          const tasks = await TaskModel.find({});
+          const messages = ["Here are your tasks:"];
+          
+          tasks.forEach((task, index) => {
+            messages.push(`${index + 1}. ${task.title} - ${task.status}`);
+          });
+          
+          return { messages, suggestions: ["Show my projects", "Help"] };
+        }
+      },
+      
+      "No": async () => {
+        userContexts[userId].lastQuery = null;
+        return {
+          response: "No problem! What else can I help you with?",
+          suggestions: ["Show my projects", "Show my tasks", "Help"]
+        };
+      }
     };
 
-    let response = "I'm sorry, I can only answer basic questions right now.";
-    let suggestions = [];
-
-    // Greeting
-    if (messageIncludes(message, ['hello', 'hi', 'hey', 'hii', 'helo'])) {
-      userContexts[userId].lastQuery = null;
-      const messages = [
-        `👋 Hello ${req.user.fullName}! I'm your Taskify Assistant. How can I help you today?`,
-        "I can help you with:",
-        "📊 Project Management\n- View project status\n- Check project details\n- Get project summaries",
-        "📋 Task Management\n- View your tasks\n- Check task status\n- Get task deadlines",
-        "Just ask me anything about your projects or tasks!"
-      ];
-      suggestions = [
-        "Show my projects",
-        "Show my tasks",
-        "Create new project",
-        "Create new task"
-      ];
-      return res.json({ messages, suggestions });
+    // Check if message matches any button exactly
+    if (buttonHandlers[message]) {
+      console.log(`[CHATBOT] Found exact button match for: "${message}"`);
+      const result = await buttonHandlers[message]();
+      return res.json(result);
     }
 
-    // Help
-    if (messageIncludes(message, ['help', 'what can you do', 'commands', 'guide'])) {
-      userContexts[userId].lastQuery = null;
-      const messages = [
-        "🤖 I'm here to assist you with project and task management. Here's what I can do:",
-        "📊 Projects:\n- Show all projects\n- Project status updates\n- Project details and progress",
-        "📋 Tasks:\n- View task lists\n- Task status and priorities\n- Upcoming deadlines",
-        "💡 Try asking:\n- 'Show my projects'\n- 'What tasks do I have?'\n- 'Project status update'"
-      ];
-      suggestions = ["Show my projects", "Show my tasks"];
-      return res.json({ messages, suggestions });
-    }
-
-    // Project count
-    if (messageIncludes(message, ['how many project', 'number of project', 'total project', 'my projects'])) {
-      const projects = await ProjectModel.find({});
-      const projectCount = projects.length;
-      userContexts[userId].lastQuery = 'projects';
-      if (projectCount > 0) {
-        response = `📊 You have ${projectCount} project${projectCount !== 1 ? 's' : ''} in total. Would you like to see the details?`;
-        suggestions = ["Yes", "No", "Create new project"];
-      } else {
-        response = "📂 There are no projects in the system yet. Would you like to create one?";
-        suggestions = ["Create new project"];
+    // STEP 3: Everything else goes to Gemini
+    console.log(`[CHATBOT] No button match, sending to Gemini: "${message}"`);
+    
+    try {
+      const GEMINI_API_KEY = process.env.TASKIFY_GEMINI_API_KEY;
+      
+      // Debug: Check if API key exists
+      console.log("[GEMINI] API Key exists:", !!GEMINI_API_KEY);
+      
+      if (!GEMINI_API_KEY) {
+        throw new Error('Gemini API key not found in environment variables');
       }
-      return res.json({ response, suggestions });
-    }
 
-    // Task count
-    if (messageIncludes(message, ['how many task', 'number of task', 'total task', 'my tasks'])) {
-      const tasks = await TaskModel.find({})
-        .populate('assigns', 'fullName')
-        .populate('project', 'project_name');
-      userContexts[userId].lastQuery = 'tasks';
-      if (tasks.length > 0) {
-        response = `📋 You have ${tasks.length} task${tasks.length !== 1 ? 's' : ''} in total. Would you like to see the details?`;
-        suggestions = ["Yes", "No", "Create new task"];
-      } else {
-        response = "📋 You don't have any tasks yet. Would you like to create one?";
-        suggestions = ["Create new task"];
-      }
-      return res.json({ response, suggestions });
-    }
+      console.log("[GEMINI] Making API request...");
+      
+      const geminiResponse = await axios({
+        url: `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`,
+        method: "post",
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        data: {
+          contents: [{ 
+            parts: [{ 
+              text: message
+            }] 
+          }],
+        },
+        timeout: 10000 // 10 second timeout
+      });
 
-    // Details for last query
-    if (messageIncludes(message, ['yes', 'ok', 'show', 'details', 'sure', 'tell me'])) {
-      if (userContexts[userId].lastQuery === 'projects') {
-        const projects = await ProjectModel.find({});
-        if (projects.length > 0) {
-          const messages = [];
-          const projectsByStatus = {
-            'in progress': projects.filter(p => p.status === 'in progress'),
-            'completed': projects.filter(p => p.status === 'completed'),
-            'on hold': projects.filter(p => p.status === 'on hold')
-          };
-          for (const [status, statusProjects] of Object.entries(projectsByStatus)) {
-            if (statusProjects.length > 0) {
-              messages.push(`\n${status.toUpperCase()} (${statusProjects.length}):`);
-              statusProjects.forEach((p, index) => {
-                messages.push(`Project ${index + 1}: ${p.project_name}\nManager: ${p.project_manager}\nPriority: ${p.priority}`);
-              });
-            }
-          }
-          suggestions = ["Create new project"];
-          return res.json({ messages, suggestions });
-        }
-      } else if (userContexts[userId].lastQuery === 'tasks') {
-        const tasks = await TaskModel.find({})
-          .populate('assigns', 'fullName')
-          .populate('project', 'project_name');
-        if (tasks.length > 0) {
-          const messages = [];
-          const tasksByStatus = {
-            '1': tasks.filter(t => t.status === '1'),
-            '2': tasks.filter(t => t.status === '2'),
-            '3': tasks.filter(t => t.status === '3'),
-            '4': tasks.filter(t => t.status === '4')
-          };
-          const statusNames = {
-            '1': '📝 To Do',
-            '2': '🔄 In Progress',
-            '3': '👀 In Review',
-            '4': '✅ Completed'
-          };
-          for (const [status, statusTasks] of Object.entries(tasksByStatus)) {
-            if (statusTasks.length > 0) {
-              messages.push(`${statusNames[status]} (${statusTasks.length}):`);
-              statusTasks.forEach((task, index) => {
-                messages.push(`Task ${index + 1}: ${task.title}\nProject: ${task.project?.project_name || 'No Project'}\nPriority: ${task.priority}\nDue: ${new Date(task.end_date).toLocaleDateString()}`);
-              });
-            }
-          }
-          suggestions = ["Create new task"];
-          return res.json({ messages, suggestions });
-        }
-      }
+      console.log("[GEMINI] Response received successfully");
+      
+      const aiResponse = geminiResponse.data.candidates[0].content.parts[0].text;
+      
+      return res.json({ 
+        response: aiResponse,
+        suggestions: ["Help"] // Simple suggestion to get back to menu
+      });
+      
+    } catch (geminiError) {
+      console.error("[GEMINI] Error occurred:", geminiError.message);
+      console.error("[GEMINI] Full error:", JSON.stringify(geminiError.response?.data || {}, null, 2));
+      
+      // Return a user-friendly error message
+      return res.json({ 
+        response: "I'm having trouble with my AI brain right now. Try using the buttons below!",
+        suggestions: ["Show my projects", "Show my tasks", "Help"],
+        debug: process.env.NODE_ENV === 'development' ? geminiError.message : undefined
+      });
     }
-
-    // Handle "No" or negative responses
-    if (messageIncludes(message, ['no', 'not now', 'maybe later', 'cancel'])) {
-      userContexts[userId].lastQuery = null;
-      response = "No problem! If you need anything else, just ask. 😊";
-      suggestions = [
-        "Show my projects",
-        "Show my tasks",
-        "Create new project",
-        "Create new task"
-      ];
-      return res.json({ response, suggestions });
-    }
-
-    // Handle positive/thankful feedback
-    if (messageIncludes(message, ['thank', 'thanks', 'good', 'great', 'awesome', 'perfect', 'nice', 'cool', 'appreciate'])) {
-      response = "You're welcome! 😊 If you need anything else, just ask.";
-      suggestions = [
-        "Show my projects",
-        "Show my tasks",
-        "Create new project",
-        "Create new task"
-      ];
-      return res.json({ response, suggestions });
-    }
-
-    res.json({ response, suggestions });
+    
   } catch (error) {
-    console.error("Chatbot error:", error);
+    console.error("[CHATBOT] General error:", error);
     res.status(500).json({ error: error.message });
   }
 });

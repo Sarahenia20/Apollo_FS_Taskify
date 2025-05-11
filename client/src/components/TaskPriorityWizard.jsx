@@ -371,7 +371,7 @@ const TaskPriorityWizard = () => {
   
   return (
     <>
-      <div className="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
+      <div id="task-priority-wizard" className="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
         <div className="flex flex-wrap items-center justify-between border-b border-stroke px-6 py-4 dark:border-strokedark">
           <h3 className="text-xl font-semibold text-black dark:text-white">
             Task Priority Wizard

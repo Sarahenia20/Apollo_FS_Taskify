@@ -1,10 +1,10 @@
-// routes/roomRoutes.js
 const express = require("express");
- const {createRoom,getAllRooms,saveScore }=require("../controllers/roomGame.js");
+const { createRoom, getAllRooms, saveScore } = require("../controllers/roomGame");
 
 const Router = express.Router();
 
-Router.post("/games/newRoom", createRoom);
-Router.get("/games/", getAllRooms);
-Router.post("/games/score",saveScore)
+Router.post("/newRoom", createRoom);
+Router.get("/", getAllRooms);
+Router.post("/score", saveScore);
+
 module.exports = Router;

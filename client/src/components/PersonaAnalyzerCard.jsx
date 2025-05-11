@@ -1,64 +1,146 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { fetchUserPersona } from '../redux/actions/activityActions';
+import { MOCK_TYPE } from '../data/mock';
 
 const PersonaAnalyzerCard = () => {
   const dispatch = useDispatch();
   const { user } = useSelector(state => state.auth);
   const { persona, loading } = useSelector(state => state.activity);
+  
+  // Get tasks from Redux
   const tasks = useSelector(state => state.tasks._ALL) || [];
   const activities = useSelector(state => state.activity.activities) || [];
   
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   
-  // Always generate a persona based on available data
-  const generatePersona = () => {
-    // Count task types
+  // Debug logging to see task structure
+  useEffect(() => {
+    if (tasks.length > 0) {
+      console.log('Sample task type:', tasks[0].type);
+      console.log('Sample task:', tasks[0]);
+    }
+  }, [tasks]);
+  
+  // Helper function to map numeric values to labels
+  const getTypeLabel = (typeValue) => {
+    // If it's already an object with a label, return the label
+    if (typeValue && typeof typeValue === 'object' && typeValue.label) {
+      return typeValue.label;
+    }
+    
+    // If it's a numeric value, find the corresponding label
+    const typeItem = MOCK_TYPE.find(item => item.value === String(typeValue));
+    return typeItem ? typeItem.label : typeValue;
+  };
+  
+  // Define getRecommendedSkills before using it
+  const getRecommendedSkills = (personaType, categories) => {
+    const skillMap = {
+      security: [
+        { name: 'Zero Trust Architecture', reason: 'Modern security framework' },
+        { name: 'Cloud Security', reason: 'Essential for cloud systems' },
+        { name: 'Security Automation', reason: 'Scale security operations' }
+      ],
+      infrastructure: [
+        { name: 'Kubernetes', reason: 'Container orchestration standard' },
+        { name: 'Infrastructure as Code', reason: 'Automate infrastructure' },
+        { name: 'Cloud Architecture', reason: 'Multi-cloud expertise' }
+      ],
+      devops: [
+        { name: 'GitOps', reason: 'Modern deployment practices' },
+        { name: 'Observability', reason: 'Beyond traditional monitoring' },
+        { name: 'Chaos Engineering', reason: 'Build resilient systems' }
+      ],
+      architecture: [
+        { name: 'Domain-Driven Design', reason: 'Model complex domains' },
+        { name: 'Event-Driven Architecture', reason: 'Scalable system design' },
+        { name: 'API Design', reason: 'Create maintainable interfaces' }
+      ],
+      versatile: [
+        { name: 'System Design', reason: 'Foundation for scalability' },
+        { name: 'Cloud Technologies', reason: 'Essential modern skill' },
+        { name: 'DevOps Practices', reason: 'Bridge dev and ops' }
+      ]
+    };
+    
+    return skillMap[personaType] || skillMap.versatile;
+  };
+  
+  // Memoize the persona generation
+  const displayPersona = useMemo(() => {
+    console.log('Generating persona with', tasks.length, 'tasks');
+    
+    // Count task types with proper label mapping
     const taskCounts = {};
     let completedCount = 0;
     
     tasks.forEach(task => {
-      // Count by type
-      const type = task.type?.label || task.category || 'General';
-      taskCounts[type] = (taskCounts[type] || 0) + 1;
+      // Get the type value first
+      let typeValue = task.type;
       
-      // Count completed
-      if (task.status === '3' || task.status?.value === '3') {
+      // If the task has a type as an object, extract the value
+      if (typeof task.type === 'object' && task.type !== null) {
+        typeValue = task.type.value || task.type.label;
+      }
+      
+      // Convert the value to its label
+      const typeLabel = getTypeLabel(typeValue);
+      
+      // Skip empty labels
+      if (typeLabel) {
+        taskCounts[typeLabel] = (taskCounts[typeLabel] || 0) + 1;
+      }
+      
+      // Check for completed status
+      const status = task.status?.value || task.status;
+      if (status === '3' || status === 'completed' || status === 'done') {
         completedCount++;
       }
     });
     
-    // Get top categories
+    // Get top categories with proper names
     const categories = Object.entries(taskCounts)
       .sort(([,a], [,b]) => b - a)
       .map(([category, count]) => ({
         category,
+        count,
         percentage: tasks.length > 0 ? Math.round((count / tasks.length) * 100) : 0
       }));
     
-    // Determine persona type
+    // Determine persona type based on actual task type names
     let personaType = 'versatile';
     let title = 'Tech Professional';
     let emoji = '💻';
     
-    const topCategory = categories[0]?.category?.toLowerCase() || '';
-    
-    if (topCategory.includes('infrastructure') || topCategory.includes('cloud')) {
-      personaType = 'infrastructure';
-      title = 'Infrastructure Engineer';
-      emoji = '☁️';
-    } else if (topCategory.includes('devops')) {
-      personaType = 'devops';
-      title = 'DevOps Engineer';
-      emoji = '⚙️';
-    } else if (topCategory.includes('security')) {
-      personaType = 'security';
-      title = 'Security Specialist';
-      emoji = '🛡️';
-    } else if (topCategory.includes('design') || topCategory.includes('architecture')) {
-      personaType = 'architecture';
-      title = 'System Architect';
-      emoji = '🏗️';
+    if (tasks.length > 0 && categories.length > 0) {
+      const topCategory = (categories[0]?.category || '').toLowerCase();
+      
+      if (topCategory.includes('infrastructure') || topCategory.includes('data center')) {
+        personaType = 'infrastructure';
+        title = 'Infrastructure Engineer';
+        emoji = '☁️';
+      } else if (topCategory.includes('devops')) {
+        personaType = 'devops';
+        title = 'DevOps Engineer';
+        emoji = '⚙️';
+      } else if (topCategory.includes('security') || topCategory.includes('authorization') || topCategory.includes('cybersecurity')) {
+        personaType = 'security';
+        title = 'Security Specialist';
+        emoji = '🛡️';
+      } else if (topCategory.includes('system design') || topCategory.includes('architecture')) {
+        personaType = 'architecture';
+        title = 'System Architect';
+        emoji = '🏗️';
+      } else if (topCategory.includes('network')) {
+        personaType = 'networking';
+        title = 'Network Engineer';
+        emoji = '🌐';
+      } else if (topCategory.includes('cloud')) {
+        personaType = 'cloud';
+        title = 'Cloud Engineer';
+        emoji = '☁️';
+      }
     }
     
     // Generate strengths
@@ -67,9 +149,12 @@ const PersonaAnalyzerCard = () => {
     
     if (completionRate > 80) strengths.push('High Completion Rate');
     if (categories[0]) strengths.push(`${categories[0].category} Expert`);
-    if (categories[1]) strengths.push(`${categories[1].category} Skills`);
+    if (categories[1] && categories[1].percentage > 20) strengths.push(`${categories[1].category} Skills`);
     if (activities.length > 20) strengths.push('Highly Active');
     if (completedCount > 10) strengths.push('Experienced Professional');
+    
+    // Get recommended skills
+    const recommendedSkills = getRecommendedSkills(personaType, categories);
     
     return {
       type: personaType,
@@ -78,32 +163,23 @@ const PersonaAnalyzerCard = () => {
       description: `You're a ${title} with expertise in ${categories[0]?.category || 'various technologies'}. Your activity shows strong focus on ${categories[0]?.category || 'technical'} tasks.`,
       distribution: categories.slice(0, 4),
       strengths: strengths.slice(0, 4),
+      recommendedSkills: recommendedSkills.slice(0, 3),
       tasksAnalyzed: tasks.length,
       completedTasks: completedCount,
       completionRate,
       confidenceLevel: tasks.length >= 10 ? 'high' : tasks.length >= 5 ? 'moderate' : 'low'
     };
-  };
-  
-  const [displayPersona, setDisplayPersona] = useState(generatePersona());
-  
-  // Update persona when data changes
-  useEffect(() => {
-    setDisplayPersona(generatePersona());
   }, [tasks, activities]);
   
   // Function to trigger refresh
   const refreshAnalysis = () => {
     setIsAnalyzing(true);
     
-    // Simulate analysis
     setTimeout(() => {
-      setDisplayPersona(generatePersona());
       setIsAnalyzing(false);
       
-      // Try to fetch from API too
-      if (user?._id) {
-        dispatch(fetchUserPersona(user._id));
+      if (user?._id || user?.id) {
+        dispatch(fetchUserPersona(user._id || user.id));
       }
     }, 1500);
   };
@@ -115,6 +191,8 @@ const PersonaAnalyzerCard = () => {
       infrastructure: "bg-primary/10 text-primary",
       architecture: "bg-meta-5/10 text-meta-5",
       devops: "bg-success/10 text-success",
+      networking: "bg-meta-6/10 text-meta-6",
+      cloud: "bg-meta-7/10 text-meta-7",
       versatile: "bg-meta-8/10 text-meta-8"
     };
     
@@ -122,7 +200,7 @@ const PersonaAnalyzerCard = () => {
   };
   
   return (
-    <div className="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
+    <div id="persona-analyzer-card" className="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
       <div className="flex flex-wrap items-center justify-between border-b border-stroke px-6 py-4 dark:border-strokedark">
         <h3 className="text-xl font-semibold text-black dark:text-white">
           Technical Persona Analysis
@@ -202,12 +280,29 @@ const PersonaAnalyzerCard = () => {
             {/* Technical Strengths */}
             {displayPersona.strengths.length > 0 && (
               <div className="mb-6">
-                <h5 className="text-sm font-medium text-black dark:text-white mb-3">Technical Strengths</h5>
+                <h5 className="text-sm font-medium text-black dark:text-white mb-3">Core Strengths</h5>
                 <div className="flex flex-wrap gap-2">
                   {displayPersona.strengths.map((strength, index) => (
                     <span key={index} className="px-3 py-1 bg-success/10 text-success rounded-full text-xs font-medium">
                       {strength}
                     </span>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {/* Recommended Skills */}
+            {displayPersona.recommendedSkills && displayPersona.recommendedSkills.length > 0 && (
+              <div className="mb-6">
+                <h5 className="text-sm font-medium text-black dark:text-white mb-3">Recommended Skills</h5>
+                <div className="space-y-2">
+                  {displayPersona.recommendedSkills.map((skill, index) => (
+                    <div key={index} className="bg-primary/5 rounded-lg p-3">
+                      <h6 className="font-medium text-sm text-black dark:text-white">
+                        {skill.name}
+                      </h6>
+                      <p className="text-xs text-gray-600 dark:text-gray-400">{skill.reason}</p>
+                    </div>
                   ))}
                 </div>
               </div>
@@ -261,8 +356,8 @@ const PersonaAnalyzerCard = () => {
             <div>
               <h6 className="font-semibold text-black dark:text-white mb-1">AI-Powered Analysis</h6>
               <p className="text-sm text-bodydark">
-                This intelligent analysis examines your task history to determine your technical strengths and work patterns.
-                Your persona will evolve as you complete more diverse tasks.
+                This analysis examines your task history to identify your technical strengths and recommend skills.
+                {displayPersona.tasksAnalyzed === 0 && " Complete some tasks to see your personalized analysis!"}
               </p>
             </div>
           </div>

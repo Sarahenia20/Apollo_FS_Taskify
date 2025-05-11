@@ -14,7 +14,7 @@ const AdvancedChart = () => {
   return (
     <DefaultLayout>
       <Breadcrumb pageName='User Chart Infographics' />
-      <DataStatsTwo />
+      
       <br />
       <div className="grid grid-cols-12 gap-4 md:gap-6 2xl:gap-7.5">
         {/* Add the Task Completion Predictor at the top */}
@@ -27,16 +27,16 @@ const AdvancedChart = () => {
           <UsersChartSkills />
         </div>
         <div className="col-span-12 xl:col-span-7">
-          <ChartSeven />
+       
         </div>
         <div className="col-span-12 xl:col-span-5">
           <TeamsCount />
         </div>
         <div className="col-span-12 xl:col-span-7">
-          <ChartSix />
+    
         </div>
         <div className="col-span-12 xl:col-span-5">
-          <ChartNine />
+      
         </div>
       </div>
     </DefaultLayout>

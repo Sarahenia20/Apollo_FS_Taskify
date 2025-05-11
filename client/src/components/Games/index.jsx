@@ -92,7 +92,8 @@ const GameHub = () => {
     }
   };
 
-  const openRoomModal = (index) => {
+  // Modified to handle direct room creation
+  const openRoomModal = (index = null) => {
     setSelectedGameIndex(index);
     setShowRoomModal(true);
   };
@@ -100,7 +101,7 @@ const GameHub = () => {
   const handleCreateRoom = async (e) => {
     e.preventDefault();
     
-    if (!newRoomName.trim()) return;
+    if (!newRoomName.trim() || selectedGameIndex === null) return;
     
     setLoading(true);
     try {
@@ -214,20 +215,54 @@ const GameHub = () => {
               </div>
             </div>
             
-            <p className="text-body dark:text-bodydark max-w-2xl">
-              Welcome to the Game Hub! Challenge yourself with these fun games and compete on the leaderboard.
-              Create a room to start a new game or join an existing room.
-            </p>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
+              <p className="text-body dark:text-bodydark max-w-2xl mb-4 sm:mb-0">
+                Welcome to the Game Hub! Challenge yourself with these fun games and compete on the leaderboard.
+                Create a room to start a new game or join an existing room.
+              </p>
+              
+              {/* New Create Room Button */}
+              <button 
+                onClick={() => openRoomModal(null)}
+                className="px-6 py-3 bg-primary text-white rounded-lg hover:bg-opacity-90 transition-colors shadow-lg flex items-center font-medium animate-pulse-slow"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Create New Room
+              </button>
+            </div>
           </div>
           
-          {/* Room creation modal */}
+          {/* Room creation modal - Modified to include game selection */}
           {showRoomModal && (
             <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50">
               <div className="bg-white dark:bg-boxdark p-6 rounded-lg shadow-xl w-full max-w-md scale-in-animation">
                 <h3 className="text-2xl font-bold text-black dark:text-white mb-4">
-                  Create {selectedGameIndex !== null ? games[selectedGameIndex].name : ''} Room
+                  Create {selectedGameIndex !== null ? games[selectedGameIndex].name : 'Game'} Room
                 </h3>
                 <form onSubmit={handleCreateRoom}>
+                  {/* Game selection dropdown (only shown when no game pre-selected) */}
+                  {selectedGameIndex === null && (
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium text-body dark:text-bodydark mb-2">
+                        Select Game
+                      </label>
+                      <select 
+                        className="w-full border border-stroke bg-white dark:border-strokedark dark:bg-meta-4 rounded-md px-4 py-2 outline-none focus:border-primary dark:focus:border-primary"
+                        onChange={(e) => setSelectedGameIndex(parseInt(e.target.value))}
+                        required
+                      >
+                        <option value="">-- Select a game --</option>
+                        {games.map((game, index) => (
+                          <option key={index} value={index}>
+                            {game.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                  
                   <div className="mb-4">
                     <label className="block text-sm font-medium text-body dark:text-bodydark mb-2">
                       Room Name
@@ -241,6 +276,7 @@ const GameHub = () => {
                       required
                     />
                   </div>
+                  
                   <div className="flex justify-end gap-2 mt-6">
                     <button
                       type="button"
@@ -252,6 +288,7 @@ const GameHub = () => {
                     <button
                       type="submit"
                       className="px-4 py-2 bg-primary text-white rounded-md hover:bg-opacity-90 transition-colors"
+                      disabled={selectedGameIndex === null}
                     >
                       Create Room
                     </button>

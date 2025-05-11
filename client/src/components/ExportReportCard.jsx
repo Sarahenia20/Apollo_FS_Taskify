@@ -3,27 +3,61 @@ import React, { useState } from 'react';
 import { useSelector } from 'react-redux';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
-import LogoDark from "../images/logo/logo-dark.svg"; // Import the logo directly for fallback
+import LogoDark from "../images/logo/logo-dark.png"; // Fixed path
 
-const ExportReportCard = () => {
+const ExportReportCard = ({ activities, stats, persona }) => {
   const [exportType, setExportType] = useState('pdf');
   const [isExporting, setIsExporting] = useState(false);
   const [includeComponents, setIncludeComponents] = useState({
+    userActivity: true,
     persona: true,
-    activity: true,
-    charts: true,
+    priority: true,
     insights: true
   });
   const { user } = useSelector(state => state.auth);
-  const { activities, stats, persona } = useSelector(state => state.activity);
   
-  // Function to export current view as PDF
+  // Helper function to compress canvas images
+  const compressImage = async (canvas, quality = 0.7) => {
+    return new Promise((resolve) => {
+      // Convert to JPEG with compression
+      const dataUrl = canvas.toDataURL('image/jpeg', quality);
+      resolve(dataUrl);
+    });
+  };
+  
+  // Helper function to capture and optimize components
+  const captureComponent = async (element, options = {}) => {
+    // Default options optimized for each component type
+    const defaultOptions = {
+      scale: 1,          // Reduced from 2 to 1
+      useCORS: true,
+      allowTaint: true,
+      logging: false,
+      backgroundColor: '#ffffff',
+      width: Math.min(element.scrollWidth, 1200),  // Limit width
+      height: Math.min(element.scrollHeight, 1600), // Limit height
+    };
+    
+    // Merge with component-specific options
+    const finalOptions = { ...defaultOptions, ...options };
+    
+    const canvas = await html2canvas(element, finalOptions);
+    return canvas;
+  };
+  
+  // Function to export specific components as PDF
   const exportAsPDF = async () => {
     setIsExporting(true);
     
     try {
-      // Create PDF document
-      const pdf = new jsPDF('p', 'mm', 'a4');
+      // Create PDF document with compression enabled
+      const pdf = new jsPDF({
+        orientation: 'p',
+        unit: 'mm',
+        format: 'a4',
+        compress: true // Enable PDF compression
+      });
+      
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
       
@@ -33,245 +67,110 @@ const ExportReportCard = () => {
       // Add title
       pdf.setFontSize(22);
       pdf.setTextColor(44, 62, 80);
-      pdf.text("Activity Dashboard Report", pageWidth / 2, 30, { align: 'center' });
+      pdf.text("Activity Dashboard Report", pageWidth / 2, 35, { align: 'center' });
       
       // Add user info
       pdf.setFontSize(14);
-      pdf.text(`User: ${user?.fullName || user?.name || 'Current User'}`, 20, 40);
-      pdf.text(`Date: ${new Date().toLocaleDateString()}`, 20, 47);
+      pdf.text(`User: ${user?.fullName || user?.name || 'Current User'}`, 20, 45);
+      pdf.text(`Date: ${new Date().toLocaleDateString()}`, 20, 52);
       
-      let currentY = 55;
+      let currentY = 60;
       
-      // Add Technical Persona section
-      if (includeComponents.persona && persona) {
-        pdf.setFontSize(16);
-        pdf.setTextColor(41, 128, 185); // Blue
-        pdf.text("Technical Persona", 20, currentY);
+      // Helper function to add component with optimization
+      const addComponentToPDF = async (elementId, title, componentType) => {
+        const element = document.getElementById(elementId);
         
-        pdf.setFontSize(14);
-        pdf.setTextColor(44, 62, 80);
-        pdf.text(`${persona.emoji || '🧑‍💻'} ${persona.title}`, 20, currentY + 7);
+        if (!element) return currentY;
         
-        // Add description with wrapping
-        pdf.setFontSize(11);
-        pdf.setTextColor(75, 85, 99);
-        const descriptionLines = pdf.splitTextToSize(persona.description, pageWidth - 40);
-        pdf.text(descriptionLines, 20, currentY + 14);
-        
-        // Add skill distribution if available
-        if (persona.distribution && persona.distribution.length > 0) {
-          currentY += 14 + (descriptionLines.length * 5);
-          pdf.setFontSize(12);
-          pdf.setTextColor(44, 62, 80);
-          pdf.text("Technical Focus Distribution:", 20, currentY);
-          
-          currentY += 5;
-          persona.distribution.forEach((dist, index) => {
-            currentY += 5;
-            pdf.text(`• ${dist}`, 25, currentY);
-          });
-        } else {
-          currentY += 14 + (descriptionLines.length * 5);
-        }
-        
-        // Add strengths if available
-        if (persona.strengths && persona.strengths.length > 0) {
-          currentY += 7;
-          pdf.setFontSize(12);
-          pdf.setTextColor(44, 62, 80);
-          pdf.text("Technical Strengths:", 20, currentY);
-          
-          currentY += 5;
-          const strengthsText = persona.strengths.join(', ');
-          const strengthLines = pdf.splitTextToSize(strengthsText, pageWidth - 45);
-          pdf.text(strengthLines, 25, currentY);
-          
-          currentY += (strengthLines.length * 5) + 5;
-        }
-        
-        // Add separator
-        pdf.setDrawColor(200, 200, 200);
-        pdf.line(20, currentY, pageWidth - 20, currentY);
-        currentY += 10;
-      }
-      
-      // Check if we need to add a new page
-      if (currentY > pageHeight - 60) {
-        pdf.addPage();
-        currentY = 20;
-      }
-      
-      // Add Activity Summary section
-      if (includeComponents.activity && activities && activities.length > 0) {
-        pdf.setFontSize(16);
-        pdf.setTextColor(41, 128, 185);
-        pdf.text("Recent Activity Summary", 20, currentY);
-        
-        pdf.setFontSize(11);
-        pdf.setTextColor(75, 85, 99);
-        
-        currentY += 8;
-        
-        // Get activity distribution by type
-        const activityTypes = {};
-        activities.forEach(act => {
-          const type = act.type;
-          if (!activityTypes[type]) {
-            activityTypes[type] = 0;
-          }
-          activityTypes[type]++;
-        });
-        
-        // Show activity distribution
-        pdf.setFontSize(12);
-        pdf.setTextColor(44, 62, 80);
-        pdf.text("Activity Distribution by Type:", 20, currentY);
-        
-        currentY += 5;
-        Object.entries(activityTypes).forEach(([type, count]) => {
-          pdf.setFontSize(11);
-          pdf.text(`• ${type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}: ${count} activities`, 25, currentY);
-          currentY += 5;
-        });
-        
-        // Add recent activities
-        currentY += 5;
-        pdf.setFontSize(12);
-        pdf.setTextColor(44, 62, 80);
-        pdf.text("Recent Activities:", 20, currentY);
-        
-        currentY += 5;
-        const recentActivities = activities.slice(0, 5);
-        recentActivities.forEach((activity, index) => {
-          const actDate = new Date(activity.timestamp).toLocaleString();
-          const actText = `${actDate} - ${activity.action}${activity.details ? ': ' + activity.details : ''}`;
-          const actLines = pdf.splitTextToSize(actText, pageWidth - 45);
-          
-          pdf.setFontSize(10);
-          pdf.text(actLines, 25, currentY);
-          
-          currentY += (actLines.length * 4) + 3;
-          
-          // Check if we need to add a new page
-          if (index < recentActivities.length - 1 && currentY > pageHeight - 20) {
+        try {
+          // Check if we need a new page
+          if (currentY > pageHeight - 60) {
             pdf.addPage();
             currentY = 20;
           }
-        });
-        
-        // Add separator
-        pdf.setDrawColor(200, 200, 200);
-        pdf.line(20, currentY, pageWidth - 20, currentY);
-        currentY += 10;
-      }
-      
-      // Check if we need to add a new page
-      if (currentY > pageHeight - 60) {
-        pdf.addPage();
-        currentY = 20;
-      }
-      
-      // Add Chart Visualizations
-      if (includeComponents.charts && stats) {
-        // Capture charts - use ID to ensure we get the right component
-        const chartsElement = document.getElementById('activity-summary-chart');
-        
-        if (chartsElement) {
-          try {
-            // Use better html2canvas options for more reliable capture
-            const chartsCanvas = await html2canvas(chartsElement, { 
-              scale: 2,
-              useCORS: true,
-              allowTaint: true,
-              logging: false, // Disable logging for cleaner console
-              backgroundColor: null // Preserve transparency
-            });
-            
-            const chartsImgData = chartsCanvas.toDataURL('image/png');
-            
-            // Add charts with title
-            pdf.setFontSize(16);
-            pdf.setTextColor(41, 128, 185);
-            pdf.text("Activity Analytics", 20, currentY);
-            
-            // Adjust the height to maintain aspect ratio
-            const imgWidth = pageWidth - 40;
-            const imgHeight = (chartsCanvas.height * imgWidth) / chartsCanvas.width;
-            
-            // Check if image fits on current page
-            if (currentY + 10 + imgHeight > pageHeight - 20) {
-              pdf.addPage();
-              currentY = 20;
-            }
-            
-            pdf.addImage(chartsImgData, 'PNG', 20, currentY + 10, imgWidth, imgHeight);
-            
-            currentY += imgHeight + 20;
-            
-            // Add separator
-            pdf.setDrawColor(200, 200, 200);
-            pdf.line(20, currentY, pageWidth - 20, currentY);
-            currentY += 10;
-          } catch (error) {
-            console.error("Error capturing charts:", error);
-            // Continue with the PDF generation even if chart capture fails
-            pdf.setFontSize(12);
-            pdf.setTextColor(200, 0, 0);
-            pdf.text("Charts could not be captured for this report.", 20, currentY + 5);
-            currentY += 15;
+          
+          // Add component title
+          pdf.setFontSize(16);
+          pdf.setTextColor(41, 128, 185);
+          pdf.text(title, 20, currentY);
+          currentY += 10;
+          
+          // Component-specific capture options
+          const captureOptions = {
+            userActivity: { scale: 0.8, quality: 0.5 },   // Tables compress well
+            persona: { scale: 1, quality: 0.7 },          // Medium quality for graphics
+            priority: { scale: 1, quality: 0.6 },         // Charts need decent quality
+            insights: { scale: 0.9, quality: 0.6 }        // Text-heavy, can be compressed
+          };
+          
+          const options = captureOptions[componentType] || { scale: 1, quality: 0.6 };
+          
+          // Capture the component
+          const canvas = await captureComponent(element, { scale: options.scale });
+          
+          // Compress the image
+          const imgData = await compressImage(canvas, options.quality);
+          
+          // Calculate dimensions
+          const imgWidth = pageWidth - 40;
+          const imgHeight = (canvas.height * imgWidth) / canvas.width;
+          
+          // Check if image fits on current page
+          if (currentY + imgHeight > pageHeight - 20) {
+            pdf.addPage();
+            currentY = 20;
           }
+          
+          // Add image to PDF
+          pdf.addImage(imgData, 'JPEG', 20, currentY, imgWidth, imgHeight);
+          currentY += imgHeight + 15;
+          
+          // Add separator
+          pdf.setDrawColor(200, 200, 200);
+          pdf.line(20, currentY, pageWidth - 20, currentY);
+          currentY += 10;
+          
+        } catch (error) {
+          console.error(`Error capturing ${title}:`, error);
         }
+        
+        return currentY;
+      };
+      
+      // Add User Activity Table
+      if (includeComponents.userActivity) {
+        currentY = await addComponentToPDF(
+          'user-activity-table',
+          'User Activity Table',
+          'userActivity'
+        );
       }
       
-      // Check if we need to add a new page
-      if (currentY > pageHeight - 60) {
-        pdf.addPage();
-        currentY = 20;
+      // Add Technical Persona Section
+      if (includeComponents.persona) {
+        currentY = await addComponentToPDF(
+          'persona-analyzer-card',
+          'Technical Persona Analysis',
+          'persona'
+        );
+      }
+      
+      // Add Task Priority Wizard
+      if (includeComponents.priority) {
+        currentY = await addComponentToPDF(
+          'task-priority-wizard',
+          'Task Priority Analysis',
+          'priority'
+        );
       }
       
       // Add AI Insights
       if (includeComponents.insights) {
-        const insightsElement = document.getElementById('ai-insights');
-        
-        if (insightsElement) {
-          try {
-            const insightsCanvas = await html2canvas(insightsElement, { 
-              scale: 2,
-              useCORS: true,
-              allowTaint: true,
-              logging: false,
-              backgroundColor: null
-            });
-            
-            const insightsImgData = insightsCanvas.toDataURL('image/png');
-            
-            // Add insights with title
-            pdf.setFontSize(16);
-            pdf.setTextColor(41, 128, 185);
-            pdf.text("AI Insights", 20, currentY);
-            
-            // Adjust the height to maintain aspect ratio
-            const imgWidth = pageWidth - 40;
-            const imgHeight = (insightsCanvas.height * imgWidth) / insightsCanvas.width;
-            
-            // Check if image fits on current page
-            if (currentY + 10 + imgHeight > pageHeight - 20) {
-              pdf.addPage();
-              currentY = 20;
-            }
-            
-            pdf.addImage(insightsImgData, 'PNG', 20, currentY + 10, imgWidth, imgHeight);
-            
-            currentY += imgHeight + 20;
-          } catch (error) {
-            console.error("Error capturing insights:", error);
-            // Continue without the insights image
-            pdf.setFontSize(12);
-            pdf.setTextColor(200, 0, 0);
-            pdf.text("AI Insights could not be captured for this report.", 20, currentY + 5);
-            currentY += 15;
-          }
-        }
+        currentY = await addComponentToPDF(
+          'ai-insights-card',
+          'AI Activity Insights',
+          'insights'
+        );
       }
       
       // Add footer on each page
@@ -293,7 +192,7 @@ const ExportReportCard = () => {
         pdf.text(`Page ${i} of ${totalPages}`, pageWidth - 20, pageHeight - 10, { align: 'right' });
       }
       
-      // Save the PDF
+      // Save the PDF with compression
       pdf.save(`Taskify_Activity_Report_${Date.now()}.pdf`);
     } catch (error) {
       console.error("Error exporting PDF:", error);
@@ -303,118 +202,50 @@ const ExportReportCard = () => {
     }
   };
   
-  // Function to add header with Taskify logo
+  // Function to add header with Taskify logo (optimized)
   const addHeaderWithLogo = async (pdf) => {
     try {
-      // Multiple selectors to find logo in different potential locations
-      // We look for the logo in the sidebar, by class name, or by alt text containing "logo"
-      const logoElement = document.querySelector(
-        'NavLink[to="/auth/SignIn"] img,  img[src$="logo-dark.svg"], img[src*="logo"], img[alt*="logo" i]'
-      );
+      // Create an image element from the imported logo
+      const img = new Image();
+      img.src = LogoDark;
       
-      if (logoElement) {
-        // Create a canvas from the image element
-        try {
-          const logoCanvas = await html2canvas(logoElement, { 
-            scale: 3,
-            useCORS: true,
-            allowTaint: true,
-            logging: false,
-            backgroundColor: null
-          });
-          const logoUrl = logoCanvas.toDataURL('image/png');
+      // Wait for image to load
+      await new Promise((resolve, reject) => {
+        img.onload = () => {
+          // Create a canvas to compress the logo
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
           
-          // Add logo to PDF
+          // Set reasonable dimensions for logo
+          canvas.width = 160;  // Reduced size
+          canvas.height = 60;
+          
+          // Draw and compress
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          
+          // Convert to compressed JPEG
+          const compressedLogo = canvas.toDataURL('image/jpeg', 0.8);
+          
           const pageWidth = pdf.internal.pageSize.getWidth();
           
-          // Size and position the logo appropriately
-          pdf.addImage(logoUrl, 'PNG', 20, 10, 40, 15);
+          // Add the compressed logo to the PDF
+          pdf.addImage(compressedLogo, 'JPEG', 20, 10, 40, 15);
           
-          // Add a horizontal line under the header
-          pdf.setDrawColor(200, 200, 200);
-          pdf.line(20, 30, pageWidth - 20, 30);
-          
-          return true;
-        } catch (logoError) {
-          console.error("Error capturing logo:", logoError);
-          // Fall through to next approach
-        }
-      }
-      
-      // Fallback 1: Try to use an alternative DOM approach - directly get the image src
-      const logoImg = document.querySelector(
-        'NavLink[to="/"] img, .sidebar img, img[src*="logo"], img[alt*="logo" i], a img'
-      );
-      
-      if (logoImg && logoImg.src) {
-        try {
-          // Add logo to PDF directly from src
-          const pageWidth = pdf.internal.pageSize.getWidth();
-          pdf.addImage(logoImg.src, 'PNG', 20, 10, 40, 15);
-          
-          // Add a horizontal line under the header
-          pdf.setDrawColor(200, 200, 200);
-          pdf.line(20, 30, pageWidth - 20, 30);
-          
-          return true;
-        } catch (srcError) {
-          console.error("Error adding logo from src:", srcError);
-          // Fall through to next approach
-        }
-      }
-      
-      // Fallback 2: Use imported logo if available
-      if (LogoDark) {
-        try {
-          // Create an image element from the imported logo
-          const img = new Image();
-          img.src = LogoDark;
-          
-          // Wait for image to load
-          await new Promise((resolve, reject) => {
-            img.onload = resolve;
-            img.onerror = reject;
-            // Set a timeout in case the image doesn't load
-            setTimeout(resolve, 3000);
-          });
-          
-          const pageWidth = pdf.internal.pageSize.getWidth();
-          pdf.addImage(img.src, 'PNG', 20, 10, 40, 15);
-          
-          // Add a horizontal line under the header
-          pdf.setDrawColor(200, 200, 200);
-          pdf.line(20, 30, pageWidth - 20, 30);
-          
-          return true;
-        } catch (importError) {
-          console.error("Error using imported logo:", importError);
-          // Fall through to text fallback
-        }
-      }
-      
-      // Final fallback: Add a text header if logo not found or all approaches failed
-      pdf.setFontSize(24);
-      pdf.setTextColor(41, 128, 185);
-      pdf.text("Taskify", 20, 25);
+          resolve();
+        };
+        img.onerror = reject;
+        // Set a timeout in case the image doesn't load
+        setTimeout(resolve, 3000);
+      });
       
       const pageWidth = pdf.internal.pageSize.getWidth();
-      pdf.setDrawColor(200, 200, 200);
-      pdf.line(20, 30, pageWidth - 20, 30);
+      
+      // Add "Taskify" text next to logo
+   
       
       return true;
     } catch (error) {
       console.error("Error adding logo:", error);
-      
-      // Text fallback if all else fails
-      pdf.setFontSize(24);
-      pdf.setTextColor(41, 128, 185);
-      pdf.text("Taskify", 20, 25);
-      
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      pdf.setDrawColor(200, 200, 200);
-      pdf.line(20, 30, pageWidth - 20, 30);
-      
-      return true;
     }
   };
   
@@ -496,17 +327,17 @@ const ExportReportCard = () => {
                   </h4>
                   <p className="text-sm text-bodydark mt-1">
                     {exportType === 'pdf' 
-                      ? 'Complete visual report with charts and insights' 
+                      ? 'Complete visual report with selected components' 
                       : 'Raw activity data for further analysis'}
                   </p>
                 </div>
               </div>
               
               <div className="text-sm text-bodydark2 space-y-2 ml-11">
-                <p>✓ User activity history</p>
-                <p>✓ Activity pattern visualization</p>
-                <p>✓ AI-generated technical persona</p>
-                <p>✓ Task analytics and insights</p>
+                <p>✓ User activity table</p>
+                <p>✓ Technical persona analysis</p>
+                <p>✓ Task priority visualization</p>
+                <p>✓ AI-generated insights</p>
                 <p>✓ Taskify branding</p>
               </div>
             </div>
@@ -517,6 +348,18 @@ const ExportReportCard = () => {
                   Include in Report:
                 </h5>
                 <div className="grid grid-cols-2 gap-4">
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="include-userActivity"
+                      checked={includeComponents.userActivity}
+                      onChange={() => toggleComponent('userActivity')}
+                      className="form-checkbox h-5 w-5 text-primary rounded border-stroke dark:border-strokedark"
+                    />
+                    <label htmlFor="include-userActivity" className="ml-2 text-sm text-bodydark">
+                      User Activity Table
+                    </label>
+                  </div>
                   <div className="flex items-center">
                     <input
                       type="checkbox"
@@ -532,25 +375,13 @@ const ExportReportCard = () => {
                   <div className="flex items-center">
                     <input
                       type="checkbox"
-                      id="include-activity"
-                      checked={includeComponents.activity}
-                      onChange={() => toggleComponent('activity')}
+                      id="include-priority"
+                      checked={includeComponents.priority}
+                      onChange={() => toggleComponent('priority')}
                       className="form-checkbox h-5 w-5 text-primary rounded border-stroke dark:border-strokedark"
                     />
-                    <label htmlFor="include-activity" className="ml-2 text-sm text-bodydark">
-                      Activity Summary
-                    </label>
-                  </div>
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      id="include-charts"
-                      checked={includeComponents.charts}
-                      onChange={() => toggleComponent('charts')}
-                      className="form-checkbox h-5 w-5 text-primary rounded border-stroke dark:border-strokedark"
-                    />
-                    <label htmlFor="include-charts" className="ml-2 text-sm text-bodydark">
-                      Analytics Charts
+                    <label htmlFor="include-priority" className="ml-2 text-sm text-bodydark">
+                      Priority Analysis
                     </label>
                   </div>
                   <div className="flex items-center">
@@ -632,19 +463,8 @@ const ExportReportCard = () => {
           </div>
         </div>
         
-        {/* This is a hidden element that contains the logo specifically for PDF export */}
-        <div style={{ display: 'none' }}>
-        <img 
-  src={LogoDark} 
-  alt="Taskify Logo for PDF" 
-  id="pdf-export-logo" 
-  className="pdf-export-logo" 
-/>
-
-        </div>
-        
         <p className="mt-6 text-xs text-bodydark text-center">
-          Note: The export captures the current state of your activity dashboard. Make sure all data is loaded before exporting.
+          Note: Make sure all components are fully loaded before exporting. PDF size is optimized for quick sharing.
         </p>
       </div>
     </div>
