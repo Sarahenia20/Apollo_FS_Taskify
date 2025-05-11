@@ -83,8 +83,10 @@ router.post("/predict-skills", async (req, res) => {
     try {
       const response = await axios.post("http://127.0.0.1:9000/predict-skills", { description });
       externalSkills = response.data.skills || [];
+      console.log("NLP Service returned skills:", externalSkills); // Debug log
     } catch (err) {
-      console.warn("External NLP failed, falling back to internal logic.");
+      console.warn("External NLP failed:", err.message);
+      console.warn("Falling back to internal logic.");
     }
 
     const descriptionLower = description.toLowerCase().replace(/[^a-z0-9\s\.\-\+\/]/gi, ' ');
@@ -93,20 +95,36 @@ router.post("/predict-skills", async (req, res) => {
 
     for (const skill of allSkills) {
       const escapedSkill = skill.toLowerCase().replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-      if (new RegExp(escapedSkill, 'i').test(descriptionLower)) extractedSkills.add(skill);
+      if (new RegExp('\\b' + escapedSkill + '\\b', 'i').test(descriptionLower)) {
+        extractedSkills.add(skill);
+        console.log(`Found skill via regex: ${skill}`); // Debug log
+      }
     }
 
     for (const [synonym, skill] of Object.entries(SKILL_SYNONYMS)) {
-      if (new RegExp(`\\b${synonym}\\b`, 'i').test(descriptionLower)) extractedSkills.add(skill);
+      if (new RegExp(`\\b${synonym}\\b`, 'i').test(descriptionLower)) {
+        extractedSkills.add(skill);
+        console.log(`Found skill via synonym (${synonym}): ${skill}`); // Debug log
+      }
     }
 
     if (descriptionLower.includes("engineer")) extractedSkills.add("ENGINEER");
     if (descriptionLower.includes("project manager")) extractedSkills.add("PM");
 
+    // Special case for cloud infrastructure
+    if (descriptionLower.includes("cloud") && 
+        (descriptionLower.includes("infra") || descriptionLower.includes("infrastructure"))) {
+      extractedSkills.add("AWS");
+      extractedSkills.add("Azure");
+      extractedSkills.add("Google Cloud");
+      console.log("Added cloud infrastructure skills"); // Debug log
+    }
+
     const skillsArray = Array.from(extractedSkills)
       .slice(0, 10)
       .map(skill => SKILLS_DATA.find(s => s.value === skill) || { value: skill, label: skill });
 
+    console.log("Final skills array:", skillsArray); // Debug log
     return res.json({ skills: skillsArray });
   } catch (err) {
     console.error("Error detecting skills:", err.message);
@@ -127,7 +145,9 @@ router.post("/find-matching-users", async (req, res) => {
     const recommendedUsers = users.map(user => {
       const userSkills = (user.skills || []).map(s => s.toLowerCase().trim());
       const matchedSkills = userSkills.filter(skill => skillValues.includes(skill));
-      const matchScore = Math.round((matchedSkills.length / skillValues.length) * 100);
+      const matchScore = skillValues.length > 0 
+        ? Math.round((matchedSkills.length / skillValues.length) * 100) 
+        : 0;
       const isEngineerMatch = skillValues.includes("engineer") && user.roles?.includes("ENGINEER");
 
       return {

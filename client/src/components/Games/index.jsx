@@ -4,6 +4,8 @@ import TriviaGame from "./TriviaGame";
 import MemoryGame from "./MemoryGame";
 import TicTacToe from "./TicTacToe";
 import DefaultLayout from "../../layout/DefaultLayout";
+import axios from "axios"; // Import axios directly
+import { setAuthToken, checkAuthHeaders } from "../../lib/setAuthToken"; // Corrected import path
 
 // Game card icons
 const GameIcons = {
@@ -21,7 +23,7 @@ const GameIcons = {
     <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
     </svg>
-  )
+  ),
 };
 
 // Loading animation component
@@ -52,13 +54,14 @@ const GameHub = () => {
   const [selectedGame, setSelectedGame] = useState(null);
   const [roomCreated, setRoomCreated] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [rooms, setRooms] = useState([]);
+  const [rooms, setRooms] = useState([]); // Initialize as empty array
   const [joinRoomName, setJoinRoomName] = useState("");
   const [currentRoom, setCurrentRoom] = useState(null);
   const [showRoomModal, setShowRoomModal] = useState(false);
   const [newRoomName, setNewRoomName] = useState("");
   const [selectedGameIndex, setSelectedGameIndex] = useState(null);
   const [animatedItems, setAnimatedItems] = useState([]);
+  const [error, setError] = useState(null); // Add error state for UX
   const { _CURRENT } = useSelector((state) => state.users);
 
   const games = [
@@ -68,87 +71,106 @@ const GameHub = () => {
   ];
 
   useEffect(() => {
+    // Initialize axios configuration
+    axios.defaults.withCredentials = true;
+  
+    // Ensure token is applied
+    checkAuthHeaders();
     fetchRooms();
-    
+  
     // Animate items sequentially
-    const itemsToAnimate = ['header', 'games', 'join', 'instructions'];
+    const itemsToAnimate = ["header", "games", "join", "instructions"];
     let delay = 0;
-    
+  
     itemsToAnimate.forEach((item, index) => {
       setTimeout(() => {
-        setAnimatedItems(prev => [...prev, item]);
+        setAnimatedItems((prev) => [...prev, item]);
       }, delay);
       delay += 200;
     });
   }, []);
-
+  
   const fetchRooms = async () => {
     try {
-      const res = await fetch("/api/games");
-      const data = await res.json();
-      setRooms(data);
+      // Updated to use consistent path format
+      const response = await axios.get("/api/games");
+      const data = response.data;
+      if (Array.isArray(data)) {
+        setRooms(data);
+        setError(null);
+      } else {
+        console.error("Unexpected data format:", data);
+        setRooms([]);
+        setError("Failed to load rooms: Invalid data format");
+      }
     } catch (err) {
-      console.error("Error loading rooms:", err.message);
+      console.error("Error loading rooms:", err.response?.data || err.message);
+      setRooms([]);
+      setError("Failed to load rooms: " + (err.response?.data?.message || err.message));
+      if (err.response?.status === 401) {
+        window.location.href = "/login"; // Redirect on unauthorized
+      }
     }
   };
-
-  // Modified to handle direct room creation
-  const openRoomModal = (index = null) => {
-    setSelectedGameIndex(index);
-    setShowRoomModal(true);
-  };
-
+  
   const handleCreateRoom = async (e) => {
     e.preventDefault();
-    
+  
     if (!newRoomName.trim() || selectedGameIndex === null) return;
-    
+  
     setLoading(true);
     try {
       const gameType = games[selectedGameIndex].name;
-      
-      const res = await fetch("/api/games/newRoom", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ roomName: newRoomName, gameType }),
+  
+      // Updated path to match server route
+      const response = await axios.post("/api/games/newRoom", {
+        roomName: newRoomName,
+        gameType,
       });
-
-      if (!res.ok) throw new Error("Failed to create room");
-
-      const roomData = await res.json();
+  
+      const roomData = response.data;
       setCurrentRoom(roomData.room);
       setSelectedGame(selectedGameIndex);
       setRoomCreated(true);
       setShowRoomModal(false);
       fetchRooms();
     } catch (err) {
-      alert("Error creating room: " + err.message);
+      console.error("Error creating room:", err.response?.data || err.message);
+      setError("Error creating room: " + (err.response?.data?.message || err.message));
+      if (err.response?.status === 401) {
+        window.location.href = "/login";
+      }
     } finally {
       setLoading(false);
     }
   };
+  const openRoomModal = (index = null) => {
+    setSelectedGameIndex(index);
+    setShowRoomModal(true);
+  };
+
 
   const handleJoinRoom = () => {
     const room = rooms.find((r) => r.roomName === joinRoomName);
     if (!room) {
-      alert("Room not found");
+      setError("Room not found");
       return;
     }
 
     const gameIndex = games.findIndex((g) => g.name === room.gameType);
     if (gameIndex === -1) {
-      alert("Game not found for this room");
+      setError("Game not found for this room");
       return;
     }
 
-    // Add join animation
     setLoading(true);
-    
+
     setTimeout(() => {
       setCurrentRoom(room);
       setSelectedGame(gameIndex);
       setRoomCreated(true);
       setLoading(false);
+      setError(null);
     }, 800);
   };
 
@@ -158,71 +180,58 @@ const GameHub = () => {
 
   const saveGameScore = async (score) => {
     try {
-      const res = await fetch("/api/games/score", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          roomName: currentRoom.roomName,
-          username: _CURRENT.fullName,
-          score,
-        }),
-      });
+      const response = await axios.post("/games/score", {
+        roomName: currentRoom.roomName,
+        username: _CURRENT.fullName,
+        score,
+      }); // Use axios
 
-      if (!res.ok) throw new Error("Failed to save score");
-
-      const data = await res.json();
-      // Update currentRoom leaderboard to refresh display
+      const data = response.data;
       setCurrentRoom((prev) => ({ ...prev, leaderboard: data.leaderboard }));
     } catch (err) {
-      console.error("Error saving score:", err.message);
+      console.error("Error saving score:", err.response?.data || err.message);
+      setError("Error saving score: " + (err.response?.data?.message || err.message));
+      if (err.response?.status === 401) {
+        window.location.href = "/login";
+      }
     }
   };
-  
+
   const exitRoom = () => {
     setRoomCreated(false);
     setSelectedGame(null);
     setCurrentRoom(null);
+    setError(null);
   };
 
-  // Calculate the number of online players (this would be real data in a live app)
-  const onlinePlayers = rooms.reduce((acc, room) => {
-    return acc + (room.leaderboard ? room.leaderboard.length : 0);
-  }, 0);
+  const onlinePlayers = Array.isArray(rooms)
+    ? rooms.reduce((acc, room) => acc + (room.leaderboard ? room.leaderboard.length : 0), 0)
+    : 0;
 
   return (
     <DefaultLayout>
       <div className="relative min-h-screen">
-        {/* Gaming atmosphere background overlay */}
         <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-meta-4/30 pointer-events-none"></div>
-        
-        {/* Animated decorative elements */}
         <GamingDecorations />
-        
-        {/* Main content */}
         <div className="relative p-6 z-10">
-          {/* Header section */}
-          <div className={`mb-8 ${animatedItems.includes('header') ? 'animate-fade-in' : 'opacity-0'}`}>
+          <div className={`mb-8 ${animatedItems.includes("header") ? "animate-fade-in" : "opacity-0"}`}>
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4">
               <h1 className="text-4xl font-bold text-black dark:text-white flex items-center">
                 <span className="text-5xl mr-3">🎮</span>
                 Game Hub
                 <span className="ml-3 text-sm bg-primary text-white px-2 py-1 rounded-full">Beta</span>
               </h1>
-              
               <div className="mt-4 md:mt-0 flex items-center bg-white/20 dark:bg-meta-4 backdrop-blur-sm rounded-full px-4 py-2 text-black dark:text-white">
                 <div className="animate-pulse mr-2 h-3 w-3 rounded-full bg-green-500"></div>
                 <span className="font-medium">{onlinePlayers} Players Online</span>
               </div>
             </div>
-            
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
               <p className="text-body dark:text-bodydark max-w-2xl mb-4 sm:mb-0">
                 Welcome to the Game Hub! Challenge yourself with these fun games and compete on the leaderboard.
                 Create a room to start a new game or join an existing room.
               </p>
-              
-              {/* New Create Room Button */}
-              <button 
+              <button
                 onClick={() => openRoomModal(null)}
                 className="px-6 py-3 bg-primary text-white rounded-lg hover:bg-opacity-90 transition-colors shadow-lg flex items-center font-medium animate-pulse-slow"
               >
@@ -233,22 +242,26 @@ const GameHub = () => {
               </button>
             </div>
           </div>
-          
-          {/* Room creation modal - Modified to include game selection */}
+
+          {error && (
+            <div className="mb-4 p-4 bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-200 rounded-lg">
+              {error}
+            </div>
+          )}
+
           {showRoomModal && (
             <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50">
               <div className="bg-white dark:bg-boxdark p-6 rounded-lg shadow-xl w-full max-w-md scale-in-animation">
                 <h3 className="text-2xl font-bold text-black dark:text-white mb-4">
-                  Create {selectedGameIndex !== null ? games[selectedGameIndex].name : 'Game'} Room
+                  Create {selectedGameIndex !== null ? games[selectedGameIndex].name : "Game"} Room
                 </h3>
                 <form onSubmit={handleCreateRoom}>
-                  {/* Game selection dropdown (only shown when no game pre-selected) */}
                   {selectedGameIndex === null && (
                     <div className="mb-4">
                       <label className="block text-sm font-medium text-body dark:text-bodydark mb-2">
                         Select Game
                       </label>
-                      <select 
+                      <select
                         className="w-full border border-stroke bg-white dark:border-strokedark dark:bg-meta-4 rounded-md px-4 py-2 outline-none focus:border-primary dark:focus:border-primary"
                         onChange={(e) => setSelectedGameIndex(parseInt(e.target.value))}
                         required
@@ -262,7 +275,6 @@ const GameHub = () => {
                       </select>
                     </div>
                   )}
-                  
                   <div className="mb-4">
                     <label className="block text-sm font-medium text-body dark:text-bodydark mb-2">
                       Room Name
@@ -276,7 +288,6 @@ const GameHub = () => {
                       required
                     />
                   </div>
-                  
                   <div className="flex justify-end gap-2 mt-6">
                     <button
                       type="button"
@@ -298,18 +309,15 @@ const GameHub = () => {
             </div>
           )}
 
-          {/* Game grid and room joining sections */}
           {!roomCreated ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {/* Game selection grid */}
-              <div className={`${animatedItems.includes('games') ? 'animate-fade-in-up' : 'opacity-0'}`}>
+              <div className={`${animatedItems.includes("games") ? "animate-fade-in-up" : "opacity-0"}`}>
                 <h2 className="text-xl font-bold text-black dark:text-white mb-4 flex items-center">
                   <span className="text-2xl mr-2">🎲</span> Choose a Game
                 </h2>
-                
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {games.map((game, index) => (
-                    <div 
+                    <div
                       key={index}
                       onClick={() => openRoomModal(index)}
                       className="game-card bg-white dark:bg-boxdark p-6 rounded-xl shadow-game border border-stroke/40 dark:border-strokedark/40 flex flex-col items-center justify-center hover:scale-105 hover:shadow-game-hover transition-all duration-300 cursor-pointer"
@@ -325,13 +333,10 @@ const GameHub = () => {
                   ))}
                 </div>
               </div>
-              
-              {/* Join room section */}
-              <div className={`${animatedItems.includes('join') ? 'animate-fade-in-up delay-200' : 'opacity-0'}`}>
+              <div className={`${animatedItems.includes("join") ? "animate-fade-in-up delay-200" : "opacity-0"}`}>
                 <h2 className="text-xl font-bold text-black dark:text-white mb-4 flex items-center">
                   <span className="text-2xl mr-2">🔑</span> Join an Existing Room
                 </h2>
-                
                 <div className="bg-white/80 dark:bg-boxdark/80 backdrop-blur-sm p-6 rounded-xl shadow-game border border-stroke/40 dark:border-strokedark/40">
                   <div className="flex flex-col sm:flex-row gap-3 mb-6">
                     <input
@@ -353,22 +358,19 @@ const GameHub = () => {
                       Join Room
                     </button>
                   </div>
-                  
-                  {/* Available rooms list */}
                   <div className="max-h-60 overflow-y-auto">
                     <h4 className="text-sm font-semibold text-body dark:text-bodydark mb-2">Available Rooms:</h4>
                     {rooms.length > 0 ? (
                       <ul className="space-y-2">
                         {rooms.map((room, index) => (
-                          <li 
+                          <li
                             key={index}
                             className="bg-white dark:bg-meta-4 rounded-lg p-3 hover:bg-primary/5 dark:hover:bg-strokedark transition-colors border border-stroke/40 dark:border-strokedark/40"
                           >
                             <div className="flex justify-between items-center">
                               <div className="flex items-center">
                                 <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary dark:bg-primary/20">
-                                  {room.gameType === "Trivia Quiz" ? "🎯" : 
-                                   room.gameType === "Memory Match" ? "🧠" : "⭕"}
+                                  {room.gameType === "Trivia Quiz" ? "🎯" : room.gameType === "Memory Match" ? "🧠" : "⭕"}
                                 </div>
                                 <div className="ml-3">
                                   <span className="font-medium text-black dark:text-white">{room.roomName}</span>
@@ -394,14 +396,11 @@ const GameHub = () => {
                   </div>
                 </div>
               </div>
-              
-              {/* How to play section */}
-              <div className={`md:col-span-2 ${animatedItems.includes('instructions') ? 'animate-fade-in-up delay-300' : 'opacity-0'}`}>
+              <div className={`md:col-span-2 ${animatedItems.includes("instructions") ? "animate-fade-in-up delay-300" : "opacity-0"}`}>
                 <div className="bg-white/80 dark:bg-boxdark/80 backdrop-blur-sm p-6 rounded-xl shadow-game border border-stroke/40 dark:border-strokedark/40">
                   <h2 className="text-xl font-bold text-black dark:text-white mb-4 flex items-center">
                     <span className="text-2xl mr-2">📝</span> How to Play
                   </h2>
-                  
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div className="flex items-start">
                       <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary mr-3 flex-shrink-0">1</div>
@@ -410,7 +409,6 @@ const GameHub = () => {
                         <p className="text-sm text-body dark:text-bodydark">Start by creating a new game room or joining an existing one with friends.</p>
                       </div>
                     </div>
-                    
                     <div className="flex items-start">
                       <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary mr-3 flex-shrink-0">2</div>
                       <div>
@@ -418,7 +416,6 @@ const GameHub = () => {
                         <p className="text-sm text-body dark:text-bodydark">Complete the game by following the specific rules of each game type.</p>
                       </div>
                     </div>
-                    
                     <div className="flex items-start">
                       <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary mr-3 flex-shrink-0">3</div>
                       <div>
@@ -432,19 +429,16 @@ const GameHub = () => {
             </div>
           ) : (
             <div className="game-container animate-fade-in">
-              {/* Game title & exit button */}
               <div className="flex justify-between items-center mb-6">
                 <div className="flex items-center">
                   <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary mr-3">
-                    {currentRoom?.gameType === "Trivia Quiz" ? "🎯" : 
-                     currentRoom?.gameType === "Memory Match" ? "🧠" : "⭕"}
+                    {currentRoom?.gameType === "Trivia Quiz" ? "🎯" : currentRoom?.gameType === "Memory Match" ? "🧠" : "⭕"}
                   </div>
                   <div>
                     <h2 className="text-xl font-bold text-black dark:text-white">{currentRoom?.gameType}</h2>
                     <p className="text-sm text-body dark:text-bodydark">Room: {currentRoom?.roomName}</p>
                   </div>
                 </div>
-                
                 <button
                   onClick={exitRoom}
                   className="flex items-center px-4 py-2 bg-meta-4 text-body dark:text-bodydark rounded-md hover:bg-opacity-80 transition-colors"
@@ -455,26 +449,16 @@ const GameHub = () => {
                   Exit Game
                 </button>
               </div>
-              
-              {/* Game area */}
               <div className="rounded-xl overflow-hidden relative z-0">
-                {/* Active game component */}
                 <div className="game-content">
-                  {loading ? (
-                    <LoadingAnimation />
-                  ) : (
-                    games[selectedGame].component(currentRoom)
-                  )}
+                  {loading ? <LoadingAnimation /> : games[selectedGame].component(currentRoom)}
                 </div>
-                
-                {/* Leaderboard (shown if available) */}
                 {currentRoom?.leaderboard && currentRoom.leaderboard.length > 0 && (
                   <div className="mt-8 animate-fade-in">
                     <div className="bg-white/90 dark:bg-boxdark/90 backdrop-blur-sm p-6 rounded-xl shadow-game border border-stroke/40 dark:border-strokedark/40">
                       <h3 className="text-xl font-bold text-black dark:text-white mb-4 flex items-center">
                         <span className="text-2xl mr-2">🏆</span> Leaderboard
                       </h3>
-                      
                       <div className="overflow-hidden rounded-lg border border-stroke dark:border-strokedark">
                         <table className="w-full">
                           <thead>
@@ -488,17 +472,15 @@ const GameHub = () => {
                             {currentRoom.leaderboard
                               .sort((a, b) => b.score - a.score)
                               .map((entry, index) => (
-                                <tr 
+                                <tr
                                   key={index}
                                   className={`border-t border-stroke dark:border-strokedark hover:bg-primary/5 dark:hover:bg-meta-4/50 transition-colors
-                                    ${entry.username === _CURRENT.fullName ? 'bg-primary/5 dark:bg-primary/10' : ''}`}
+                                    ${entry.username === _CURRENT.fullName ? "bg-primary/5 dark:bg-primary/10" : ""}`}
                                 >
                                   <td className="py-3 px-4">
                                     <div className="flex items-center">
                                       {index < 3 ? (
-                                        <span className="text-lg">
-                                          {index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉'}
-                                        </span>
+                                        <span className="text-lg">{index === 0 ? "🥇" : index === 1 ? "🥈" : "🥉"}</span>
                                       ) : (
                                         <span className="h-6 w-6 rounded-full bg-meta-4 flex items-center justify-center text-xs font-medium">
                                           {index + 1}
@@ -512,9 +494,7 @@ const GameHub = () => {
                                       <span className="ml-2 text-xs bg-primary text-white px-2 py-0.5 rounded-full">You</span>
                                     )}
                                   </td>
-                                  <td className="py-3 px-4 text-right font-bold text-primary">
-                                    {entry.score}
-                                  </td>
+                                  <td className="py-3 px-4 text-right font-bold text-primary">{entry.score}</td>
                                 </tr>
                               ))}
                           </tbody>

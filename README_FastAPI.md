@@ -36,6 +36,8 @@ This backend service extracts skills from a text description using spaCy and Fas
    ```bash
    pip install -r requirements.txt
    ```
+pip install fastapi uvicorn spacy
+python -m spacy download en_core_web_sm
 
 5. Download the spaCy model:
    ```bash

@@ -23,6 +23,13 @@ const ChatBot = () => {
     scrollToBottom();
   }, [messages]);
 
+  // Add debug logging for axios configuration
+  useEffect(() => {
+    console.log('[ChatBot] Current axios baseURL:', axios.defaults.baseURL || 'Not set');
+    console.log('[ChatBot] Current authorization header:', 
+      axios.defaults.headers.common['Authorization'] ? 'Present' : 'Not set');
+  }, []);
+
   // Handle message submission
   const handleSendMessage = async (e, suggestionText) => {
     if (e) e.preventDefault();
@@ -47,10 +54,18 @@ const ChatBot = () => {
     setIsLoading(true);
 
     try {
-      // Send to your backend - the backend will handle routing to Gemini if needed
-      const response = await axios.post('/api/chatbot/message', {
-        message: userMessage
+      // Log request details for debugging
+      console.log('[ChatBot] Sending message to API:', userMessage);
+      
+      // Use a direct approach to ensure the request works
+      const response = await axios({
+        method: 'post',
+        url: '/api/chatbot/message',
+        data: { message: userMessage },
+        timeout: 30000 // Increase timeout to 30 seconds
       });
+
+      console.log('[ChatBot] Received response:', response.data);
 
       // Handle different response formats
       if (response.data) {
@@ -70,15 +85,34 @@ const ChatBot = () => {
           setMessages(prev => [...prev, { type: 'bot', text: response.data.response }]);
         } else {
           // Fallback if response structure is unexpected
-          setMessages(prev => [...prev, { type: 'bot', text: 'I received your message but couldn\'t process the response properly.' }]);
+          setMessages(prev => [...prev, { 
+            type: 'bot', 
+            text: 'I received your message but couldn\'t process the response properly.' 
+          }]);
         }
       }
     } catch (error) {
-      console.error("Error:", error);
+      // Enhanced error logging
+      console.error('[ChatBot] Error details:', {
+        message: error.message,
+        status: error.response?.status,
+        data: error.response?.data
+      });
+      
+      // Check if it's a timeout error
+      const isTimeout = error.code === 'ECONNABORTED' || 
+                         error.message.includes('timeout');
+      
+      // Provide a more specific error message
       setMessages(prev => [...prev, { 
         type: 'bot', 
-        text: 'Sorry, I encountered an error. Please try again.' 
+        text: isTimeout 
+          ? 'Sorry, it took me too long to process that. Could you try asking something simpler or using the buttons below?'
+          : 'Sorry, I encountered an error. Please try again or use one of the suggested options.' 
       }]);
+      
+      // Add helpful buttons when an error occurs
+      setSuggestions(['Show my projects', 'Show my tasks', 'Help']);
     } finally {
       setIsLoading(false);
     }
