@@ -8,21 +8,33 @@ const initialState = {
     all: []          // Combined list of created and joined teams
   },
   _CURRENT: {},      // Currently selected team (for viewing/editing)
-  _ONE: null,        // Single team details (changed from {} to null for easier checking)
-  _MEMBERS: []       // Members of the current team
+  _ONE: null,        // Single team details
+  _MEMBERS: [],      // Members of the current team
+  loading: false,    // Loading state
+  error: null        // Error state
 };
 
 export const teamsSlice = createSlice({
   name: "teams",
   initialState,
   reducers: {
+    loading: (state, action) => {
+      state.loading = action.payload;
+    },
+    setError: (state, action) => {
+      state.error = action.payload;
+      state.loading = false;
+    },
+    clearError: (state) => {
+      state.error = null;
+    },
     _AddTeam: (state, action) => {
       state._ALL = [...state._ALL, action.payload];
       state._USER.created = [...state._USER.created, action.payload];
       state._USER.all = [...state._USER.all, action.payload];
     },
     _FindTeams: (state, action) => {
-      state._ALL = action.payload; // This should match your API response structure
+      state._ALL = action.payload;
     },
     _DeleteTeam: (state, action) => {
       state._ALL = state._ALL.filter((team) => team._id !== action.payload);
@@ -33,9 +45,10 @@ export const teamsSlice = createSlice({
     _FindOneTeam: (state, action) => {
       state._ONE = action.payload;
       state._MEMBERS = action.payload.members || [];
+      state.loading = false;
+      state.error = null;
     },
     _ResetCurrentTeam: (state) => {
-      // Add this action to reset the current team being edited
       state._ONE = null;
       state._MEMBERS = [];
     },
@@ -52,34 +65,31 @@ export const teamsSlice = createSlice({
     _UpdateTeam: (state, action) => {
       const { id, updates } = action.payload;
       
-      // Handle members array properly in the updates
-      const updatedTeam = { ...updates };
-      
       // Update in all collections
       state._ALL = state._ALL.map(team => 
-        team._id === id ? { ...team, ...updatedTeam } : team
+        team._id === id ? { ...team, ...updates } : team
       );
       
       state._USER.created = state._USER.created.map(team => 
-        team._id === id ? { ...team, ...updatedTeam } : team
+        team._id === id ? { ...team, ...updates } : team
       );
       
       state._USER.joined = state._USER.joined.map(team => 
-        team._id === id ? { ...team, ...updatedTeam } : team
+        team._id === id ? { ...team, ...updates } : team
       );
       
       state._USER.all = state._USER.all.map(team => 
-        team._id === id ? { ...team, ...updatedTeam } : team
+        team._id === id ? { ...team, ...updates } : team
       );
       
       // Update current team if it's the one being edited
       if (state._ONE && state._ONE._id === id) {
-        state._ONE = { ...state._ONE, ...updatedTeam };
-        state._MEMBERS = updatedTeam.members || state._MEMBERS;
+        state._ONE = { ...state._ONE, ...updates };
+        state._MEMBERS = updates.members || state._MEMBERS;
       }
       
       if (state._CURRENT._id === id) {
-        state._CURRENT = { ...state._CURRENT, ...updatedTeam };
+        state._CURRENT = { ...state._CURRENT, ...updates };
       }
     },
     _AddTeamMember: (state, action) => {
@@ -88,7 +98,6 @@ export const teamsSlice = createSlice({
       // Update in main teams collection
       state._ALL = state._ALL.map(team => {
         if (team._id === teamId) {
-          // Ensure members array exists
           const members = Array.isArray(team.members) ? [...team.members] : [];
           return {
             ...team,
@@ -101,7 +110,6 @@ export const teamsSlice = createSlice({
       // Update in user teams if exists
       state._USER.all = state._USER.all.map(team => {
         if (team._id === teamId) {
-          // Ensure members array exists
           const members = Array.isArray(team.members) ? [...team.members] : [];
           return {
             ...team,
@@ -113,49 +121,9 @@ export const teamsSlice = createSlice({
       
       // Update current team if it's the one being modified
       if (state._ONE && state._ONE._id === teamId) {
-        // Ensure members array exists
         const members = Array.isArray(state._ONE.members) ? [...state._ONE.members] : [];
         state._ONE.members = [...members, member];
         state._MEMBERS = [...state._MEMBERS, member];
-      }
-    },
-    _AddMultipleTeamMembers: (state, action) => {
-      const { teamId, members } = action.payload;
-      
-      if (!Array.isArray(members) || members.length === 0) return;
-      
-      // Update in main teams collection
-      state._ALL = state._ALL.map(team => {
-        if (team._id === teamId) {
-          // Ensure team.members is an array
-          const currentMembers = Array.isArray(team.members) ? [...team.members] : [];
-          return {
-            ...team,
-            members: [...currentMembers, ...members]
-          };
-        }
-        return team;
-      });
-      
-      // Update in user teams if exists
-      state._USER.all = state._USER.all.map(team => {
-        if (team._id === teamId) {
-          // Ensure team.members is an array
-          const currentMembers = Array.isArray(team.members) ? [...team.members] : [];
-          return {
-            ...team,
-            members: [...currentMembers, ...members]
-          };
-        }
-        return team;
-      });
-      
-      // Update current team if it's the one being modified
-      if (state._ONE && state._ONE._id === teamId) {
-        // Ensure state._ONE.members is an array
-        const currentMembers = Array.isArray(state._ONE.members) ? [...state._ONE.members] : [];
-        state._ONE.members = [...currentMembers, ...members];
-        state._MEMBERS = [...state._MEMBERS, ...members];
       }
     },
     _RemoveTeamMember: (state, action) => {
@@ -240,6 +208,9 @@ export const teamsSlice = createSlice({
 });
 
 export const {
+  loading,
+  setError,
+  clearError,
   _AddTeam,
   _FindTeams,
   _FindOneTeam,
@@ -248,7 +219,6 @@ export const {
   _SetUserTeams,
   _UpdateTeam,
   _AddTeamMember,
-  _AddMultipleTeamMembers,
   _RemoveTeamMember,
   _UpdateMemberRole,
   _ResetCurrentTeam

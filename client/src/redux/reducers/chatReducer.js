@@ -51,6 +51,9 @@ export const chatSlice = createSlice({
       state.chatRooms = [action.payload, ...state.chatRooms];
       state.currentRoom = action.payload;
     },
+    _SetHasMoreMessages: (state, action) => {
+      state.hasMoreMessages = action.payload;
+    },
     _UpdateChatRoom: (state, action) => {
       const updatedRoom = action.payload;
       state.chatRooms = state.chatRooms.map(room => 
@@ -92,6 +95,16 @@ export const chatSlice = createSlice({
         state.messages[roomId] = [];
       }
       
+      // Check if messages are actually different
+      const existingMessages = state.messages[roomId];
+      const areMessagesSame = existingMessages.length === messages.length &&
+        existingMessages.every((msg, index) => msg._id === messages[index]._id);
+      
+      if (areMessagesSame) {
+        // Don't update if messages are the same
+        return;
+      }
+      
       // For pagination with newest first ordering
       if (pagination.currentPage === 1) {
         // First page - just use the messages as they come
@@ -105,9 +118,6 @@ export const chatSlice = createSlice({
       state.totalPages = pagination.totalPages;
       state.totalMessages = pagination.totalMessages;
       state.messagesLoading = false;
-    },
-    _SetHasMoreMessages: (state, action) => {
-      state.hasMoreMessages = action.payload;
     },
    // Replace the _AddMessage reducer in chatReducer.js with this code:
 

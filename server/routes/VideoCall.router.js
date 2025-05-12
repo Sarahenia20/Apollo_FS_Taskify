@@ -1,11 +1,9 @@
 const express = require("express");
 const router = express.Router();
 const videoCallController = require("../controllers/VideoCallController");
-const passport = require("passport");
 
-// Fix the authentication middleware - use the passport.authenticate function directly
-// instead of a variable that might be undefined
-router.use(passport.authenticate("jwt", { session: false }));
+// FIXED: Removed redundant authentication middleware since it's applied at app level
+// router.use(passport.authenticate("jwt", { session: false }));
 
 // Create a new scheduled video call
 router.post("/", videoCallController.createVideoCall);

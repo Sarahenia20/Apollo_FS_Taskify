@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const Schema = mongoose.Schema;
+
 const teamsSchema = new Schema(
   {
     Name: {
@@ -15,6 +16,11 @@ const teamsSchema = new Schema(
       ref:"users",
       required: true,
     },
+    chatRoom: {
+      type: Schema.Types.ObjectId,
+      ref: "ChatRoom",
+      default: null
+    },
     datecreation: {
       type: Date, 
       default: Date.now,
@@ -23,14 +29,14 @@ const teamsSchema = new Schema(
       type: String,
     },
     members: [
-        {
-          user: { type: Schema.Types.ObjectId, ref: "users" },
-          role: { type: String, enum: ["ADMIN", "MANAGER", "ENGINEER", "GUEST"], default: "ENGINEER" },
-          joinedAt: { type: Date, default: Date.now },
-        },
-      ],
-    
+      {
+        user: { type: Schema.Types.ObjectId, ref: "users" },
+        role: { type: String, enum: ["ADMIN", "MANAGER", "ENGINEER", "GUEST"], default: "ENGINEER" },
+        joinedAt: { type: Date, default: Date.now },
+      },
+    ],
   },
   { timestamps: true }
 );
+
 module.exports = mongoose.model("teams", teamsSchema);

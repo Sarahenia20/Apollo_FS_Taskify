@@ -4,8 +4,8 @@ import TriviaGame from "./TriviaGame";
 import MemoryGame from "./MemoryGame";
 import TicTacToe from "./TicTacToe";
 import DefaultLayout from "../../layout/DefaultLayout";
-import axios from "axios"; // Import axios directly
-import { setAuthToken, checkAuthHeaders } from "../../lib/setAuthToken"; // Corrected import path
+import axios from "axios";
+import { checkAuthHeaders } from "../../lib/setAuthToken";
 
 // Game card icons
 const GameIcons = {
@@ -54,14 +54,14 @@ const GameHub = () => {
   const [selectedGame, setSelectedGame] = useState(null);
   const [roomCreated, setRoomCreated] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [rooms, setRooms] = useState([]); // Initialize as empty array
+  const [rooms, setRooms] = useState([]);
   const [joinRoomName, setJoinRoomName] = useState("");
   const [currentRoom, setCurrentRoom] = useState(null);
   const [showRoomModal, setShowRoomModal] = useState(false);
   const [newRoomName, setNewRoomName] = useState("");
   const [selectedGameIndex, setSelectedGameIndex] = useState(null);
   const [animatedItems, setAnimatedItems] = useState([]);
-  const [error, setError] = useState(null); // Add error state for UX
+  const [error, setError] = useState(null);
   const { _CURRENT } = useSelector((state) => state.users);
 
   const games = [
@@ -76,13 +76,15 @@ const GameHub = () => {
   
     // Ensure token is applied
     checkAuthHeaders();
+    
+    // Fetch game rooms
     fetchRooms();
   
     // Animate items sequentially
     const itemsToAnimate = ["header", "games", "join", "instructions"];
     let delay = 0;
   
-    itemsToAnimate.forEach((item, index) => {
+    itemsToAnimate.forEach((item) => {
       setTimeout(() => {
         setAnimatedItems((prev) => [...prev, item]);
       }, delay);
@@ -92,24 +94,28 @@ const GameHub = () => {
   
   const fetchRooms = async () => {
     try {
-      // Updated to use consistent path format
+      setLoading(true);
+      // FIXED: Use exact path to game rooms API
       const response = await axios.get("/api/games");
-      const data = response.data;
-      if (Array.isArray(data)) {
-        setRooms(data);
+      
+      if (response.data && Array.isArray(response.data)) {
+        setRooms(response.data);
         setError(null);
       } else {
-        console.error("Unexpected data format:", data);
+        console.error("Unexpected data format:", response.data);
         setRooms([]);
         setError("Failed to load rooms: Invalid data format");
       }
     } catch (err) {
       console.error("Error loading rooms:", err.response?.data || err.message);
-      setRooms([]);
-      setError("Failed to load rooms: " + (err.response?.data?.message || err.message));
+      setError(`Failed to load rooms: ${err.response?.data?.message || err.message}`);
+      
+      // Handle unauthorized access
       if (err.response?.status === 401) {
-        window.location.href = "/login"; // Redirect on unauthorized
+        window.location.href = "/login";
       }
+    } finally {
+      setLoading(false);
     }
   };
   
@@ -122,7 +128,7 @@ const GameHub = () => {
     try {
       const gameType = games[selectedGameIndex].name;
   
-      // Updated path to match server route
+      // FIXED: Use exact path to game rooms API
       const response = await axios.post("/api/games/newRoom", {
         roomName: newRoomName,
         gameType,
@@ -133,10 +139,12 @@ const GameHub = () => {
       setSelectedGame(selectedGameIndex);
       setRoomCreated(true);
       setShowRoomModal(false);
+      setError(null);
       fetchRooms();
     } catch (err) {
       console.error("Error creating room:", err.response?.data || err.message);
-      setError("Error creating room: " + (err.response?.data?.message || err.message));
+      setError(`Error creating room: ${err.response?.data?.message || err.message}`);
+      
       if (err.response?.status === 401) {
         window.location.href = "/login";
       }
@@ -144,11 +152,11 @@ const GameHub = () => {
       setLoading(false);
     }
   };
+  
   const openRoomModal = (index = null) => {
     setSelectedGameIndex(index);
     setShowRoomModal(true);
   };
-
 
   const handleJoinRoom = () => {
     const room = rooms.find((r) => r.roomName === joinRoomName);
@@ -159,7 +167,7 @@ const GameHub = () => {
 
     const gameIndex = games.findIndex((g) => g.name === room.gameType);
     if (gameIndex === -1) {
-      setError("Game not found for this room");
+      setError("Game type not recognized");
       return;
     }
 
@@ -180,17 +188,20 @@ const GameHub = () => {
 
   const saveGameScore = async (score) => {
     try {
-      const response = await axios.post("/games/score", {
+      // FIXED: Use exact path to game score API
+      const response = await axios.post("/api/games/score", {
         roomName: currentRoom.roomName,
         username: _CURRENT.fullName,
         score,
-      }); // Use axios
+      });
 
       const data = response.data;
       setCurrentRoom((prev) => ({ ...prev, leaderboard: data.leaderboard }));
+      setError(null);
     } catch (err) {
       console.error("Error saving score:", err.response?.data || err.message);
-      setError("Error saving score: " + (err.response?.data?.message || err.message));
+      setError(`Error saving score: ${err.response?.data?.message || err.message}`);
+      
       if (err.response?.status === 401) {
         window.location.href = "/login";
       }
@@ -204,9 +215,28 @@ const GameHub = () => {
     setError(null);
   };
 
-  const onlinePlayers = Array.isArray(rooms)
-    ? rooms.reduce((acc, room) => acc + (room.leaderboard ? room.leaderboard.length : 0), 0)
-    : 0;
+  // FIXED: Calculate players from room leaderboards
+  // This counts unique players across all game rooms
+  const calculateOnlinePlayers = () => {
+    if (!Array.isArray(rooms) || rooms.length === 0) return 0;
+    
+    // Collect all player names from all room leaderboards
+    const uniquePlayers = new Set();
+    
+    rooms.forEach(room => {
+      if (room.leaderboard && Array.isArray(room.leaderboard)) {
+        room.leaderboard.forEach(entry => {
+          if (entry.username) {
+            uniquePlayers.add(entry.username);
+          }
+        });
+      }
+    });
+    
+    return uniquePlayers.size;
+  };
+
+  const onlinePlayers = calculateOnlinePlayers();
 
   return (
     <DefaultLayout>
@@ -242,6 +272,12 @@ const GameHub = () => {
               </button>
             </div>
           </div>
+
+          {loading && !roomCreated && (
+            <div className="flex justify-center my-8">
+              <LoadingAnimation />
+            </div>
+          )}
 
           {error && (
             <div className="mb-4 p-4 bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-200 rounded-lg">
