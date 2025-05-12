@@ -95,7 +95,7 @@ const activityLoggerMiddleware = require('./middlewares/activityLoggerMiddleware
 
 // UPDATED: Protected routes with JWT authentication and activity logger middleware
 // FIXED: Removed chatbotRouter from this array
-app.use("/api", passport.authenticate('jwt', { session: false }), activityLoggerMiddleware, [
+app.use("/api", activityLoggerMiddleware, [
   projectsRouter,
   usersRouter,
   roleRouter,
