@@ -27,6 +27,7 @@ const videoCallRoutes = require("./routes/VideoCall.router");
 const chatRouter = require("./routes/chats.router");
 const predictionRoutes = require('./routes/predictionRoutes');
 const teamsRouter = require("./routes/teams.router");
+const teamPostsRouter = require("./routes/teamPosts.router");
 const gamesRouter = require("./routes/gameRoom"); // consider renaming to games.router.js for consistency
 const activityRoutes = require('./routes/activityRoutes');
 const seedRoutes = require('./routes/seedRoutes');
@@ -103,6 +104,7 @@ app.use("/api", passport.authenticate('jwt', { session: false }), activityLogger
   commentsRouter,
   notificationsRouter,
   teamsRouter,
+  teamPostsRouter,
   taskGeneratorRouter,
   gamesRouter,
   chatRouter,
