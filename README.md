@@ -31,11 +31,11 @@ Our development process follows an Agile methodology with 5 distinct sprints:
 
 | Sprint | Focus Area | Status |
 |--------|------------|--------|
-| **0** | Project Case Study and Planning | ✅ Completed |
-| **1** | Authentication & Access Management | ✅ Completed |
-| **2** | Task & Workflow Management | ✅ Completed |
-| **3** | Project & Resource Management | ✅ Completed |
-| **4** | Monitoring, Analytics & Collaboration | ✅ Completed |
+| **0** | Project case study and report | ✅ Completed |
+| **1** | Authentication & Access Management & Task & Workflow Management | ✅ Completed |
+| **2** | Project & Resource Management & Monitoring & Analytics Management | ✅ Completed |
+| **3** | Collaboration & Communication Management | ✅ Completed |
+| **4** | Analytics and Insights | ✅ Completed |
 
 ## 💻 Tech Stack
 
