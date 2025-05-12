@@ -113,9 +113,5 @@ We welcome contributions to Taskify! Please review our [CONTRIBUTING.md](CONTRIB
 ---
 
 <p align="center">
-  <img src="https://your-project-logo-url.com/logo.png" alt="Taskify Logo" width="200"/>
-</p>
-
-<p align="center">
   <i>Intelligent Task Management for the Modern Workspace</i>
 </p>
