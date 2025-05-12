@@ -36,7 +36,8 @@ const {
   sendMessage, 
   getMessages, 
   markAsRead, 
-  deleteMessage 
+  deleteMessage,
+  getTeamMessages
 } = require('../controllers/ChatMessage');
 
 
@@ -57,6 +58,10 @@ router.post('/messages',  passport.authenticate("jwt", { session: false }), send
 router.get('/messages/:chatRoomId',  passport.authenticate("jwt", { session: false }), getMessages);
 router.put('/messages/:chatRoomId/read',  passport.authenticate("jwt", { session: false }), markAsRead);
 router.delete('/messages/:messageId',  passport.authenticate("jwt", { session: false }), deleteMessage);
+router.get('/messages/team/:chatRoomId', 
+  passport.authenticate("jwt", { session: false }), 
+  getTeamMessages
+);
 
 // Clear all messages in a chat
 router.delete('/messages/:chatRoomId/all', passport.authenticate("jwt", { session: false }), clearChatMessages);

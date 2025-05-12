@@ -22,10 +22,12 @@ const ProjectList = () => {
     budget: "",
     status: "in progress",
     priority: "medium",
-    client_name: ""
+    client_name: "",
+    team: "" // Added team field
   });
   
   const [users, setUsers] = useState([]);
+  const [teams, setTeams] = useState([]); // Added state for teams
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   const [userSearchTerm, setUserSearchTerm] = useState("");
   const [videoCallState, setVideoCallState] = useState({
@@ -36,6 +38,7 @@ const ProjectList = () => {
   useEffect(() => {
     fetchProjects();
     fetchUsers();
+    fetchTeams(); // Added function call to fetch teams
   }, []);
 
   const fetchProjects = async () => {
@@ -62,6 +65,17 @@ const ProjectList = () => {
     }
   };
 
+  // Added function to fetch teams
+  const fetchTeams = async () => {
+    try {
+      const response = await axios.get("/api/teams");
+      const teamsData = response.data.data || [];
+      setTeams(teamsData);
+    } catch (error) {
+      console.error("Error fetching teams:", error);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -81,7 +95,8 @@ const ProjectList = () => {
         budget: "",
         status: "in progress",
         priority: "medium",
-        client_name: ""
+        client_name: "",
+        team: "" // Reset team field
       });
     } catch (error) {
       console.error("Error saving project:", error);
@@ -127,6 +142,12 @@ const ProjectList = () => {
 
   const generateRoomId = (projectId) => {
     return `project-room-${projectId}`;
+  };
+
+  // Added function to get team name by ID
+  const getTeamName = (teamId) => {
+    const team = teams.find(team => team._id === teamId);
+    return team ? team.Name : "N/A";
   };
 
   return (
@@ -184,6 +205,10 @@ const ProjectList = () => {
                 <th className="min-w-[150px] py-4 px-4 font-medium text-black dark:text-white">
                   Project Manager
                 </th>
+                {/* Added Team Column Header */}
+                <th className="min-w-[150px] py-4 px-4 font-medium text-black dark:text-white">
+                  Team
+                </th>
                 <th className="min-w-[120px] py-4 px-4 font-medium text-black dark:text-white">
                   Start Date
                 </th>
@@ -212,6 +237,10 @@ const ProjectList = () => {
                   </td>
                   <td className="border-b border-[#eee] py-5 px-4 dark:border-strokedark">
                     <p className="text-black dark:text-white">{project.project_manager}</p>
+                  </td>
+                  {/* Added Team Column Data */}
+                  <td className="border-b border-[#eee] py-5 px-4 dark:border-strokedark">
+                    <p className="text-black dark:text-white">{project.team ? getTeamName(project.team) : "N/A"}</p>
                   </td>
                   <td className="border-b border-[#eee] py-5 px-4 dark:border-strokedark">
                     <p className="text-black dark:text-white">
@@ -313,7 +342,7 @@ const ProjectList = () => {
         </div>
       </div>
 
-      {/* Project Modal (keep the existing modal code exactly as is) */}
+      {/* Project Modal with Team Field */}
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg w-full max-w-md dark:bg-boxdark">
@@ -336,6 +365,22 @@ const ProjectList = () => {
                   onChange={(e) => setFormData({...formData, project_description: e.target.value})}
                   className="w-full p-2 border rounded dark:border-strokedark dark:bg-meta-4 dark:text-white"
                 />
+                
+                {/* Added Team Selection Field */}
+                <div className="w-full">
+                  <select
+                    value={formData.team}
+                    onChange={(e) => setFormData({...formData, team: e.target.value})}
+                    className="w-full p-2 border rounded dark:border-strokedark dark:bg-meta-4 dark:text-white"
+                  >
+                    <option value="">Select Team</option>
+                    {teams.map((team) => (
+                      <option key={team._id} value={team._id}>
+                        {team.Name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
                 
                 <div className="relative">
                   <div className="flex items-center w-full border rounded dark:border-strokedark">
@@ -489,7 +534,8 @@ const ProjectList = () => {
                       budget: "",
                       status: "in progress",
                       priority: "medium",
-                      client_name: ""
+                      client_name: "",
+                      team: "" // Reset team field
                     });
                   }}
                   className="px-4 py-2 text-gray-600 hover:text-gray-800 dark:text-gray-300 dark:hover:text-white"

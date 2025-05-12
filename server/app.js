@@ -27,12 +27,13 @@ const videoCallRoutes = require("./routes/VideoCall.router");
 const chatRouter = require("./routes/chats.router");
 const predictionRoutes = require('./routes/predictionRoutes');
 const teamsRouter = require("./routes/teams.router");
-const gamesRouter = require("./routes/gameRoom"); // consider renaming to games.router.js for consistency
+const teamPostsRouter = require("./routes/teamPosts.router");
+const gamesRouter = require("./routes/gameRoom"); // Game room router
 const activityRoutes = require('./routes/activityRoutes');
 const seedRoutes = require('./routes/seedRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
 const statsRoutes = require('./routes/statsRoutes');
-const taskPrioritiesRouter = require('./routes/taskPriorities'); // NEW: Added task priorities router
+const taskPrioritiesRouter = require('./routes/taskPriorities');
 
 const io = require("./socket");
 require("dotenv").config();
@@ -92,9 +93,13 @@ app.use("/api/smart-assign", smartAssignRouter);
 // UPDATED: Import the correct activity logger middleware
 const activityLoggerMiddleware = require('./middlewares/activityLoggerMiddleware');
 
+// IMPORTANT FIX: Mount games router separately to prevent login activity tracking conflicts
+// This prevents the "games" path from being passed to login activity as a user ID
+app.use("/api/games", passport.authenticate('jwt', { session: false }), gamesRouter);
+
 // UPDATED: Protected routes with JWT authentication and activity logger middleware
-// FIXED: Removed chatbotRouter from this array
-app.use("/api", passport.authenticate('jwt', { session: false }), activityLoggerMiddleware, [
+// FIXED: Removed gamesRouter from this array to prevent routing conflicts
+app.use("/api", activityLoggerMiddleware, [
   projectsRouter,
   usersRouter,
   roleRouter,
@@ -103,31 +108,29 @@ app.use("/api", passport.authenticate('jwt', { session: false }), activityLogger
   commentsRouter,
   notificationsRouter,
   teamsRouter,
+  teamPostsRouter,
   taskGeneratorRouter,
-  gamesRouter,
   chatRouter,
   predictionRoutes,
   loginActivityRoutes,
-  imagesRouter,
-  videoCallRoutes
+  imagesRouter
 ]);
 
-// FIXED: Added separate mounting point for chatbot router
-app.use("/api/chatbot", passport.authenticate('jwt', { session: false }), activityLoggerMiddleware, chatbotRouter);
+// FIXED: Added separate mounting point for video-calls router
+app.use("/api/video-calls", passport.authenticate('jwt', { session: false }), videoCallRoutes);
 
-// UPDATED: Activity routes with proper authentication (remove duplicate middleware)
+// FIXED: Added separate mounting point for chatbot router
+app.use("/api/chatbot", passport.authenticate('jwt', { session: false }), chatbotRouter);
+
+// UPDATED: Activity routes with proper authentication
 app.use("/api/activities", passport.authenticate('jwt', { session: false }), activityRoutes);
 
-// NEW: Task priorities route (this is what your frontend is looking for)
+// Task priorities route
 app.use('/api/tasks', passport.authenticate('jwt', { session: false }), taskPrioritiesRouter);
 
-// Stats and dashboard routes (these can remain as they are)
+// Stats and dashboard routes
 app.use('/api/activities/stats', statsRoutes);
 app.use('/api/dashboard', dashboardRoutes);
-app.use("/api/games", passport.authenticate('jwt', { session: false }), activityLoggerMiddleware, gamesRouter);
-
-// REMOVED: The old priorities route that was causing conflicts
-// app.use('/api/priorities', prioritiesRoutes);
 
 // MongoDB Connection
 mongoose
