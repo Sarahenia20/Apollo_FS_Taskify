@@ -33,6 +33,9 @@ import Unauthorized from "./pages/Unauthorized";
 import { Logout } from "./redux/actions/auth";
 import { notificationSlice } from "./redux/reducers/notifications";
 import TeamsAdmin from "./pages/Teams/teamAdmin";
+import UserTeamsOverview from "./pages/Teams/teamsOverview";
+import TeamLayout from "./pages/Teams/teamlayout";
+
 import ChatBot from './components/ChatBot/ChatBot';
 import GameHub from "./components/Games";
 import Chat from "./pages/Chat/Chatindex";
@@ -177,11 +180,26 @@ const App = () => {
             </RequireAuth>
           } />
           
-          <Route path="/Teams" element={
+          <Route path="/TeamsManagment" element={
             <RequireAuth>
               <TeamsAdmin />
             </RequireAuth>
           } />
+
+          <Route path="/teams" element={
+            <RequireAuth>
+              <UserTeamsOverview />
+            </RequireAuth>
+          } />
+
+        
+
+         <Route path="/teams/:teamId/*" element={
+            <RequireAuth>
+              <TeamLayout />
+            </RequireAuth>
+          } />
+
           
           <Route path="/projects/project-list" element={
             <RequireAuth>

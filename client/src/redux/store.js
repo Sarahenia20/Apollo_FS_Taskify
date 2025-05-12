@@ -8,6 +8,7 @@ import { usersSlice } from "./reducers/users";
 import rolesReducer from "./reducers/roles";
 import projectsReducer from "./reducers/projects";
 import { teamsSlice } from "./reducers/teams";
+import { teamPostsSlice } from "./reducers/teamPosts";
 import { chatSlice } from './reducers/chatReducer';
 import { adminChatSlice } from './reducers/adminChatReducer';
 import activityReducer from "./reducers/activityReducer";
@@ -27,6 +28,7 @@ export const store = configureStore({
     roles: rolesReducer,
     projects: projectsReducer,
     teams: teamsSlice.reducer,
+    teamPosts:teamPostsSlice.reducer,
     smartAssign: smartAssignReducer,
     videoCalls: videoCallsReducer,
     chat: chatSlice.reducer,

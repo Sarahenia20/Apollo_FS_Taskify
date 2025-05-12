@@ -47,6 +47,10 @@ const checkAuthHeaders = () => {
   return false;
 };
 
+// Track mark-read operations globally
+const markReadTracker = new Map();
+const MARK_READ_COOLDOWN = 3000; // 3 seconds
+
 // Get all chat rooms - shows loading
 export const GetChatRooms = () => async (dispatch) => {
   logAction('GetChatRooms');
@@ -128,9 +132,7 @@ export const GetMessages = (roomId, page = 1, limit = 20) => async (dispatch) =>
 
     if (res.data.success) {
       const messages = res.data.messages || [];
-      const hasMore = res.data.totalPages > page;
 
-      // Keep the backend's message ordering, we'll sort in the UI
       dispatch(_GetMessages({
         roomId,
         messages,
@@ -140,11 +142,6 @@ export const GetMessages = (roomId, page = 1, limit = 20) => async (dispatch) =>
           totalMessages: res.data.totalMessages
         }
       }));
-
-      dispatch(_SetHasMoreMessages(hasMore));
-      
-      // Mark messages as read when we load them
-      dispatch(MarkMessagesRead(roomId));
       
       return res.data;
     } else {
@@ -161,8 +158,6 @@ export const GetMessages = (roomId, page = 1, limit = 20) => async (dispatch) =>
     dispatch(_SetChatLoading(false));
   }
 };
-
-// Send a new message with optimistic update
 export const SendMessage = (chatRoomId, content, attachments = []) => async (dispatch, getState) => {
   logAction('SendMessage', { chatRoomId, content });
   
@@ -256,14 +251,28 @@ export const SendMessage = (chatRoomId, content, attachments = []) => async (dis
   }
 };
 
-// Mark messages as read - standard version with API call
+// Mark messages as read with proper cooldown
 export const MarkMessagesRead = (roomId) => async (dispatch, getState) => {
   logAction('MarkMessagesRead', { roomId });
+  
+  // Check if we've recently marked this room as read
+  const lastMarkTime = markReadTracker.get(roomId) || 0;
+  const now = Date.now();
+  
+  if (now - lastMarkTime < MARK_READ_COOLDOWN) {
+    console.log(`Mark read cooldown for room ${roomId}, skipping...`);
+    return;
+  }
+  
+  // Update tracker
+  markReadTracker.set(roomId, now);
+  
   const { auth } = getState();
   const userId = auth.user?.id;
 
   try {
     checkAuthHeaders();
+    
     // API call to mark messages as read
     await axios.put(`/api/messages/${roomId}/read`);
     
@@ -274,22 +283,31 @@ export const MarkMessagesRead = (roomId) => async (dispatch, getState) => {
       timestamp: new Date().toISOString() 
     }));
     
-    // Emit via socket for real-time updates
-    chatSocketService.markMessagesReadSocket(roomId);
+    // Emit via socket with debounce
+    if (!window.markReadSocketTimeout) {
+      window.markReadSocketTimeout = setTimeout(() => {
+        chatSocketService.markMessagesReadSocket(roomId);
+        window.markReadSocketTimeout = null;
+      }, 1000);
+    }
     
   } catch (err) {
     logAction('MarkMessagesRead Error', err);
     console.error('Error marking messages as read:', err);
+    
+    // Remove from tracker on error to allow retry
+    markReadTracker.delete(roomId);
   }
 };
 
 // Silent mark messages read - for socket events
 export const SilentMarkMessagesRead = (data) => (dispatch) => {
   logAction('SilentMarkMessagesRead', data);
+  
+  // Don't emit socket events from silent updates to prevent loops
   dispatch(_MarkMessagesRead(data));
 };
 
-// Get all users for creating a new chat
 // Get all users for creating a new chat
 export const GetAllUsers = () => async (dispatch) => {
   logAction('GetAllUsers');
@@ -302,7 +320,7 @@ export const GetAllUsers = () => async (dispatch) => {
     // Check if the response has data property directly
     if (res.data && (res.data.data || res.data.users)) {
       // Handle different API response formats
-      const users = res.data.data  || [];
+      const users = res.data.data || res.data.users || [];
       dispatch(_GetAllUsers(users));
       return res.data;
     } else if (Array.isArray(res.data)) {
@@ -504,7 +522,6 @@ export const GetChatMembers = (roomId) => async (dispatch) => {
     logAction('GetChatMembers Success', res.data);
 
     if (res.data.success) {
-      // Dispatch members to store
       dispatch(_SetChatMembers(res.data.members || []));
       return res.data.members;
     } else {
@@ -521,8 +538,6 @@ export const GetChatMembers = (roomId) => async (dispatch) => {
 };
 
 // Show chat members in a SweetAlert dialog
-// Show chat members in a SweetAlert dialog
-// Show chat members in a SweetAlert dialog
 export const ShowChatMembers = (roomId) => async (dispatch, getState) => {
   logAction('ShowChatMembers', { roomId });
   
@@ -530,29 +545,16 @@ export const ShowChatMembers = (roomId) => async (dispatch, getState) => {
   const currentUser = auth.user;
   const currentRoom = chat.currentRoom;
   
-  // Debug log to check data
-  console.log('Current user:', currentUser);
-  console.log('Current room:', currentRoom);
-  
   // If we already have the room data with participants
   if (currentRoom && currentRoom._id === roomId && currentRoom.participants) {
-    // FIX: Correctly extract creator ID from the object
-    // The creator is stored as an object with _id property
     const creatorId = currentRoom.createdBy._id || currentRoom.createdBy;
     const userId = currentUser.id;
     
-    console.log('Creator ID (extracted):', creatorId);
-    console.log('Current user ID:', userId);
-    
-    // Now this comparison should work properly
     const isCreator = creatorId === userId;
-    
-    console.log('Is creator?', isCreator);
     
     // Format participants data for display
     const membersList = currentRoom.participants.map(member => {
       const memberId = member._id;
-      // Use same logic for comparing owner
       const isOwner = creatorId === memberId;
       const isCurrentUser = userId === memberId;
       
@@ -607,7 +609,6 @@ export const ShowChatMembers = (roomId) => async (dispatch, getState) => {
       document.querySelectorAll('.remove-member-btn').forEach(btn => {
         btn.addEventListener('click', function() {
           const memberId = this.getAttribute('data-member-id');
-          console.log('Removing member:', memberId);
           swal.close();
           dispatch(RemoveChatMember(roomId, memberId));
         });
@@ -617,7 +618,6 @@ export const ShowChatMembers = (roomId) => async (dispatch, getState) => {
       const addBtn = document.getElementById('add-member-btn');
       if (addBtn) {
         addBtn.addEventListener('click', function() {
-          console.log('Adding member');
           swal.close();
           dispatch(ShowAddMemberDialog(roomId));
         });
@@ -637,7 +637,7 @@ export const ShowChatMembers = (roomId) => async (dispatch, getState) => {
   }
 };
 
-// Update RemoveChatMember function to handle the action properly
+// Remove a member from a chat room
 export const RemoveChatMember = (roomId, memberId) => async (dispatch) => {
   logAction('RemoveChatMember', { roomId, memberId });
   
@@ -688,7 +688,7 @@ export const RemoveChatMember = (roomId, memberId) => async (dispatch) => {
     return null;
   }
 };
-// Show add member dialog
+
 // Show add member dialog with multi-select functionality
 export const ShowAddMemberDialog = (roomId) => async (dispatch, getState) => {
   logAction('ShowAddMemberDialog', { roomId });
@@ -700,10 +700,6 @@ export const ShowAddMemberDialog = (roomId) => async (dispatch, getState) => {
   const currentRoom = chat.currentRoom;
   const allUsers = chat.allUsers || [];
   
-  // Debug the data
-  console.log('Current room for adding members:', currentRoom);
-  console.log('Available users:', allUsers);
-  
   // Check if we have users
   if (!allUsers.length) {
     swal("Error", "Failed to fetch users", "error");
@@ -713,8 +709,6 @@ export const ShowAddMemberDialog = (roomId) => async (dispatch, getState) => {
   // Filter out users already in the chat
   const existingMemberIds = currentRoom.participants.map(p => p._id);
   const availableUsers = allUsers.filter(user => !existingMemberIds.includes(user._id));
-  
-  console.log('Filtered available users:', availableUsers);
   
   if (availableUsers.length === 0) {
     swal("No Users Available", "All users are already in this chat", "info");
@@ -787,8 +781,6 @@ export const ShowAddMemberDialog = (roomId) => async (dispatch, getState) => {
         }
       });
       
-      console.log('Selected users to add:', selectedUsers);
-      
       if (selectedUsers.length === 0) {
         swal("No Users Selected", "Please select at least one user to add", "info");
         return;
@@ -833,7 +825,7 @@ export const ShowAddMemberDialog = (roomId) => async (dispatch, getState) => {
     // Make the entire row clickable to toggle checkbox
     document.querySelectorAll('.user-option').forEach(item => {
       item.addEventListener('click', function(e) {
-        // Don't toggle if clicking directly on the checkbox (it will toggle naturally)
+        // Don't toggle if clicking directly on the checkbox
         if (e.target.type !== 'checkbox') {
           const checkbox = this.querySelector('.user-checkbox');
           checkbox.checked = !checkbox.checked;
@@ -875,7 +867,7 @@ export const ShowAddMemberDialog = (roomId) => async (dispatch, getState) => {
           
           // Add click handler to remove user
           userTag.querySelector('button').addEventListener('click', (e) => {
-            e.stopPropagation(); // Prevent the event from bubbling
+            e.stopPropagation();
             
             // Find and uncheck the corresponding checkbox
             const userId = e.currentTarget.getAttribute('data-user-id');
@@ -934,10 +926,50 @@ export const AddChatMember = (roomId, userId) => async (dispatch) => {
   }
 };
 
-
+// Clear chat messages
+export const ClearChat = (roomId) => async (dispatch) => {
+  logAction('ClearChat', { roomId });
   
-  // Confirm before removing
+  // Confirm before clearing
+  const confirmResult = await swal({
+    title: "Clear Chat",
+    text: "Are you sure you want to clear all messages? This cannot be undone.",
+    icon: "warning",
+    buttons: ["Cancel", "Clear"],
+    dangerMode: true,
+  });
   
+  if (!confirmResult) return null;
+  
+  try {
+    checkAuthHeaders();
+    const res = await axios.delete(`/api/messages/${roomId}/all`);
+    logAction('ClearChat Success', res.data);
+    
+    if (res.data.success) {
+      // Clear messages in Redux
+      dispatch(_ClearChatMessages(roomId));
+      
+      // Notify via socket
+      chatSocketService.socketClient.emit('silent-refresh', {
+        type: 'clear-chat',
+        roomId
+      });
+      
+      swal("Success", "Chat messages cleared", "success");
+      return res.data;
+    } else {
+      throw new Error(res.data.message || 'Failed to clear chat messages');
+    }
+  } catch (err) {
+    logAction('ClearChat Error', err);
+    
+    const errorMsg = err.response?.data?.message || 'Failed to clear chat messages';
+    dispatch(_ChatError(errorMsg));
+    swal("Error", errorMsg, "error");
+    return null;
+  }
+};
 
 // Show chat info in a SweetAlert dialog
 export const ShowChatInfo = (roomId) => async (dispatch, getState) => {
@@ -1080,53 +1112,6 @@ export const ShowEditChatDialog = (roomId) => async (dispatch, getState) => {
     }
   }
 };
-// Add this export to your chatActions.js file
-// Make sure it's added to the exports at the bottom of the file
-
-// Clear chat messages
-export const ClearChat = (roomId) => async (dispatch) => {
-  logAction('ClearChat', { roomId });
-  
-  // Confirm before clearing
-  const confirmResult = await swal({
-    title: "Clear Chat",
-    text: "Are you sure you want to clear all messages? This cannot be undone.",
-    icon: "warning",
-    buttons: ["Cancel", "Clear"],
-    dangerMode: true,
-  });
-  
-  if (!confirmResult) return null;
-  
-  try {
-    checkAuthHeaders();
-    const res = await axios.delete(`/api/messages/${roomId}/all`);
-    logAction('ClearChat Success', res.data);
-    
-    if (res.data.success) {
-      // Clear messages in Redux
-      dispatch(_ClearChatMessages(roomId));
-      
-      // Notify via socket
-      chatSocketService.socketClient.emit('silent-refresh', {
-        type: 'clear-chat',
-        roomId
-      });
-      
-      swal("Success", "Chat messages cleared", "success");
-      return res.data;
-    } else {
-      throw new Error(res.data.message || 'Failed to clear chat messages');
-    }
-  } catch (err) {
-    logAction('ClearChat Error', err);
-    
-    const errorMsg = err.response?.data?.message || 'Failed to clear chat messages';
-    dispatch(_ChatError(errorMsg));
-    swal("Error", errorMsg, "error");
-    return null;
-  }
-};
 
 // Leave a chat room
 export const LeaveChatRoom = (roomId) => async (dispatch, getState) => {
@@ -1169,6 +1154,96 @@ export const LeaveChatRoom = (roomId) => async (dispatch, getState) => {
     const errorMsg = err.response?.data?.message || 'Failed to leave chat';
     dispatch(_ChatError(errorMsg));
     swal("Error", errorMsg, "error");
+    return null;
+  }
+};
+
+// Get team messages
+export const GetTeamMessages = (teamChatRoomId, page = 1, limit = 50) => async (dispatch) => {
+  try {
+    const response = await axios.get(`/api/messages/${teamChatRoomId}?page=${page}&limit=${limit}`);
+    
+    if (response.data.success) {
+      dispatch(_GetMessages({
+        roomId: teamChatRoomId,
+        messages: response.data.messages,
+        pagination: {
+          currentPage: page,
+          totalPages: response.data.totalPages,
+          totalMessages: response.data.totalMessages
+        }
+      }));
+      
+      return response.data;
+    }
+  } catch (error) {
+    console.error('Error fetching team chat messages:', error);
+    // Handle error
+  }
+};
+
+// Team-specific chat actions
+export const GetTeamChatDetails = (teamId) => async (dispatch) => {
+  try {
+    checkAuthHeaders();
+    const response = await axios.get(`/api/teams/${teamId}/chat-details`);
+    
+    if (response.data.success) {
+      // Dispatch actions to update team and chat details
+      dispatch(_GetChatRoom(response.data.team.chatRoom));
+      
+      // If latest messages are returned, populate them
+      if (response.data.latestMessages) {
+        dispatch(_GetMessages({
+          roomId: response.data.team.chatRoom._id,
+          messages: response.data.latestMessages,
+          pagination: {
+            currentPage: 1,
+            totalPages: 1,
+            totalMessages: response.data.latestMessages.length
+          }
+        }));
+      }
+      
+      return response.data;
+    } else {
+      throw new Error(response.data.message || 'Failed to fetch team chat details');
+    }
+  } catch (error) {
+    console.error('Error fetching team chat details:', error);
+    dispatch(_ChatError(error.response?.data?.message || 'Failed to fetch team chat details'));
+    return null;
+  }
+};
+
+// Send team message
+export const SendTeamMessage = (teamChatRoomId, content, attachments = []) => async (dispatch, getState) => {
+  try {
+    checkAuthHeaders();
+    const response = await axios.post('/api/messages/team', {
+      chatRoomId: teamChatRoomId,
+      content,
+      attachments
+    });
+    
+    if (response.data.success) {
+      // Dispatch the new message 
+      dispatch(_AddMessage(response.data.message));
+      
+      // Optional: Emit via socket if needed
+      chatSocketService.sendSocketMessage({
+        ...response.data.message,
+        chatRoomId: teamChatRoomId
+      });
+      
+      return response.data.message;
+    } else {
+      throw new Error(response.data.message || 'Failed to send team message');
+    }
+  } catch (error) {
+    console.error('Error sending team message:', error);
+    dispatch(_ChatError(error.response?.data?.message || 'Failed to send team message'));
+    swal("Error", "Failed to send message", "error");
     return null;
   }
 };
