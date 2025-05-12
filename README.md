@@ -100,17 +100,15 @@ npm run test:integration
 npm run test:coverage
 ```
 
-## 🤝 Contributing
-
-We welcome contributions to Taskify! Please review our [CONTRIBUTING.md](CONTRIBUTING.md) file for guidelines on how to make submissions.
-
-## 📜 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
 ## 👥 Team Apollo
 
 Taskify is developed and maintained by Team Apollo, a group of dedicated developers with expertise in web development, AI integration, and DevOps practices.
+
+## <img src='https://raw.githubusercontent.com/ShahriarShafin/ShahriarShafin/main/Assets/handshake.gif' width="80"> Contributing
+
+We welcome contributions to Taskify! Please review our [CONTRIBUTING.md](CONTRIBUTING.md) file for guidelines on how to make submissions.
+
+
 
 ---
 
