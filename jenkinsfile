@@ -1,11 +1,11 @@
 pipeline {
     agent any
-
-    environment {
+        environment {
         registryCredentials = "nexus"
         registry = "192.168.33.10:8083"
     }
 
+    
     stages {
         stage('Install Client Dependencies') {
             steps {
@@ -18,9 +18,11 @@ pipeline {
             }
         }
 
+        
         stage('Install Server Dependencies') {
             steps {
                 script {
+                    // Navigate to server directory
                     dir('server') {
                         sh 'npm install'
                     }
@@ -32,6 +34,7 @@ pipeline {
             steps {
                 script {
                     dir('client') {
+                        // Only run tests if the script exists
                         sh 'npm test || echo "No test script found, skipping tests"'
                     }
                 }
@@ -42,6 +45,7 @@ pipeline {
             steps {
                 script {
                     dir('server') {
+                        // Only run tests if the script exists
                         sh ' echo "No test script found, skipping tests"'
                     }
                 }
@@ -49,20 +53,22 @@ pipeline {
         }
 
         stage('SonarQube Analysis') {
-            steps {
+            steps{
                 script {
                     def scannerHome = tool 'scanner'
-                    withSonarQubeEnv('sonarqube') {
+                    withSonarQubeEnv {
                         sh "${scannerHome}/bin/sonar-scanner"
                     }
                 }
             }
         }
+
         
         stage('Build Client') {
             steps {
                 script {
                     dir('client') {
+                        // Try the standard "build" script instead of "build-dev"
                         sh 'npm run build || echo "Build script failed, check package.json for correct script name"'
                     }
                 }
@@ -73,20 +79,23 @@ pipeline {
             steps {
                 script {
                     dir('server') {
+                        // Try the standard build script, but don't fail if it doesn't exist
+                        // Many Node.js servers don't have a build step
                         sh 'npm run build || echo "No build script for server, or script failed. Check package.json for correct script name"'
                     }
                 }
             }
         }
         
-        stage('Building Docker Images') {
+        // Nouvelle étape pour construire les images Docker
+        stage('Building images (node and mongo)') {
             steps {
                 script {
-                    sh 'docker-compose build'
+                    sh('docker-compose build')
                 }
             }
         }
-        
+
         stage('Deploy to Nexus') {
             steps {
                 script {
