@@ -110,6 +110,11 @@ We welcome contributions to Taskify! Please review our CONTRIBUTING.md file for 
 <div align="center">
 <table>
   <tr>
+      <td align="center">
+      <a href="https://www.instagram.com/apollotaskify/" target="_blank">
+        <img src="https://bentos.jkominovic.dev/api/v1/bento-cards?url=https%3A%2F%2Fwww.instagram.com%2Fknightgamer87%2F&subtitle=@Apollo&size=square" alt="Instagram">
+      </a>
+    </td>
     <td align="center">
       <a href="https://www.facebook.com/profile.php?id=61576212182631" target="_blank">
         <img src="https://bentos.jkominovic.dev/api/v1/bento-cards?url=https%3A%2F%2Ffacebook.com%2Fkenan.gain&subtitle=@Apollo&size=square" alt="facebook">
