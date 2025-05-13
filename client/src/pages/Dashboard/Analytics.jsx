@@ -10,7 +10,7 @@ import ChartOne from "../../components/ChartOne";
 import ChartTwo from "../../components/ChartTwo";
 import ChartThree from "../../components/ChartThree";
 import PieChart from "../../components/PieChart";
-import Courbe from "../../components/courbe"; // Import the new Courbe component
+import Courbe from "../../components/Courbe"; // Import the new Courbe component
 import { UseAuth } from "../../hooks/useAuth";
 import { ROLES } from "../../data/roles";
 
