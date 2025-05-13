@@ -106,7 +106,7 @@ Taskify is developed and maintained by Team Apollo, a group of dedicated develop
 
 ## <img src='https://raw.githubusercontent.com/ShahriarShafin/ShahriarShafin/main/Assets/handshake.gif' width="80"> Contributing
 
-We welcome contributions to Taskify! Please review our CONTRIBUTING.md file for guidelines on how to make submissions.
+We welcome contributions to Taskify! Please review our guidelines for making submissions.
 <div align="center">
 <table>
   <tr>
