@@ -5,13 +5,14 @@ pipeline {
         stage('Install Client Dependencies') {
             steps {
                 script {
-                    // Navigate to client directory first
                     dir('client') {
+                        sh 'rm -rf node_modules package-lock.json'
                         sh 'npm install'
                     }
                 }
             }
         }
+
         
         stage('Install Server Dependencies') {
             steps {
