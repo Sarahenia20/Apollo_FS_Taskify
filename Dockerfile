@@ -15,5 +15,5 @@ COPY server/package*.json ./
 RUN npm install
 COPY server/ ./
 ENV CLIENT_BUILD_PATH=/app/client/build
-EXPOSE 5000
+EXPOSE 5501
 CMD ["npm", "start"]
