@@ -5,7 +5,8 @@
   "scripts": {
     "test": "jest",
     "start": "nodemon  ./bin/www",
-    "dev": "concurrently 'npm start' 'cd ../client && npm run dev'"
+    "dev": "concurrently 'npm start' 'cd ../client && npm run dev'",
+    "build": "echo 'Building server...' && npm ci --production"
   },
   "dependencies": {
     "@google-cloud/translate": "^9.0.1",
