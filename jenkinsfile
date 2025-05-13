@@ -80,6 +80,15 @@ pipeline {
                 }
             }
         }
+        
+        // Nouvelle étape pour construire les images Docker
+        stage('Building images (node and mongo)') {
+            steps {
+                script {
+                    sh('docker-compose build')
+                }
+            }
+        }
     }
     
     post {
