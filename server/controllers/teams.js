@@ -326,21 +326,28 @@ const UpdateTeam = async (req, res) => {
         ).catch(err => console.error("Error logging activity:", err));
       }
 
-      const memberIds = data.members.map(m => m.user._id || m.user);
-      
       try {
-        const notification = await addNotification({
-          receivers: memberIds,
-          link: `/teams/${data._id}`,
-          text: `Team ${data.Name} has been updated`
-        });
-  
-        const sockets = memberIds.reduce((t, n) => (
-          t = [...t, ...socket.methods.getUserSockets(n)]
-        ), []);
-  
-        if (sockets.length > 0) {
-          socket.io.to(sockets).emit("notification", notification);
+        const memberIds = data.members.map(m => m.user._id || m.user);
+        
+        // Send individual notifications to each member
+        let lastNotification;
+        for (const memberId of memberIds) {
+          lastNotification = await addNotification({
+            receiver: memberId, // Use singular 'receiver' for each member
+            link: `/teams/${data._id}`,
+            text: `Team ${data.Name} has been updated`
+          });
+        }
+    
+        // Socket notification code using the last notification
+        if (lastNotification) {
+          const sockets = memberIds.reduce((t, n) => (
+            t = [...t, ...socket.methods.getUserSockets(n)]
+          ), []);
+    
+          if (sockets.length > 0) {
+            socket.io.to(sockets).emit("notification", lastNotification);
+          }
         }
       } catch (notifyError) {
         console.error("Error sending notifications:", notifyError);
@@ -380,17 +387,29 @@ const DeleteTeam = async (req, res) => {
         ).catch(err => console.error("Error logging activity:", err));
       }
 
-      const memberIds = team.members.map(m => m.user);
-      const notification = await addNotification({
-        receivers: memberIds,
-        text: `Team ${team.Name} has been deleted`
-      });
-  
-      const sockets = memberIds.reduce((acc, id) => 
-        [...acc, ...socket.methods.getUserSockets(id)], []);
-  
-      if (sockets.length > 0) {
-        socket.io.to(sockets).emit("notification", notification);
+      try {
+        const memberIds = team.members.map(m => m.user);
+        
+        // Send individual notifications to each member
+        let lastNotification;
+        for (const memberId of memberIds) {
+          lastNotification = await addNotification({
+            receiver: memberId, // Use singular 'receiver' for each member
+            text: `Team ${team.Name} has been deleted`
+          });
+        }
+    
+        // Socket notification code
+        if (lastNotification) {
+          const sockets = memberIds.reduce((acc, id) => 
+            [...acc, ...socket.methods.getUserSockets(id)], []);
+      
+          if (sockets.length > 0) {
+            socket.io.to(sockets).emit("notification", lastNotification);
+          }
+        }
+      } catch (error) {
+        console.error("Error sending team deletion notifications:", error);
       }
   
       res.status(200).json({ 
