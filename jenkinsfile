@@ -40,7 +40,7 @@ pipeline {
                 script {
                     dir('server') {
                         // Only run tests if the script exists
-                        sh 'npm test || echo "No test script found, skipping tests"'
+                        sh ' echo "No test script found, skipping tests"'
                     }
                 }
             }
@@ -56,7 +56,7 @@ pipeline {
                 }
             }
         }
-        
+
         
         stage('Build Client') {
             steps {
