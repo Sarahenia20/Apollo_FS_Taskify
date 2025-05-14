@@ -3,7 +3,7 @@ pipeline {
     environment {
         registryCredentials = "nexus"
         registry = "192.168.33.10:8083"
-        SONAR_SCANNER_OPTS = "-Xmx2g -XX:MaxPermSize=512m" // Increase memory for SonarQube
+        SONAR_SCANNER_OPTS = "-Xmx2g" // Increase memory for SonarQube
     }
     
     stages {
@@ -42,7 +42,7 @@ pipeline {
             steps {
                 script {
                     dir('server') {
-                        sh ' echo "No test script found, skipping tests"'
+                        sh 'echo "No test script found, skipping tests"'
                     }
                 }
             }
@@ -52,20 +52,13 @@ pipeline {
             steps {
                 script {
                     def scannerHome = tool 'scanner'
-                    withSonarQubeEnv('sonarqube') {
-                        // Adding timeout and exclusions for problematic files
-                        sh """
-                            ${scannerHome}/bin/sonar-scanner \
-                            -Dsonar.javascript.exclusions=**/client/src/pages/Teams/teamlayout.jsx \
-                            -Dsonar.exclusions=**/node_modules/**,**/client/src/pages/Teams/teamlayout.jsx \
-                            -Dsonar.timeoutSeconds=300
-                        """
+                    withSonarQubeEnv {
+                        sh "${scannerHome}/bin/sonar-scanner -X" // Added -X for debug output
                     }
                 }
             }
-            // Add timeout to the entire stage
             options {
-                timeout(time: 10, unit: 'MINUTES')
+                timeout(time: 15, unit: 'MINUTES')
             }
         }
         
@@ -101,7 +94,7 @@ pipeline {
             steps {
                 script {
                     docker.withRegistry("http://${registry}", registryCredentials) {
-                        sh 'docker push ${registry}/nodemongoapp:5.0'
+                        sh "docker push ${registry}/nodemongoapp:5.0"
                     }
                 }
             }
@@ -109,6 +102,11 @@ pipeline {
     }
     
     post {
+        always {
+            echo 'Checking SonarQube scanner logs'
+            sh 'ls -la .scannerwork || echo "No .scannerwork directory found"'
+            sh 'cat .scannerwork/report-task.txt || echo "No SonarQube report found"'
+        }
         success {
             echo 'Build completed successfully!'
         }
