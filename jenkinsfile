@@ -3,10 +3,10 @@ pipeline {
     environment {
         registryCredentials = "nexus"
         registry = "192.168.33.10:8083"
-        SONAR_SCANNER_OPTS = "-Xmx4g"
-        NODE_OPTIONS = "--max-old-space-size=4096"
-        NEXUS_USER = "admin"
-        NEXUS_PASSWORD = "nexus"
+        //SONAR_SCANNER_OPTS = "-Xmx4g"
+        //NODE_OPTIONS = "--max-old-space-size=4096"
+        //NEXUS_USER = "admin"
+        //NEXUS_PASSWORD = "nexus"
     }
     
     stages {
@@ -54,41 +54,17 @@ pipeline {
             }
         }
 
-        stage('SonarQube Analysis - Limited') {
-            steps {
+        stage('SonarQube Analysis') {
+            steps{
                 script {
-                    // Create sonar properties file with proper exclusions for server/client structure
-                    sh '''
-                        cat > sonar-project.properties << EOF
-sonar.projectKey=nodeapp
-
-# Skip JavaScript analysis entirely to avoid timeouts
-sonar.javascript.skipAnalysis=true
-
-# Properly exclude both server and client node_modules and other directories
-sonar.exclusions=node_modules/**,**/node_modules/**,client/node_modules/**,server/node_modules/**,**/*.js,**/*.jsx,**/*.ts,**/*.tsx,**/*.vue,**/*.json,**/test/**,**/tests/**,**/coverage/**,**/.next/**,**/dist/**,**/build/**,**/*.min.js,**/vendor/**,**/public/**
-
-# Only analyze specific non-JavaScript files
-sonar.inclusions=**/*.java,**/*.py,**/*.xml,**/*.css,**/*.less,**/*.scss,**/*.html,**/*.php,**/*.properties,**/Dockerfile,docker-compose.yml
-
-# Performance settings
-sonar.sourceEncoding=UTF-8
-sonar.scm.disabled=true
-sonar.cpd.exclusions=**/*
-sonar.verbose=false
-EOF
-                    '''
-                    
                     def scannerHome = tool 'scanner'
-                    withSonarQubeEnv {
+                        withSonarQubeEnv {
                         sh "${scannerHome}/bin/sonar-scanner"
                     }
                 }
             }
-            options {
-                timeout(time: 5, unit: 'MINUTES')
-            }
         }
+
         
         stage('Build Client') {
             steps {
@@ -110,7 +86,7 @@ EOF
             }
         }
         
-        stage('Building Docker Images') {
+        /*stage('Building Docker Images') {
             steps {
                 script {
                     sh 'docker-compose build'
@@ -147,7 +123,7 @@ EOF
                     '''
                 }
             }
-        }
+        }*/
     
     }
     
