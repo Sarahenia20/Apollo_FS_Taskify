@@ -11,25 +11,7 @@ pipeline {
     
     stages {
 
-        stage('Verify Nexus') {
-            steps {
-                script {
-                    sh '''
-                        echo "Verifying Nexus is accessible..."
-                        curl -s -u ${NEXUS_USER}:${NEXUS_PASSWORD} http://192.168.33.10:8081/service/rest/v1/status || {
-                            echo "Nexus REST API not accessible"
-                            exit 0  # Don't fail the build
-                        }
-                        
-                        echo "Checking Docker registry endpoint..."
-                        curl -s http://192.168.33.10:8083/v2/ || {
-                            echo "Docker registry endpoint not responding"
-                            exit 0  # Don't fail the build
-                        }
-                    '''
-                }
-            }
-        }
+        
 
         stage('Install Client Dependencies') {
             steps {
