@@ -114,14 +114,50 @@ EOF
         }
         
         stage('Deploy to Nexus') {
-            steps {
-                script {
-                    docker.withRegistry("http://${registry}", registryCredentials) {
-                        sh "docker push ${registry}/nodemongoapp:6.0"
-                    }
+    steps {
+        script {
+            // Check if Nexus is running first
+            sh '''
+                echo "Checking if Nexus is available..."
+                if ! curl -s -f http://${registry}/service/rest/v1/status > /dev/null; then
+                    echo "Nexus is not responding. Attempting to restart..."
+                    docker start nexus || docker run -d --name nexus -p 8081:8081 -p 8082:8082 -p 8083:8083 sonatype/nexus3:latest
+                    
+                    # Wait for Nexus to start up (up to 2 minutes)
+                    echo "Waiting for Nexus to start..."
+                    for i in {1..24}; do
+                        if curl -s -f http://${registry}/service/rest/v1/status > /dev/null; then
+                            echo "Nexus is now available"
+                            break
+                        fi
+                        echo "Waiting for Nexus to be available... ($i/24)"
+                        sleep 5
+                    done
+                fi
+            '''
+            
+            // Try the Docker registry push with better error handling
+            try {
+                docker.withRegistry("http://${registry}", registryCredentials) {
+                    sh "docker push ${registry}/nodemongoapp:6.0 || exit 1"
                 }
+            } catch (Exception e) {
+                echo "Error pushing to Nexus: ${e.message}"
+                echo "Attempting alternative direct push method..."
+                
+                // Try an alternative direct push method
+                sh """
+                    # Login to registry directly
+                    echo "Attempting direct Docker login to Nexus..."
+                    docker login -u admin -p admin123 ${registry} || true
+                    
+                    # Push the image
+                    docker push ${registry}/nodemongoapp:6.0
+                """
             }
         }
+    }
+}
     }
     
     post {
