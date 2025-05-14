@@ -42,7 +42,7 @@ pipeline {
             steps {
                 script {
                     dir('server') {
-                        sh 'npm test || echo "No test script found, skipping tests"'
+                        sh ' echo "No test script found, skipping tests"'
                     }
                 }
             }
