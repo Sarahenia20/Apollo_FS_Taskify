@@ -3,7 +3,7 @@ pipeline {
     environment {
         registryCredentials = "nexus"
         registry = "192.168.33.10:8083"
-        SONAR_SCANNER_OPTS = "-Xmx2g" // Increase memory for SonarQube
+        //SONAR_SCANNER_OPTS = "-Xmx2g" // Increase memory for SonarQube
     }
     
     stages {
@@ -49,18 +49,15 @@ pipeline {
         }
 
         stage('SonarQube Analysis') {
-            steps {
-                script {
-                    def scannerHome = tool 'scanner'
-                    withSonarQubeEnv {
-                        sh "${scannerHome}/bin/sonar-scanner -X" // Added -X for debug output
-                    }
-                }
-            }
-            options {
-                timeout(time: 15, unit: 'MINUTES')
-            }
-        }
+steps{
+script {
+def scannerHome = tool 'scanner'
+withSonarQubeEnv {
+sh "${scannerHome}/bin/sonar-scanner"
+}
+}
+}
+}
         
         stage('Build Client') {
             steps {
