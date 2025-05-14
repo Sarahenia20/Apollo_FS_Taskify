@@ -12,12 +12,10 @@ pipeline {
     stages {
 
         
-
-        stage('Install Client Dependencies') {
+       stage('Install Client Dependencies') {
             steps {
                 script {
                     dir('client') {
-                        sh 'rm -rf node_modules package-lock.json'
                         sh 'npm install'
                     }
                 }
